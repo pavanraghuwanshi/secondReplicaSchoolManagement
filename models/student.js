@@ -65,6 +65,10 @@ const studentSchema = new mongoose.Schema({
     enum: ['female', 'male'], 
     required: true
   },
+  name:{
+    type:String,
+    required: true,
+  },
   uniqueId: {
     type: String,
     unique: true,
