@@ -41,8 +41,18 @@ const studentSchema = new mongoose.Schema({
     required: true,
   },
   dateOfBirth: {
-    type: Date,
-    required: true,  
+    day: {
+      type: Number,
+      required: true,
+    },
+    month: {
+      type: Number,
+      required: true,
+    },
+    year: {
+      type: Number,
+      required: true,
+    },
   },
   childAge: {
     type: Number,
