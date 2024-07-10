@@ -21,7 +21,7 @@ const studentSchema = new mongoose.Schema({
     unique: true,
   },
   class: {
-    type: String,
+    type:Number,
     required: true,
   }, 
   rollno: {
@@ -40,8 +40,12 @@ const studentSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  dateOfBirth: {
+    type: Date,
+    required: true,  
+  },
   childAge: {
-    type: String,
+    type: Number,
     required: true,
   },
   password: {
