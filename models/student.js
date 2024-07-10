@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 
 const studentSchema = new mongoose.Schema({
-  studentName: {
+  childName: {
     type: String,
     required: true,
   },
@@ -32,15 +32,15 @@ const studentSchema = new mongoose.Schema({
     type: String,
     required: true,
   }, 
-  schoolname: {
+  schoolName: {
     type: String,
     required: true,
   }, 
-  mobile: {
+  phone: {
     type: Number,
     required: true,
   },
-  Studentage: {
+  childAge: {
     type: String,
     required: true,
   },

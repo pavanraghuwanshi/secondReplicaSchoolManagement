@@ -1,37 +1,44 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const Student = require("../models/student"); // Adjust the path as necessary
-const { generateToken } = require("../jwt"); // Adjust the path as necessary
+const Student = require("../models/student");
+const { generateToken } = require("../jwt");
 
 const router = express.Router();
 
 // Registration route
-  router.post('/register', async (req, res) => {
-    try {
-      const data = req.body;
-      const { email } = data;
-      const existingStudent = await Student.findOne({ email });
-      if (existingStudent) {
-        return res.status(400).json({ error: 'Email already exists' });
-      }
-      const newStudent = new Student(data);
-      const response = await newStudent.save();
-      console.log('data saved');
+router.post('/register', async (req, res) => {
+  try {
+    const data = req.body;
+    const { email } = data;
 
-      const payload = {
-        id: response.id,
-        username: response.email,
-      };
+    console.log('Received registration data:', data);
 
-      console.log(JSON.stringify(payload));
-      const token = generateToken(payload);
-      console.log('Token is:', token);
-      res.status(201).json({ response, token });
-    } catch (error) {
-      console.log(error);
-      res.status(500).json({ error: 'Internal server error' });
+    const existingStudent = await Student.findOne({ email });
+    if (existingStudent) {
+      console.log('Email already exists');
+      return res.status(400).json({ error: 'Email already exists' });
     }
-  });
+
+    const newStudent = new Student(data);
+    const response = await newStudent.save();
+    console.log('Data saved:', response);
+
+    const payload = {
+      id: response.id,
+      username: response.email,
+    };
+
+    console.log('JWT payload:', JSON.stringify(payload));
+    const token = generateToken(payload);
+    console.log('Generated token:', token);
+
+    res.status(201).json({ response, token });
+  } catch (error) {
+    console.error('Error during registration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Login route
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -50,9 +57,8 @@ router.post("/login", async (req, res) => {
       message: "Login successful",
       token: token
     });
-    
   } catch (err) {
-    console.error(err);
+    console.error('Error during login:', err);
     res.status(500).json({ error: "Server error" });
   }
 });
