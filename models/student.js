@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+// const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 
 const studentSchema = new mongoose.Schema({
@@ -41,11 +41,7 @@ const studentSchema = new mongoose.Schema({
     required: true,
   },
   dateOfBirth: {
-    type: {
-      date: Number,
-      month: Number,
-      year: Number,
-    },
+    type: String,
     required: true,
   },
   childAge: {
@@ -65,13 +61,6 @@ const studentSchema = new mongoose.Schema({
     enum: ['female', 'male'], 
     required: true
   },
-  uniqueId: {
-    type: String,
-    unique: true,
-    default: function() {
-      return uuidv4();
-    }
-  }
 });
 
 studentSchema.pre('save', async function (next) {

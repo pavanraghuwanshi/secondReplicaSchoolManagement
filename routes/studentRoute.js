@@ -9,8 +9,7 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     const data = req.body;
-    const { email } = data;
-
+    const { email } = data;    
     console.log('Received registration data:', data);
 
     const existingStudent = await Student.findOne({ email });
