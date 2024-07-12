@@ -15,8 +15,8 @@ const jwtAuthMiddleware = (req, res, next) => {
   }
 };
 
-const generateToken = (studentData) => {
-  return jwt.sign(studentData, process.env.JWT_SECRET);
+const generateToken = (childData) => {
+  return jwt.sign(childData, process.env.JWT_SECRET);
 };
 
 module.exports = { jwtAuthMiddleware, generateToken };

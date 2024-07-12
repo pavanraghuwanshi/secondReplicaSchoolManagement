@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const leaveRequestSchema = new mongoose.Schema({
-  studentId: {
+  childId: {
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Student',
+    ref: 'child',
     required: true
   },
   startDate: {

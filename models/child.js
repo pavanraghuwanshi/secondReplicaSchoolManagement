@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 // const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 
-const studentSchema = new mongoose.Schema({
+const childSchema = new mongoose.Schema({
   childName: {
     type: String,
     required: true,
@@ -21,11 +21,11 @@ const studentSchema = new mongoose.Schema({
     unique: true,
   },
   class: {
-    type:Number,
+    type:String,
     required: true,
   }, 
   rollno: {
-    type: Number,
+    type:String,
     required: true,
   },
   section: {
@@ -37,7 +37,7 @@ const studentSchema = new mongoose.Schema({
     required: true,
   }, 
   phone: {
-    type: Number,
+   type:Number,
     required: true,
   },
   dateOfBirth: {
@@ -59,20 +59,20 @@ const studentSchema = new mongoose.Schema({
   },
 });
 
-studentSchema.pre('save', async function (next) {
-  const student = this;
-  if (!student.isModified('password')) return next();
+childSchema.pre('save', async function (next) {
+  const child = this;
+  if (!child.isModified('password')) return next();
   try {
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(student.password, salt);
-    student.password = hashedPassword;
+    const hashedPassword = await bcrypt.hash(child.password, salt);
+    child.password = hashedPassword;
     next();
   } catch (err) {
     return next(err);
   }
 });
 
-studentSchema.methods.comparePassword = async function (password) {
+childSchema.methods.comparePassword = async function (password) {
   try {
     const isMatch = await bcrypt.compare(password, this.password);
     return isMatch;
@@ -81,5 +81,5 @@ studentSchema.methods.comparePassword = async function (password) {
   }
 };
 
-const Student = mongoose.model('Student', studentSchema);
-module.exports = Student;
+const Child = mongoose.model('childData', childSchema);
+module.exports = Child;

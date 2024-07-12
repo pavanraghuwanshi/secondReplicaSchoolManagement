@@ -1,6 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const Student = require("../models/student");
+const Child = require("../models/child");
 const { generateToken,jwtAuthMiddleware } = require("../jwt");
 
 const router = express.Router();
@@ -12,14 +12,14 @@ router.post('/register', async (req, res) => {
     const { email } = data;    
     console.log('Received registration data:', data);
 
-    const existingStudent = await Student.findOne({ email });
-    if (existingStudent) {
+    const existingchild = await Child.findOne({ email });
+    if (existingchild) {
       console.log('Email already exists');
       return res.status(400).json({ error: 'Email already exists' });
     }
 
-    const newStudent = new Student(data);
-    const response = await newStudent.save();
+    const newchild = new Child(data);
+    const response = await newchild.save();
     console.log('Data saved:', response);
 
     const payload = {
@@ -42,15 +42,15 @@ router.post('/register', async (req, res) => {
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
-    const student = await Student.findOne({ email });
-    if (!student) {
+    const child = await Child.findOne({ email });
+    if (!child) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
-    const isMatch = await student.comparePassword(password);
+    const isMatch = await child.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
-    const token = generateToken({ id: student._id, email: student.email });
+    const token = generateToken({ id: child._id, email: child.email });
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -63,12 +63,12 @@ router.post("/login", async (req, res) => {
 });
 
 // Profile route
-router.get('/getStudentdata', jwtAuthMiddleware, async (req, res) => {
+router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try{
-      const studentData = req.user;
-      const studentId = studentData.id;
-      const student = await Student.findById(studentId);
-      res.status(200).json({student});
+      const childData = req.user;
+      const childId = childData.id;
+      const child = await Child.findById(childId);
+      res.status(200).json({child});
   }catch(err){
       console.error(err);
       res.status(500).json({ error: 'Internal Server Error' });

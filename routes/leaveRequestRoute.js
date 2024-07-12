@@ -1,18 +1,17 @@
-const express = require('express');
-const LeaveRequest = require('../models/leaveRequest');
-const Student = require('../models/student');
-const { jwtAuthMiddleware } = require('../jwt');  // Middleware to verify JWT token
+const express = require("express");
+const LeaveRequest = require("../models/leaveRequest");
+const {jwtAuthMiddleware } = require('../jwt');
 
 const router = express.Router();
 
-// Middleware to check if the user is authenticated
 router.use(jwtAuthMiddleware);
-
 // Create a leave request
+
+
 router.post('/request-leave', async (req, res) => {
   try {
     const { childName, startDate, endDate, reason } = req.body;
-    const studentId = req.user.id;  // Extracted from JWT token
+    const childId = req.user.id;  // Extracted from JWT token
 
     if (!childName || !startDate || !endDate || !reason) {
       return res.status(400).json({ error: 'Child name, start date, end date, and reason are required' });
@@ -20,7 +19,7 @@ router.post('/request-leave', async (req, res) => {
 
     // Create a new leave request
     const leaveRequest = new LeaveRequest({
-      studentId,  // Link the leave request to the student
+      childId,  
       childName,
       startDate,
       endDate,
