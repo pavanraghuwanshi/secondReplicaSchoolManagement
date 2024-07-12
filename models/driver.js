@@ -22,7 +22,7 @@ const driverSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  Route: {
+  route: {
     type: String,
     required: true,
   },

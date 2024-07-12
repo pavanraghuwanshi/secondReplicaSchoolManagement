@@ -52,10 +52,6 @@ const studentSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  pickupPoint: {
-    type: String,
-    required: true,
-  },
   gender: {
     type: String,
     enum: ['female', 'male'], 
