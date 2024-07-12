@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const Student = require("../models/student");
-const { generateToken } = require("../jwt");
+const { generateToken,jwtAuthMiddleware } = require("../jwt");
 
 const router = express.Router();
 
@@ -61,5 +61,19 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+// Profile route
+router.get('/getStudentdata', jwtAuthMiddleware, async (req, res) => {
+  try{
+      const studentData = req.user;
+      const studentId = studentData.id;
+      const student = await Student.findById(studentId);
+      res.status(200).json({student});
+  }catch(err){
+      console.error(err);
+      res.status(500).json({ error: 'Internal Server Error' });
+  }
+})
+
 
 module.exports = router;
