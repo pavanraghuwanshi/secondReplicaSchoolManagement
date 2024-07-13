@@ -2,12 +2,13 @@ const express = require('express');
 const app = express();
 require('dotenv').config();
 const bodyParser = require('body-parser');
-
+const cors = require('cors');
 
 // Initialize the database connection
 const db = require('./db/db');
 
-// Middleware to parse JSON bodies
+// Middleware
+app.use(cors());
 app.use(bodyParser.json());
 
 // Define the port to use
