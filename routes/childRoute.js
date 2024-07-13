@@ -5,21 +5,29 @@ const { generateToken,jwtAuthMiddleware } = require("../jwt");
 
 const router = express.Router();
 
+// Utility function to convert date to 'dd-mm-yyyy' format
+const formatDateToDDMMYYYY = (dateStr) => {
+  const [year, month, day] = dateStr.split('-');
+  return `${day}-${month}-${year}`;
+};
+
 // Registration route
 router.post('/register', async (req, res) => {
   try {
     const data = req.body;
-    const { email } = data;    
-    console.log('Received registration data:', data);
+    const { email, dateOfBirth } = data;
 
-    const existingchild = await Child.findOne({ email });
-    if (existingchild) {
+    console.log('Received registration data:', data);
+    if (dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+      data.dateOfBirth = formatDateToDDMMYYYY(dateOfBirth);
+    }
+    const existingChild = await Child.findOne({ email });
+    if (existingChild) {
       console.log('Email already exists');
       return res.status(400).json({ error: 'Email already exists' });
     }
-
-    const newchild = new Child(data);
-    const response = await newchild.save();
+    const newChild = new Child(data);
+    const response = await newChild.save();
     console.log('Data saved:', response);
 
     const payload = {
@@ -37,7 +45,6 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Login route
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;

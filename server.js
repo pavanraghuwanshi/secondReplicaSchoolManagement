@@ -10,8 +10,6 @@ const db = require('./db/db');
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
 
-
-
 // Define the port to use
 const PORT = process.env.PORT || 3000;
 
