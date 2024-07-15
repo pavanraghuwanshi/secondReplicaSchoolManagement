@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const Child = require('../models/child');
 const { generateToken, jwtAuthMiddleware } = require('../jwt');
 
@@ -12,9 +13,15 @@ const formatDateToDDMMYYYY = (dateStr) => {
   return `${day}-${month}-${year}`;
 };
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
@@ -35,7 +42,7 @@ router.post('/register', upload.single('profileImageUrl'), async (req, res) => {
       data.dateOfBirth = formatDateToDDMMYYYY(dateOfBirth);
     }
     if (file) {
-      data.profileImageUrl = `${req.protocol}://${req.get('host')}/${file.path}`;
+      data.profileImageUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
     }
 
     const existingChild = await Child.findOne({ email });
@@ -64,26 +71,26 @@ router.post('/register', upload.single('profileImageUrl'), async (req, res) => {
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const child = await Child.findOne({ email });
     if (!child) {
-      return res.status(400).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: 'Invalid email or password' });
     }
     const isMatch = await child.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: 'Invalid email or password' });
     }
     const token = generateToken({ id: child._id, email: child.email });
     res.status(200).json({
       success: true,
-      message: "Login successful",
+      message: 'Login successful',
       token: token
     });
   } catch (err) {
     console.error('Error during login:', err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
