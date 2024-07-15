@@ -1,9 +1,9 @@
+// routes/conductor.js
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const Conductor = require("../models/conductor");
-const { generateToken } = require("../jwt");
-const LeaveRequest = require('../models/leaveRequest')
+const { generateToken} = require("../jwt");
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -63,18 +63,4 @@ router.post("/login", async (req, res) => {
   }
 });
 
-
-// Route to get leave requests for conductors
-router.get('/leave-requests', async (req, res) => {
-  try {
-    const leaveRequests = await LeaveRequest.find().populate('childId', 'childName');  
-    res.status(200).json({
-      success: true,
-      leaveRequests
-    });
-  } catch (error) {
-    console.error('Error fetching leave requests:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 module.exports = router;

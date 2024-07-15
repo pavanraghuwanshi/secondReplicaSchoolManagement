@@ -1,5 +1,5 @@
+// models/child.js
 const mongoose = require('mongoose');
-// const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 
 const childSchema = new mongoose.Schema({
@@ -7,11 +7,7 @@ const childSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  motherName: {
-    type: String,
-    required: true,
-  },
-  fatherName: {
+  parentName: {
     type: String,
     required: true,
   },
@@ -21,23 +17,23 @@ const childSchema = new mongoose.Schema({
     unique: true,
   },
   class: {
-    type:String,
+    type: String,
     required: true,
-  }, 
+  },
   rollno: {
-    type:String,
+    type: String,
     required: true,
   },
   section: {
     type: String,
     required: true,
-  }, 
+  },
   schoolName: {
     type: String,
     required: true,
-  }, 
+  },
   phone: {
-   type:Number,
+    type: Number,
     required: true,
   },
   dateOfBirth: {
@@ -54,9 +50,16 @@ const childSchema = new mongoose.Schema({
   },
   gender: {
     type: String,
-    enum: ['female', 'male'], 
+    enum: ['female', 'male'],
     required: true
   },
+  profileImageUrl:{
+    type:String,
+    required:true
+  },
+  homeAddress:{
+    type:String
+  }
 });
 
 childSchema.pre('save', async function (next) {
@@ -81,5 +84,5 @@ childSchema.methods.comparePassword = async function (password) {
   }
 };
 
-const Child = mongoose.model('childData', childSchema);
+const Child = mongoose.model('Child', childSchema);
 module.exports = Child;
