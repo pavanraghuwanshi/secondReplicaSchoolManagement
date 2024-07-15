@@ -13,37 +13,18 @@ const formatDateToDDMMYYYY = (dateStr) => {
   return `${day}-${month}-${year}`;
 };
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}${ext}`);
-  }
-});
-
-const upload = multer({ storage: storage });
-
-router.post('/register', upload.single('profileImageUrl'), async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const data = req.body;
     const { email, dateOfBirth } = data;
-    const { file } = req;
+
 
     console.log('Received registration data:', data);
     if (dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
       data.dateOfBirth = formatDateToDDMMYYYY(dateOfBirth);
     }
-    if (file) {
-      data.profileImageUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
-    }
+
 
     const existingChild = await Child.findOne({ email });
     if (existingChild) {
@@ -93,8 +74,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
-
 
 router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {

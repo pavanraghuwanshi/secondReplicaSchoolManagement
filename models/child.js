@@ -53,10 +53,6 @@ const childSchema = new mongoose.Schema({
     enum: ['female', 'male'],
     required: true
   },
-  profileImageUrl:{
-    type:String,
-    required:true
-  },
   homeAddress:{
     type:String
   }
