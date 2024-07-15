@@ -14,7 +14,7 @@ const formatDateToDDMMYYYY = (dateStr) => {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Make sure this directory exists
+    cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
@@ -34,8 +34,6 @@ router.post('/register', upload.single('profileImageUrl'), async (req, res) => {
     if (dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
       data.dateOfBirth = formatDateToDDMMYYYY(dateOfBirth);
     }
-
-    // Construct the full HTTP URL for the profile image
     if (file) {
       data.profileImageUrl = `${req.protocol}://${req.get('host')}/${file.path}`;
     }
@@ -93,12 +91,21 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {
     const childData = req.user;
     const childId = childData.id;
-    const child = await Child.findById(childId);
+    const child = await Child.findById(childId).lean(); 
+    
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found' });
+    }
+    if (child.profileImageUrl) {
+      child.profileImageUrl = `${req.protocol}://${req.get('host')}/${child.profileImageUrl}`;
+    }
+
     res.status(200).json({ child });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 module.exports = router;
