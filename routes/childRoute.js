@@ -107,5 +107,21 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   }
 });
 
+// Get all children
+router.get('/getAllChildren', async (req, res) => {
+  try {
+    const allChildren = await Child.find().lean();
+    allChildren.forEach(child => {
+      if (child.profileImageUrl) {
+        child.profileImageUrl = `${req.protocol}://${req.get('host')}/${child.profileImageUrl}`;
+      }
+    });
+
+    res.status(200).json({ children: allChildren });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 module.exports = router;
