@@ -94,6 +94,8 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
+
 router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {
     const childData = req.user;
