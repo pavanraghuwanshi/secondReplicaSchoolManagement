@@ -51,8 +51,7 @@ const childSchema = new mongoose.Schema({
     type: String,
     enum: ['female', 'male'],
     required: true
-  },
-
+  }
 });
 
 childSchema.pre('save', async function (next) {
