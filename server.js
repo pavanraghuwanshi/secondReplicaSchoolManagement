@@ -3,13 +3,14 @@ const app = express();
 require("dotenv").config();
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const path = require('path');
 
 // Initialize the database connection
 const db = require("./db/db");
 
 // Middleware
 app.use(cors());
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 
 // Define the port to use

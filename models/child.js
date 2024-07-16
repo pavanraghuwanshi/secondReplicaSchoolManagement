@@ -53,9 +53,6 @@ const childSchema = new mongoose.Schema({
     enum: ['female', 'male'],
     required: true
   },
-  homeAddress:{
-    type:String
-  }
 });
 
 childSchema.pre('save', async function (next) {
