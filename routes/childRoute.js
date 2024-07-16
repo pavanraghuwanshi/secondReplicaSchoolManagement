@@ -2,7 +2,6 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const Child = require("../models/child");
 const { generateToken,jwtAuthMiddleware } = require("../jwt");
-
 const router = express.Router();
 
 // Utility function to convert date to 'dd-mm-yyyy' format
@@ -32,7 +31,7 @@ router.post('/register', async (req, res) => {
 
     const payload = {
       id: response.id,
-      username: response.email,
+      email: response.email,
     };
 
     console.log('JWT payload:', JSON.stringify(payload));

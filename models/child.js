@@ -8,8 +8,7 @@ const childSchema = new mongoose.Schema({
     required: true,
   },
   parentName: {
-    type: String,
-    required: true,
+    type: String
   },
   email: {
     type: String,
@@ -53,6 +52,7 @@ const childSchema = new mongoose.Schema({
     enum: ['female', 'male'],
     required: true
   },
+
 });
 
 childSchema.pre('save', async function (next) {

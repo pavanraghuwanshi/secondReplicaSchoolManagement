@@ -24,7 +24,7 @@ router.post("/register", async (req, res) => {
 
     const payload = {
       id: response.id,
-      username: response.email,
+      email: response.email,
     };
 
     console.log("JWT payload:", JSON.stringify(payload));
