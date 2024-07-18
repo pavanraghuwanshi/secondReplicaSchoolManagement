@@ -33,11 +33,26 @@ const childSchema = new mongoose.Schema({
     type: String,
     enum: ['female', 'male'],
     required: true
+
   },
   parentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Parent',
     required: true,
+
+  }
+});
+
+childSchema.pre('save', async function (next) {
+  const child = this;
+  if (!child.isModified('password')) return next();
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(child.password, salt);
+    child.password = hashedPassword;
+    next();
+  } catch (err) {
+    return next(err);
   }
 });
 
