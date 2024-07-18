@@ -10,7 +10,6 @@ const db = require("./db/db");
 
 // Middleware
 app.use(cors());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 
 // Define the port to use
@@ -18,12 +17,12 @@ const PORT = process.env.PORT || 3000;
 
 const childRoutes = require("./routes/childRoute");
 const driverRoutes = require("./routes/driverRoute");
-const conductorRoutes = require("./routes/conductorRoute");
+const superVisorRoutes = require("./routes/superVisorRoute");
 
 app.use("/parent", childRoutes);
 app.use("/driver", driverRoutes);
+app.use("/superVisor", superVisorRoutes);
 
-app.use("/conductor", conductorRoutes);
 
 // Start the server
 app.listen(PORT, () => {

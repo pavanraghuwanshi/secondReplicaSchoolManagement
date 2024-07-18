@@ -1,62 +1,72 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
+const Parent = require("../models/parent");
 const Child = require("../models/child");
-const { generateToken,jwtAuthMiddleware } = require("../jwt");
+const { generateToken, jwtAuthMiddleware } = require("../jwt");
 const router = express.Router();
 
-// Utility function to convert date to 'dd-mm-yyyy' format
-const formatDateToDDMMYYYY = (dateStr) => {
-  const [year, month, day] = dateStr.split('-');
-  return `${day}-${month}-${year}`;
-};
-
-// Registration route
+// Parent Registration Route
 router.post('/register', async (req, res) => {
   try {
-    const data = req.body;
-    const { email, dateOfBirth } = data;
+    const { parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender } = req.body;
 
-    console.log('Received registration data:', data);
-    if (dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
-      data.dateOfBirth = formatDateToDDMMYYYY(dateOfBirth);
+    // Check if parent email already exists
+    const existingParent = await Parent.findOne({ email });
+    if (existingParent) {
+      return res.status(400).json({ error: 'Parent email already exists' });
     }
-    const existingChild = await Child.findOne({ email });
-    if (existingChild) {
-      console.log('Email already exists');
-      return res.status(400).json({ error: 'Email already exists' });
-    }
-    const newChild = new Child(data);
-    const response = await newChild.save();
-    console.log('Data saved:', response);
 
-    const payload = {
-      id: response.id,
-      email: response.email,
-    };
+    // Create new parent
+    const newParent = new Parent({ parentName, email, password, phone });
+    await newParent.save();
 
-    console.log('JWT payload:', JSON.stringify(payload));
+    // Create new child
+    const newChild = new Child({
+      childName,
+      parentName,
+      email, // Same email as parent for simplicity
+      class: childClass,
+      rollno,
+      section,
+      schoolName,
+      dateOfBirth,
+      childAge,
+      gender,
+      parentId: newParent._id
+    });
+
+    await newChild.save();
+
+    // Add the child to the parent’s children list
+    newParent.children.push(newChild._id);
+    await newParent.save();
+
+    // Generate JWT token for the parent
+    const payload = { id: newParent._id, email: newParent.email };
     const token = generateToken(payload);
-    console.log('Generated token:', token);
 
-    res.status(201).json({ response, token });
+    res.status(201).json({ parent: newParent, child: newChild, token });
   } catch (error) {
     console.error('Error during registration:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Login route
-router.post("/login", async (req, res) => {
+// Parent Login Route
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const child = await Child.findOne({ email });
-    if (!child) {
+    const parent = await Parent.findOne({ email });
+    if (!parent) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
-    const isMatch = await child.comparePassword(password);
+
+    const isMatch = await parent.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
-    const token = generateToken({ id: child._id, email: child.email });
+
+    // Generate JWT token for the parent
+    const token = generateToken({ id: parent._id, email: parent.email });
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -67,19 +77,84 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+// Add Child Route
+router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
+  try {
+    const { childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender } = req.body;
 
-// Profile route
-router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
-  try{
-      const childData = req.user;
-      const childId = childData.id;
-      const child = await Child.findById(childId);
-      res.status(200).json({child});
-  }catch(err){
-      console.error(err);
-      res.status(500).json({ error: 'Internal Server Error' });
+    // Extract parentId from the JWT token payload
+    const parentId = req.user.id;
+
+    // Create new child with the parentId
+    const newChild = new Child({
+      childName,
+      class: childClass,
+      rollno,
+      section,
+      schoolName,
+      dateOfBirth,
+      childAge,
+      gender,
+      parentId 
+    });
+
+    await newChild.save();
+
+    // Add child to the parent’s children list
+    await Parent.findByIdAndUpdate(parentId, { $push: { children: newChild._id } });
+
+    res.status(201).json({ child: newChild });
+
+  } catch (error) {
+    console.error('Error during adding child:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-})
+});
+// Get Children List Route
+router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
+  try {
+    // Extract parentId from the JWT token payload
+    const parentId = req.user.id;
 
+    // Find the parent and populate the children field
+    const parent = await Parent.findById(parentId).populate('children');
 
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    res.status(200).json({ children: parent.children });
+  } catch (error) {
+    console.error('Error fetching children:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update Child Route
+router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
+  try {
+    const { childId } = req.params;
+    const { childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender } = req.body;
+    const parentId = req.user.id;
+    const child = await Child.findOne({ _id: childId, parentId });
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found or does not belong to the authenticated parent' });
+    }
+    child.childName = childName || child.childName;
+    child.class = childClass || child.class;
+    child.rollno = rollno || child.rollno;
+    child.section = section || child.section;
+    child.schoolName = schoolName || child.schoolName;
+    child.dateOfBirth = dateOfBirth || child.dateOfBirth;
+    child.childAge = childAge || child.childAge;
+    child.gender = gender || child.gender;
+
+    await child.save();
+
+    res.status(200).json({ child });
+  } catch (error) {
+    console.error('Error during updating child:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 module.exports = router;

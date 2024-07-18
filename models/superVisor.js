@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 const bcrypt = require('bcrypt');
 
-const conductorSchema = new mongoose.Schema({
-  conductorName: {
+const superVisorSchema = new mongoose.Schema({
+  superVisorName: {
     type: String,
     required: true,
   },
@@ -22,25 +22,25 @@ const conductorSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  conductorId:{
+  superVisorId:{
     type: String,
     required: true,
   }
 });
-conductorSchema.pre('save', async function (next) {
-  const conductor = this;
-  if (!conductor.isModified('password')) return next();
+superVisorSchema.pre('save', async function (next) {
+  const superVisor = this;
+  if (!superVisor.isModified('password')) return next();
   try {
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(conductor.password, salt);
-    conductor.password = hashedPassword;
+    const hashedPassword = await bcrypt.hash(superVisor.password, salt);
+    superVisor.password = hashedPassword;
     next();
   } catch (err) {
     return next(err);
   }
 });
 
-conductorSchema.methods.comparePassword = async function (password) {
+superVisorSchema.methods.comparePassword = async function (password) {
   try {
     const isMatch = await bcrypt.compare(password, this.password);
     return isMatch;
@@ -49,5 +49,5 @@ conductorSchema.methods.comparePassword = async function (password) {
   }
 };
 
-const Driver = mongoose.model("conductorData", conductorSchema);
+const Driver = mongoose.model("superVisorData", superVisorSchema);
 module.exports = Driver;

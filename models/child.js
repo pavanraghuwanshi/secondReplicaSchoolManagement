@@ -1,19 +1,9 @@
-// models/child.js
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
 
 const childSchema = new mongoose.Schema({
   childName: {
     type: String,
     required: true,
-  },
-  parentName: {
-    type: String
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
   },
   class: {
     type: String,
@@ -29,53 +19,27 @@ const childSchema = new mongoose.Schema({
   },
   schoolName: {
     type: String,
-    required: true,
-  },
-  phone: {
-    type: Number,
-    required: true,
+    required: true
   },
   dateOfBirth: {
     type: String,
-    required: true,
+    required: true
   },
   childAge: {
     type: Number,
-    required: true,
-  },
-  password: {
-    type: String,
-    required: true,
+    required: true
   },
   gender: {
     type: String,
     enum: ['female', 'male'],
     required: true
   },
-
-});
-
-childSchema.pre('save', async function (next) {
-  const child = this;
-  if (!child.isModified('password')) return next();
-  try {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(child.password, salt);
-    child.password = hashedPassword;
-    next();
-  } catch (err) {
-    return next(err);
+  parentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Parent',
+    required: true,
   }
 });
-
-childSchema.methods.comparePassword = async function (password) {
-  try {
-    const isMatch = await bcrypt.compare(password, this.password);
-    return isMatch;
-  } catch (err) {
-    throw err;
-  }
-};
 
 const Child = mongoose.model('Child', childSchema);
 module.exports = Child;
