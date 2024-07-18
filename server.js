@@ -18,11 +18,12 @@ const PORT = process.env.PORT || 3000;
 const childRoutes = require("./routes/childRoute");
 const driverRoutes = require("./routes/driverRoute");
 const superVisorRoutes = require("./routes/superVisorRoute");
+const requestRoutes = require('./routes/requestRoute');
 
 app.use("/parent", childRoutes);
 app.use("/driver", driverRoutes);
 app.use("/superVisor", superVisorRoutes);
-
+app.use('/request',requestRoutes)
 
 // Start the server
 app.listen(PORT, () => {

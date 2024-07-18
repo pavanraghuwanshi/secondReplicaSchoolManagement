@@ -129,7 +129,6 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Update Child Route
 router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
   try {
@@ -154,6 +153,39 @@ router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
     res.status(200).json({ child });
   } catch (error) {
     console.error('Error during updating child:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// Update parent Route
+router.put("/update-parent/:parentId",jwtAuthMiddleware,async(req,res)=>{
+  try {
+    const { parentId } = req.params;
+    const { parentName, email, phone} = req.body;
+    const parent = await Parent.findOne({ _id:parentId });
+    if (!parent) {
+      return res.status(404).json({ error: 'incorrect token' });
+    }
+    parent.parentName = parentName || parent.parentName;
+    parent.email = email || parent.email;
+    parent.phone = phone || parent.phone;
+    await parent.save();
+    res.status(200).json({ parent});
+  } catch (error) {
+    console.error('Error during updating child:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+})
+// get requests
+router.get('/requests', jwtAuthMiddleware, async (req, res) => {
+  try {
+    const parentId = req.user.id;  // Extract parentId from the JWT token payload
+
+    // Find all requests for the parent’s children
+    const requests = await Request.find({ parentId }).populate('childId');
+
+    res.status(200).json({ requests });
+  } catch (error) {
+    console.error('Error fetching requests:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
