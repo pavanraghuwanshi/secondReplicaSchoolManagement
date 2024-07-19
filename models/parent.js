@@ -21,7 +21,9 @@ const parentSchema = new mongoose.Schema({
   children: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Child'
-  }]
+  }],
+  resetToken: String,
+  resetTokenExpires: Date,
 });
 parentSchema.pre('save', async function (next) {
   const parent = this;

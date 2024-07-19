@@ -4,6 +4,7 @@ const Parent = require("../models/parent");
 const Child = require("../models/child");
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
 const router = express.Router();
+require('dotenv').config();
 
 // Parent Registration Route
 router.post('/register', async (req, res) => {
@@ -24,7 +25,7 @@ router.post('/register', async (req, res) => {
     const newChild = new Child({
       childName,
       parentName,
-      email, // Same email as parent for simplicity
+      email,
       class: childClass,
       rollno,
       section,
@@ -113,22 +114,34 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
 // Get Children List Route
 router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {
-    // Extract parentId from the JWT token payload
     const parentId = req.user.id;
-
-    // Find the parent and populate the children field
     const parent = await Parent.findById(parentId).populate('children');
-
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found' });
     }
-
     res.status(200).json({ children: parent.children });
   } catch (error) {
     console.error('Error fetching children:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// Get Parent Data Route
+router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
+  try {
+    const parentId = req.user.id;
+    const parent = await Parent.findById(parentId).select('-password'); // Exclude password field
+
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    res.status(200).json({ parent });
+  } catch (error) {
+    console.error('Error fetching parent data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Update Child Route
 router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
   try {
