@@ -16,12 +16,9 @@ router.post('/register', async (req, res) => {
     if (existingParent) {
       return res.status(400).json({ error: 'Parent email already exists' });
     }
-
-    // Create new parent
     const newParent = new Parent({ parentName, email, password, phone });
     await newParent.save();
 
-    // Create new child
     const newChild = new Child({
       childName,
       parentName,
@@ -35,14 +32,9 @@ router.post('/register', async (req, res) => {
       gender,
       parentId: newParent._id
     });
-
     await newChild.save();
-
-    // Add the child to the parent’s children list
     newParent.children.push(newChild._id);
     await newParent.save();
-
-    // Generate JWT token for the parent
     const payload = { id: newParent._id, email: newParent.email };
     const token = generateToken(payload);
 
