@@ -7,11 +7,11 @@ const requestSchema = new mongoose.Schema({
     required: true,
   },
   startDate: {
-    type: String,
+    type: Date,
     required: function() { return this.requestType === 'leave' || this.requestType === 'pickup' || this.requestType === 'drop'; }
   },
   endDate: {
-    type: String,
+    type: Date,
     required: function() { return this.requestType === 'leave'; }
   },
   parentId: {
