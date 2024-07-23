@@ -7,10 +7,10 @@ const Child = require("../models/child");
 // Create Request Route
 router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
   try {
-    const { requestType, startDate, endDate, childId } = req.body;
+    const { requestType, startDate, endDate, childId, reason, isAbsent } = req.body;
     const parentId = req.user.id;
 
-    if (!['leave', 'pickup', 'drop'].includes(requestType)) {
+    if (!['leave', 'pickup', 'drop', 'absent'].includes(requestType)) {
       return res.status(400).json({ error: 'Invalid request type' });
     }
 
@@ -22,24 +22,39 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
       if (!startDate) {
         return res.status(400).json({ error: 'Date is required for pickup or drop requests' });
       }
+    } else if (requestType === 'absent') {
+      if (isAbsent === undefined) {
+        return res.status(400).json({ error: 'Boolean value is required for absent requests' });
+      }
     }
-
-    // Check if the child belongs to the parent
     const child = await Child.findOne({ _id: childId, parentId });
     if (!child) {
       return res.status(404).json({ error: 'Child not found or does not belong to the authenticated parent' });
     }
-
     const newRequest = new Request({
       requestType,
-      startDate,
+      startDate: requestType !== 'absent' ? startDate : null,
       endDate: requestType === 'leave' ? endDate : null,
       parentId,
-      childId
+      childId,
+      reason,
+      ...(requestType === 'absent' ? { isAbsent } : {})
     });
     
+
     await newRequest.save();
-    res.status(201).json({ request: newRequest });
+    res.status(201).json({
+      request: {
+        requestType: newRequest.requestType,
+        startDate: newRequest.startDate,
+        endDate: newRequest.endDate,
+        parentId: newRequest.parentId,
+        childId: newRequest.childId,
+        reason: newRequest.reason,
+        ...(newRequest.isAbsent !== undefined ? { isAbsent: newRequest.isAbsent } : {})
+      }
+    });
+    
   } catch (error) {
     console.error('Error creating request:', error);
     res.status(500).json({ error: 'Internal server error' });

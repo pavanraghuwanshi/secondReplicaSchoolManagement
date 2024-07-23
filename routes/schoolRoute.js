@@ -59,35 +59,31 @@ router.post('/login', async (req, res) => {
 // Get all children data
 router.get('/all-children', schoolAuthMiddleware, async (req, res) => {
   try {
-    const children = await Child.find({});
+    const children = await Child.find({}).populate('parentId', 'parentName email phone');
     res.status(200).json({ children });
   } catch (error) {
     console.error('Error fetching children:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.get('/getrequestdata', async (req, res) => {
+
+router.get('/getrequestdata', schoolAuthMiddleware, async (req, res) => {
   try {
-    // Find all requests
     const requests = await Request.find({})
       .populate({
         path: 'childId',
-        select: 'childName parentName',  // Adjust as needed
+        select: 'childName class rollno section parentId',
         populate: {
           path: 'parentId',
-          select: 'parentName'
+          select: 'parentName phone'
         }
-      })
-      .populate({
-        path: 'parentId',
-        select: 'parentName'  // Adjust as needed
       });
-
     res.status(200).json({ requests });
   } catch (error) {
     console.error('Error fetching request data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 module.exports = router;
