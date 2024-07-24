@@ -3,18 +3,26 @@ const router = express.Router();
 const Request = require("../models/request");
 const { jwtAuthMiddleware } = require("../jwt");
 const Child = require("../models/child");
-
 function formatDateToDDMMYYYY(date) {
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
   const year = date.getFullYear();
   return `${day}-${month}-${year}`;
 }
-router.post('/create-request/:childId', jwtAuthMiddleware, async (req, res) => {
+
+function parseDDMMYYYYToDate(dateString) {
+  const [day, month, year] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day); // Months are zero-based in JS Date
+}
+
+router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
   try {
-    const { requestType, startDate, endDate, reason, isAbsent } = req.body;
-    const { childId } = req.params;
+    const { requestType, startDate, endDate, reason, isAbsent, childId } = req.body;
     const parentId = req.user.id;
+
+    if (!childId) {
+      return res.status(400).json({ error: 'Child ID is required' });
+    }
 
     if (!['leave', 'pickup', 'drop', 'absent'].includes(requestType)) {
       return res.status(400).json({ error: 'Invalid request type' });
@@ -39,10 +47,13 @@ router.post('/create-request/:childId', jwtAuthMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Child not found or does not belong to the authenticated parent' });
     }
 
+    const parsedStartDate = parseDDMMYYYYToDate(startDate);
+    const parsedEndDate = endDate ? parseDDMMYYYYToDate(endDate) : null;
+
     const newRequest = new Request({
       requestType,
-      startDate: requestType !== 'absent' ? startDate : formatDateToDDMMYYYY(new Date()), // Assign today's date if absent
-      endDate: requestType === 'leave' ? endDate : null,
+      startDate: requestType !== 'absent' ? formatDateToDDMMYYYY(parsedStartDate) : formatDateToDDMMYYYY(new Date()), // Assign today's date if absent
+      endDate: requestType === 'leave' ? formatDateToDDMMYYYY(parsedEndDate) : null,
       parentId,
       childId,
       reason,
@@ -54,9 +65,8 @@ router.post('/create-request/:childId', jwtAuthMiddleware, async (req, res) => {
     // If the request is a leave request, mark the child as absent or present for the specified dates
     if (requestType === 'leave') {
       const absences = [];
-      let currentDate = new Date(startDate.split('-').reverse().join('-')); // Convert to yyyy-mm-dd
-      const endDateObj = new Date(endDate.split('-').reverse().join('-'));
-      while (currentDate <= endDateObj) {
+      let currentDate = parsedStartDate;
+      while (currentDate <= parsedEndDate) {
         absences.push({
           date: formatDateToDDMMYYYY(currentDate),
           isAbsent: true // true if the child is absent
@@ -79,12 +89,13 @@ router.post('/create-request/:childId', jwtAuthMiddleware, async (req, res) => {
         ...(newRequest.isAbsent !== undefined ? { isAbsent: newRequest.isAbsent } : {})
       }
     });
-    
+
   } catch (error) {
     console.error('Error creating request:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 

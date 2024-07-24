@@ -195,15 +195,9 @@ router.get('/requests', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// API to get all requests for a particular parent
-function formatDateToDDMMYYYY(date) {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-  const year = date.getFullYear();
-  return `${day}-${month}-${year}`;
-}
 
-// API to get all requests for a particular parent
+
+
 router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
@@ -234,14 +228,14 @@ router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
             childName: request.childId.childName,
             requestType: 'leave',
             reason: request.reason,
-            startDate: formatDateToDDMMYYYY(new Date(request.startDate)),
-            endDate: formatDateToDDMMYYYY(new Date(request.endDate))
+            startDate: request.startDate,
+            endDate: request.endDate
           };
         }
       } else {
         groupedRequests.push({
           childName: request.childId.childName,
-          date: formatDateToDDMMYYYY(new Date(request.startDate)),  // Assuming 'date' refers to the start date
+          date: request.startDate,  // Assuming 'date' refers to the start date
           requestType: request.requestType,
           reason: request.reason
         });
@@ -257,6 +251,5 @@ router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 module.exports = router;
