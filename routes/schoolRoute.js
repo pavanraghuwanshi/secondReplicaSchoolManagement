@@ -2,8 +2,9 @@ const express = require("express");
 const router = express.Router();
 const School = require('../models/school');
 const jwt = require('jsonwebtoken');
-const Child = require('../models/child');
+const Child = require('../models/child')
 const Request= require('../models/request');
+const Parent = require('../models/parent')
 const {schoolAuthMiddleware} = require('../jwt');
 
 // School Registration Route
@@ -27,7 +28,6 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // School Login Route
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
@@ -55,18 +55,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
-// Get all children data
-router.get('/all-children', schoolAuthMiddleware, async (req, res) => {
-  try {
-    const children = await Child.find({}).populate('parentId', 'parentName email phone');
-    res.status(200).json({ children });
-  } catch (error) {
-    console.error('Error fetching children:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 router.get('/getrequestdata', schoolAuthMiddleware, async (req, res) => {
   try {
     const requests = await Request.find({})
@@ -81,6 +69,69 @@ router.get('/getrequestdata', schoolAuthMiddleware, async (req, res) => {
     res.status(200).json({ requests });
   } catch (error) {
     console.error('Error fetching request data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get All Children Data Route
+// router.get('/all-children', schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const children = await Child.find({}).populate('parentId', 'parentName email phone');
+//     res.status(200).json({ children });
+//   } catch (error) {
+//     console.error('Error fetching children data:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
+// // Get All Parents Data Route
+// router.get('/all-parents', schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const parents = await Parent.find({}).populate('children', 'childName class');
+//     res.status(200).json({ parents });
+//   } catch (error) {
+//     console.error('Error fetching parents data:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
+
+router.get('/all-children', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const children = await Child.find({}).lean(); 
+    console.log('Raw children data:', JSON.stringify(children, null, 2));
+    
+    const transformedChildren = await Promise.all(children.map(async child => {
+      let parentData = {};
+      if (child.parentId) {
+        const parent = await Parent.findById(child.parentId).lean();
+        console.log('Parent data:', JSON.stringify(parent, null, 2)); 
+        
+        parentData = {
+          parentName: parent ? parent.parentName : null,
+          email: parent ? parent.email : null,
+          phone: parent ? parent.phone : null,
+          parentId: parent ? parent._id : null 
+        };
+      } else {
+        parentData = {
+          parentName: null,
+          email: null,
+          phone: null,
+          parentId: null 
+        };
+      }
+
+      return {
+        ...child,
+        ...parentData 
+      };
+    }));
+
+    console.log('Transformed children data:', JSON.stringify(transformedChildren, null, 2));
+    res.status(200).json({ children: transformedChildren });
+  } catch (error) {
+    console.error('Error fetching children:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
