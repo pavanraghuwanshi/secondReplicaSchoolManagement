@@ -55,47 +55,48 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+// get request data
 router.get('/getrequestdata', schoolAuthMiddleware, async (req, res) => {
   try {
     const requests = await Request.find({})
       .populate({
         path: 'childId',
-        select: 'childName class rollno section parentId',
+        select: 'childName class section parentId',
         populate: {
           path: 'parentId',
           select: 'parentName phone'
         }
-      });
-    res.status(200).json({ requests });
+      })
+      .lean(); // Use lean() to get plain JavaScript objects
+
+    const transformedRequests = requests.map(request => {
+      const child = request.childId || {};
+      const parent = child.parentId || {};
+
+      return {
+        _id: request._id,
+        childName: child.childName,
+        class: child.class,
+        section: child.section,
+        parentName: parent.parentName || null,
+        phone: parent.phone || null,
+        requestType: request.requestType || null,
+        reason: request.reason || null, // Ensure reason is included
+        date: request.date || null
+      };
+    });
+
+    console.log('Transformed request data:', JSON.stringify(transformedRequests, null, 2));
+    res.status(200).json({ requests: transformedRequests });
   } catch (error) {
     console.error('Error fetching request data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Get All Children Data Route
-// router.get('/all-children', schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     const children = await Child.find({}).populate('parentId', 'parentName email phone');
-//     res.status(200).json({ children });
-//   } catch (error) {
-//     console.error('Error fetching children data:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 
-// // Get All Parents Data Route
-// router.get('/all-parents', schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     const parents = await Parent.find({}).populate('children', 'childName class');
-//     res.status(200).json({ parents });
-//   } catch (error) {
-//     console.error('Error fetching parents data:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-
-
+// get children
 router.get('/all-children', schoolAuthMiddleware, async (req, res) => {
   try {
     const children = await Child.find({}).lean(); 
@@ -135,6 +136,5 @@ router.get('/all-children', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 module.exports = router;
