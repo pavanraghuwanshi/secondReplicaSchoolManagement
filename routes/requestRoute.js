@@ -4,7 +4,6 @@ const Request = require("../models/request");
 const { jwtAuthMiddleware } = require("../jwt");
 const Child = require("../models/child");
 
-// Create Request Route
 router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
   try {
     const { requestType, startDate, endDate, childId, reason, isAbsent } = req.body;
@@ -18,7 +17,7 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
       if (!startDate || !endDate) {
         return res.status(400).json({ error: 'Start date and end date are required for leave requests' });
       }
-    } else if (requestType === 'pickup' || requestType === 'drop') {
+    } else if (['pickup', 'drop'].includes(requestType)) {
       if (!startDate) {
         return res.status(400).json({ error: 'Date is required for pickup or drop requests' });
       }
@@ -27,10 +26,12 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'Boolean value is required for absent requests' });
       }
     }
+
     const child = await Child.findOne({ _id: childId, parentId });
     if (!child) {
       return res.status(404).json({ error: 'Child not found or does not belong to the authenticated parent' });
     }
+
     const newRequest = new Request({
       requestType,
       startDate: requestType !== 'absent' ? startDate : null,
@@ -40,9 +41,25 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
       reason,
       ...(requestType === 'absent' ? { isAbsent } : {})
     });
-    
 
     await newRequest.save();
+
+    // If the request is a leave request, mark the child as absent or present for the specified dates
+    if (requestType === 'leave') {
+      const absences = [];
+      let currentDate = new Date(startDate);
+      const endDateObj = new Date(endDate);
+      while (currentDate <= endDateObj) {
+        absences.push({
+          date: currentDate.toISOString().split('T')[0],
+          isAbsent: isAbsent // true if the child is absent, false if present
+        });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      newRequest.absences = absences;
+      await newRequest.save();
+    }
+
     res.status(201).json({
       request: {
         requestType: newRequest.requestType,
@@ -51,6 +68,7 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
         parentId: newRequest.parentId,
         childId: newRequest.childId,
         reason: newRequest.reason,
+        absences: newRequest.absences || [],
         ...(newRequest.isAbsent !== undefined ? { isAbsent: newRequest.isAbsent } : {})
       }
     });
@@ -60,4 +78,6 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 module.exports = router;

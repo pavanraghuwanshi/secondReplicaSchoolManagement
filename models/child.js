@@ -39,7 +39,6 @@ const childSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Parent',
     required: true,
-
   }
 });
 
