@@ -10,8 +10,6 @@ function formatDateToDDMMYYYY(date) {
   const year = date.getFullYear();
   return `${day}-${month}-${year}`;
 }
-
-
 router.post('/create-request/:childId', jwtAuthMiddleware, async (req, res) => {
   try {
     const { requestType, startDate, endDate, reason, isAbsent } = req.body;

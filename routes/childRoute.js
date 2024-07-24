@@ -195,4 +195,68 @@ router.get('/requests', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// API to get all requests for a particular parent
+function formatDateToDDMMYYYY(date) {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+// API to get all requests for a particular parent
+router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
+  try {
+    const parentId = req.user.id;
+
+    // Fetch the parent data along with their children
+    const parent = await Parent.findById(parentId).populate('children', '_id childName');
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    // Collect all child IDs
+    const childIds = parent.children.map(child => child._id);
+
+    // Fetch all requests for the children
+    const requests = await Request.find({ childId: { $in: childIds } })
+      .select('requestType startDate endDate reason childId')
+      .populate('childId', 'childName');
+
+    // Group the requests
+    const groupedRequests = [];
+    const leaveRequests = {};
+
+    requests.forEach(request => {
+      if (request.requestType === 'leave') {
+        const childId = request.childId._id;
+        if (!leaveRequests[childId]) {
+          leaveRequests[childId] = {
+            childName: request.childId.childName,
+            requestType: 'leave',
+            reason: request.reason,
+            startDate: formatDateToDDMMYYYY(new Date(request.startDate)),
+            endDate: formatDateToDDMMYYYY(new Date(request.endDate))
+          };
+        }
+      } else {
+        groupedRequests.push({
+          childName: request.childId.childName,
+          date: formatDateToDDMMYYYY(new Date(request.startDate)),  // Assuming 'date' refers to the start date
+          requestType: request.requestType,
+          reason: request.reason
+        });
+      }
+    });
+
+    // Add the grouped leave requests
+    Object.values(leaveRequests).forEach(leaveRequest => groupedRequests.push(leaveRequest));
+
+    res.status(200).json({ requests: groupedRequests });
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 module.exports = router;
