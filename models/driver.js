@@ -1,15 +1,7 @@
-  const mongoose = require("mongoose");
-  const bcrypt = require("bcrypt");
+const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 
-  const driverSchema = new mongoose.Schema({
-  driver_id: {
-    type: Number,
-    required: true,
-  },
-  profileImage: {
-    type: String,
-    required: true,
-  },
+const driverSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -22,40 +14,35 @@
     type: String,
     required: true,
   },
-  vehicleId: {
+  password: {
     type: String,
-    required: true,
+    required: true
   },
-  schoolId: {
+  email: {
     type: String,
     required: true,
+    unique: true,
   },
   aadhar: {
     type: String,
-    required: true,
   },
   aadharImage: {
     type: String,
-    required: true,
-  },
-  license: {
-    type: String,
-    required: true,
-  },
-  licenseImage: {
-    type: String,
-    required: true,
   },
   username: {
     type: String,
-    required: false,
   },
-  password: {
+  vehicleId: {
     type: String,
-    required: false,
   },
-  });
-  driverSchema.pre("save", async function (next) {
+  schoolId: {
+    type: String,
+  },
+  profileImage: {
+    type: String,
+  },
+});
+driverSchema.pre("save", async function (next) {
   const driver = this;
   if (!driver.isModified("password")) return next();
   try {
@@ -66,16 +53,16 @@
   } catch (err) {
     return next(err);
   }
-  });
+});
 
-  driverSchema.methods.comparePassword = async function (password) {
+driverSchema.methods.comparePassword = async function (password) {
   try {
     const isMatch = await bcrypt.compare(password, this.password);
     return isMatch;
   } catch (err) {
     throw err;
   }
-  };
+};
 
-  const Driver = mongoose.model("driverData", driverSchema);
-  module.exports = Driver;
+const DriverCollection = mongoose.model("driverCollection", driverSchema);
+module.exports = DriverCollection;

@@ -24,6 +24,9 @@ const parentSchema = new mongoose.Schema({
   }],
   resetToken: String,
   resetTokenExpires: Date,
+  fcmToken: {
+    type: String
+  }
 });
 parentSchema.pre('save', async function (next) {
   const parent = this;

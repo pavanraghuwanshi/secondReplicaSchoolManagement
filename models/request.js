@@ -3,16 +3,19 @@ const mongoose = require('mongoose');
 const requestSchema = new mongoose.Schema({
   requestType: {
     type: String,
-    enum: ['leave', 'pickup', 'drop'],
-    required: true,
+    enum: ['leave']
   },
   startDate: {
     type: String,
-    required: function() { return this.requestType === 'leave' || this.requestType === 'pickup' || this.requestType === 'drop'; }
+    required: function() {
+      return this.requestType === 'leave';
+    }
   },
   endDate: {
     type: String,
-    required: function() { return this.requestType === 'leave'; }
+    required: function() {
+      return this.requestType === 'leave';
+    }
   },
   parentId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -24,6 +27,16 @@ const requestSchema = new mongoose.Schema({
     ref: 'Child',
     required: true,
   },
+  reason: {
+    type: String,
+    required: true
+  },
+  absences: [
+    {
+      date: { type: String },
+      isAbsent: { type: Boolean, default: true }
+    }
+  ]
 });
 
 const Request = mongoose.model('Request', requestSchema);
