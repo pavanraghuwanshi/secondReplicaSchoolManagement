@@ -24,9 +24,8 @@ const schoolRoutes = require('./routes/schoolRoute');
 // Use routes
 app.use("/parent", childRoutes);
 app.use("/driver", driverRoutes);
-app.use("/supervisor", superVisorRoutes);
-app.use('/request', requestRoutes);
-app.use('/school', schoolRoutes);
+app.use("/superVisor", superVisorRoutes);
+app.use('/request',requestRoutes)
 
 // Start the server
 app.listen(PORT, () => {

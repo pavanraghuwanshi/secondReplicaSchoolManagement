@@ -18,6 +18,11 @@ const parentSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  role: {
+    type: String,
+    enum: ['parent', 'admin'],
+    default: 'parent'
+  },
   children: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Child'
