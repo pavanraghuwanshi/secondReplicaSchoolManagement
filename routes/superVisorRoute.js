@@ -9,9 +9,8 @@ const { generateToken,jwtAuthMiddleware } = require("../jwt");
 router.post("/register", async (req, res) => {
   try {
     const data = {
-      name: req.body.name,
-      address: req.body.address,
-      phone_no: req.body.phone_no,
+      supervisorName: req.body.supervisorName,
+      phone: req.body.phone,
       email: req.body.email,
       password: req.body.password
     };
@@ -79,13 +78,13 @@ router.get('/getsupervisorData', jwtAuthMiddleware, async (req, res) => {
 // update supervisor's data 
 router.put('/update', jwtAuthMiddleware, async (req, res) => {
   try {
-    const { name, address, phone_no, email } = req.body;
+    const { supervisorName, address, phone, email } = req.body;
     const supervisorId = req.user.id;
 
     // Update supervisor details excluding the password
     const supervisor = await supervisorCollection.findOneAndUpdate(
       { _id: supervisorId },
-      { name, address, phone_no, email },
+      { supervisorName, address, phone, email },
       { new: true }
     );
 

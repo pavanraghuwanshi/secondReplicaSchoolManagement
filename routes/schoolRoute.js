@@ -17,8 +17,6 @@ router.post('/register', async (req, res) => {
     if (existingSchool) {
       return res.status(400).json({ error: 'School username already exists' });
     }
-
-
     const newSchool = new School({ schoolName, username, password });
     await newSchool.save();
 

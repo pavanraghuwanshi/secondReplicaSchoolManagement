@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const bcrypt = require('bcrypt');
 
 const superVisorSchema = new mongoose.Schema({
-  superVisorName: {
+  supervisorName: {
     type: String,
     required: true,
   },
@@ -14,16 +14,8 @@ const superVisorSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  busNo:{
-    type: String,
-    required: true,
-  },
-  phone: {
+  phone :{
     type: Number,
-    required: true,
-  },
-  superVisorId:{
-    type: String,
     required: true,
   }
 });
