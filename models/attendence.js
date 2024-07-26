@@ -6,16 +6,20 @@ const attendanceSchema = new mongoose.Schema({
     ref: 'Child',
     required: true
   },
+  parentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Parent',
+    required: true
+  },
   date: {
-    type: Date,
+    type: String,
     required: true
   },
   status: {
     type: Boolean,
     required: true
   }
-}, {
-  timestamps: true
 });
 
-module.exports = mongoose.model('Attendance', attendanceSchema);
+const Attendance = mongoose.model('Attendance', attendanceSchema);
+module.exports = Attendance;
