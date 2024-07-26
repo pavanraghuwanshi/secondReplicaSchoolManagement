@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3000;
 // Import routes
 const childRoutes = require("./routes/childRoute");
 const driverRoutes = require("./routes/driverRoute");
-const supervisorRoutes = require("./routes/supervisorRoute");
+const supervisorRoutes = require("./routes/superVisorRoute");
 const requestRoutes = require('./routes/requestRoute');
 const schoolRoutes = require('./routes/schoolRoute');
 
