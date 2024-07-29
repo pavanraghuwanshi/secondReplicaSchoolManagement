@@ -1,10 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
-const Child = require('../models/child')
-const Attendance = require('../models/attendence');
+const Child = require("../models/child");
 const Supervisor = require("../models/supervisor");
-const { generateToken,jwtAuthMiddleware } = require("../jwt");
+const { generateToken, jwtAuthMiddleware } = require("../jwt");
+const Attendance = require("../models/attendence");
+const sendNotification = require("../utils/sendNotification");
+
 // Registration route
 router.post("/register", async (req, res) => {
   try {
@@ -12,7 +14,7 @@ router.post("/register", async (req, res) => {
       supervisorName: req.body.supervisorName,
       phone: req.body.phone,
       email: req.body.email,
-      password: req.body.password
+      password: req.body.password,
     };
     const { email } = data;
     console.log("Received registration data:", data);
@@ -49,7 +51,10 @@ router.post("/login", async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
-    const token = generateToken({ id: supervisor._id, email: supervisor.email });
+    const token = generateToken({
+      id: supervisor._id,
+      email: supervisor.email,
+    });
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -61,22 +66,22 @@ router.post("/login", async (req, res) => {
   }
 });
 // Get supervisor's data
-router.get('/getsupervisorData', jwtAuthMiddleware, async (req, res) => {
+router.get("/getsupervisorData", jwtAuthMiddleware, async (req, res) => {
   try {
     const supervisorId = req.user.id;
     console.log(`Fetching data for supervisor with ID: ${supervisorId}`);
     const supervisor = await Supervisor.findById(supervisorId);
     if (!supervisor) {
-      return res.status(404).json({ error: 'supervisor not found' });
+      return res.status(404).json({ error: "supervisor not found" });
     }
     res.status(200).json({ supervisor });
   } catch (error) {
-    console.error('Error fetching supervisor data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching supervisor data:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
-// update supervisor's data 
-router.put('/update', jwtAuthMiddleware, async (req, res) => {
+// update supervisor's data
+router.put("/update", jwtAuthMiddleware, async (req, res) => {
   try {
     const { supervisorName, address, phone, email } = req.body;
     const supervisorId = req.user.id;
@@ -92,13 +97,15 @@ router.put('/update', jwtAuthMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Supervisor not found" });
     }
 
-    res.status(200).json({ message: "Supervisor details updated successfully", supervisor });
+    res
+      .status(200)
+      .json({ message: "Supervisor details updated successfully", supervisor });
   } catch (error) {
     console.error("Error updating supervisor details:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-router.put('/update-password', jwtAuthMiddleware, async (req, res) => {
+router.put("/update-password", jwtAuthMiddleware, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
     const supervisorId = req.user.id;
@@ -128,72 +135,94 @@ router.put('/update-password', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// delete supervisor's data 
-router.delete('/delete', jwtAuthMiddleware, async (req, res) => {
+// delete supervisor's data
+router.delete("/delete", jwtAuthMiddleware, async (req, res) => {
   try {
     const supervisorId = req.user.id;
     const supervisor = await Supervisor.findOneAndDelete({ _id: supervisorId });
-    
+
     if (!supervisor) {
       return res.status(404).json({ error: "supervisor not found" });
     }
 
-    res.status(200).json({ message: "supervisor details deleted successfully", supervisor });
+    res
+      .status(200)
+      .json({ message: "supervisor details deleted successfully", supervisor });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error deleting supervisor details" });
   }
 });
 // get children
-router.get('/read/all-children',jwtAuthMiddleware, async (req, res) => {
+router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
   try {
-    const children = await Child.find({}).lean(); 
-    console.log('Raw children data:', JSON.stringify(children, null, 2));
-    
-    const transformedChildren = children.map(child => ({
+    const children = await Child.find({}).lean();
+    console.log("Raw children data:", JSON.stringify(children, null, 2));
+
+    const transformedChildren = children.map((child) => ({
       childName: child.childName,
       class: child.class,
-      section: child.section
+      section: child.section,
     }));
 
-    console.log('Transformed children data:', JSON.stringify(transformedChildren, null, 2));
+    console.log(
+      "Transformed children data:",
+      JSON.stringify(transformedChildren, null, 2)
+    );
     res.status(200).json({ children: transformedChildren });
   } catch (error) {
-    console.error('Error fetching children:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching children:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
-router.put('/mark-attendance/:childId', jwtAuthMiddleware,async (req, res) => {
+// for attendance and status
+router.put("/mark-attendance/:childId", jwtAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
-  const { isPresent } = req.body; 
-
-  if (typeof isPresent !== 'boolean') {
-    return res.status(400).json({ error: 'Invalid status type' });
+  const { isPresent } = req.body;
+  if (typeof isPresent !== "boolean") {
+    return res.status(400).json({ error: "Invalid status type" });
   }
-
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const existingRecord = await Attendance.findOne({ childId, date: today });
-
-    if (existingRecord) {
-      existingRecord.status = isPresent; 
-      await existingRecord.save();
+    const today = new Date().toISOString().split("T")[0];
+    let attendanceRecord = await Attendance.findOne({ childId, date: today });
+    if (attendanceRecord) {
+      attendanceRecord.status = isPresent;
+      await attendanceRecord.save();
     } else {
-      const newAttendance = new Attendance({
+      attendanceRecord = new Attendance({
         childId,
         date: today,
-        status: isPresent 
+        status: isPresent,
       });
-      await newAttendance.save();
+      await attendanceRecord.save();
     }
-
-    const statusString = isPresent ? 'present' : 'absent'; e
+    const statusString = isPresent ? "present" : "absent";
+    const notificationStatus = isPresent;
+    const parent = await Parent.findOne({ children: childId });
+    if (parent) {
+      await sendNotification(parent._id, {
+        childId,
+        status: notificationStatus,
+      });
+    }
+    const newAttendanceForDashboard = new Attendance({
+      childId,
+      date: today,
+      status: isPresent,
+    });
+    await newAttendanceForDashboard.save();
     console.log(`Child ${childId} marked as ${statusString} for ${today}`);
-    res.status(200).json({ message: `Child marked as ${statusString} for ${today}` });
+    res
+      .status(200)
+      .json({ message: `Child marked as ${statusString} for ${today}` });
   } catch (error) {
-    console.error(`Error marking child as ${isPresent ? 'present' : 'absent'}:`, error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error(
+      `Error marking child as ${isPresent ? "present" : "absent"}:`,
+      error
+    );
+    res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 module.exports = router;

@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const requestSchema = new mongoose.Schema({
   requestType: {
     type: String,
-    enum: ['leave']
+    enum: ['leave', 'changeRoute'],
+    required: true,
   },
   startDate: {
     type: String,
@@ -28,8 +29,18 @@ const requestSchema = new mongoose.Schema({
     required: true,
   },
   reason: {
+    type: String
+  },
+  newRoute: {
     type: String,
-    required: true
+    required: function() {
+      return this.requestType === 'changeRoute';
+    }
+  },
+  statusOfRequest : {
+    type: String,
+    enum: ['pending', 'approved', 'denied'],
+    default: 'pending',
   },
   absences: [
     {

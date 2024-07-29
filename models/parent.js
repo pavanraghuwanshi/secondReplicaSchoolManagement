@@ -18,11 +18,6 @@ const parentSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  role: {
-    type: String,
-    enum: ['parent', 'admin'],
-    default: 'parent'
-  },
   children: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Child'
@@ -31,7 +26,8 @@ const parentSchema = new mongoose.Schema({
   resetTokenExpires: Date,
   fcmToken: {
     type: String
-  }
+  },
+  vehicleId: { type: String, default: null },
 });
 parentSchema.pre('save', async function (next) {
   const parent = this;

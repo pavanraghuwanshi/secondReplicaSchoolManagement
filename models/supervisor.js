@@ -17,7 +17,8 @@ const supervisorSchema = new mongoose.Schema({
   phone :{
     type: Number,
     required: true,
-  }
+  },
+  vehicleId: String
 });
 supervisorSchema.pre('save', async function (next) {
   const superVisor = this;

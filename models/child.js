@@ -39,13 +39,8 @@ const childSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Parent',
     required: true,
-  },
-  status: {
-    type: String,
-    enum: ['present', 'absent'],
-    default: 'absent'
-  },
-  
+  } ,
+  vehicleId: { type: String, default: null },
 });
 
 const Child = mongoose.model('Child', childSchema);
