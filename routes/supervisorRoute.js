@@ -4,8 +4,7 @@ const bcrypt = require("bcrypt");
 const Child = require("../models/child");
 const Supervisor = require("../models/supervisor");
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
-const Attendance = require("../models/attendence");
-const sendNotification = require("../utils/sendNotification");
+// const Attendance = require("../models/attendence");
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -176,53 +175,53 @@ router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
   }
 });
 // for attendance and status
-router.put("/mark-attendance/:childId", jwtAuthMiddleware, async (req, res) => {
-  const { childId } = req.params;
-  const { isPresent } = req.body;
-  if (typeof isPresent !== "boolean") {
-    return res.status(400).json({ error: "Invalid status type" });
-  }
-  try {
-    const today = new Date().toISOString().split("T")[0];
-    let attendanceRecord = await Attendance.findOne({ childId, date: today });
-    if (attendanceRecord) {
-      attendanceRecord.status = isPresent;
-      await attendanceRecord.save();
-    } else {
-      attendanceRecord = new Attendance({
-        childId,
-        date: today,
-        status: isPresent,
-      });
-      await attendanceRecord.save();
-    }
-    const statusString = isPresent ? "present" : "absent";
-    const notificationStatus = isPresent;
-    const parent = await Parent.findOne({ children: childId });
-    if (parent) {
-      await sendNotification(parent._id, {
-        childId,
-        status: notificationStatus,
-      });
-    }
-    const newAttendanceForDashboard = new Attendance({
-      childId,
-      date: today,
-      status: isPresent,
-    });
-    await newAttendanceForDashboard.save();
-    console.log(`Child ${childId} marked as ${statusString} for ${today}`);
-    res
-      .status(200)
-      .json({ message: `Child marked as ${statusString} for ${today}` });
-  } catch (error) {
-    console.error(
-      `Error marking child as ${isPresent ? "present" : "absent"}:`,
-      error
-    );
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+// router.put("/mark-attendance/:childId", jwtAuthMiddleware, async (req, res) => {
+//   const { childId } = req.params;
+//   const { isPresent } = req.body;
+//   if (typeof isPresent !== "boolean") {
+//     return res.status(400).json({ error: "Invalid status type" });
+//   }
+//   try {
+//     const today = new Date().toISOString().split("T")[0];
+//     let attendanceRecord = await Attendance.findOne({ childId, date: today });
+//     if (attendanceRecord) {
+//       attendanceRecord.status = isPresent;
+//       await attendanceRecord.save();
+//     } else {
+//       attendanceRecord = new Attendance({
+//         childId,
+//         date: today,
+//         status: isPresent,
+//       });
+//       await attendanceRecord.save();
+//     }
+//     const statusString = isPresent ? "present" : "absent";
+//     const notificationStatus = isPresent;
+//     const parent = await Parent.findOne({ children: childId });
+//     if (parent) {
+//       await sendNotification(parent._id, {
+//         childId,
+//         status: notificationStatus,
+//       });
+//     }
+//     const newAttendanceForDashboard = new Attendance({
+//       childId,
+//       date: today,
+//       status: isPresent,
+//     });
+//     await newAttendanceForDashboard.save();
+//     console.log(`Child ${childId} marked as ${statusString} for ${today}`);
+//     res
+//       .status(200)
+//       .json({ message: `Child marked as ${statusString} for ${today}` });
+//   } catch (error) {
+//     console.error(
+//       `Error marking child as ${isPresent ? "present" : "absent"}:`,
+//       error
+//     );
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 
 
 module.exports = router;
