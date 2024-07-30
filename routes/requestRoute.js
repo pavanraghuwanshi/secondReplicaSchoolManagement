@@ -71,7 +71,6 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
       child.vehicleId = newRoute;
       await child.save();
     }
-
     await newRequest.save();
 
     res.status(201).json({ request: newRequest });

@@ -41,7 +41,9 @@ const driverSchema = new mongoose.Schema({
   profileImage: {
     type: String,
   },
-  vehicleId: String
+  vehicleId : {
+    type:String
+  }
 });
 driverSchema.pre("save", async function (next) {
   const driver = this;

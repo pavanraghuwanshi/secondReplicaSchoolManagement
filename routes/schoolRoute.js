@@ -417,64 +417,89 @@ router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Get all conductors
-router.get('/read/allconductors', schoolAuthMiddleware, async (req, res) => {
+// Get all supervisor
+router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
   try {
-    const conductors = await Conductor.find({});
-    console.log('Raw conductors data:', JSON.stringify(conductors, null, 2));
-    res.status(200).json({ conductors });
+    const supervisor = await Supervisor.find({});
+    console.log('Raw supervisor data:', JSON.stringify(supervisor, null, 2));
+    res.status(200).json({ supervisor });
   } catch (error) {
-    console.error('Error fetching conductors:', error);
+    console.error('Error fetching supervisor:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Assign vehicle ID to a driver
-router.put('/assign-vehicle/driver/:driverId', schoolAuthMiddleware, async (req, res) => {
+// update driver
+router.put('/update/driver/:id', schoolAuthMiddleware, async (req, res) => {
   try {
-    const { driverId } = req.params;
-    const { vehicleId } = req.body;
+    const driverId = req.params.id;
+    const updateData = req.body;
+    
+    const updatedDriver = await Driver.findByIdAndUpdate(driverId, updateData, { new: true });
 
-    if (!vehicleId) {
-      return res.status(400).json({ error: 'Vehicle ID is required' });
-    }
-
-    const driver = await Driver.findById(driverId);
-    if (!driver) {
+    if (!updatedDriver) {
       return res.status(404).json({ error: 'Driver not found' });
     }
 
-    driver.vehicleId = vehicleId;
-    await driver.save();
-
-    res.status(200).json({ message: 'Vehicle ID assigned successfully', driver });
+    console.log('Updated driver data:', JSON.stringify(updatedDriver, null, 2));
+    res.status(200).json({ driver: updatedDriver });
   } catch (error) {
-    console.error('Error assigning vehicle ID:', error);
+    console.error('Error updating driver:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Assign vehicle ID to a conductor
-router.put('/assign-vehicle/conductor/:conductorId', schoolAuthMiddleware, async (req, res) => {
+// update the supervsior
+router.put('/update/supervisor/:id', schoolAuthMiddleware, async (req, res) => {
   try {
-    const { conductorId } = req.params;
-    const { vehicleId } = req.body;
+    const supervisorId = req.params.id;
+    const updateData = req.body;
 
-    if (!vehicleId) {
-      return res.status(400).json({ error: 'Vehicle ID is required' });
+    const updatedSupervisor = await Supervisor.findByIdAndUpdate(supervisorId, updateData, { new: true });
+
+    if (!updatedSupervisor) {
+      return res.status(404).json({ error: 'Supervisor not found' });
     }
 
-    const conductor = await Conductor.findById(conductorId);
-    if (!conductor) {
-      return res.status(404).json({ error: 'Conductor not found' });
-    }
-
-    conductor.vehicleId = vehicleId;
-    await conductor.save();
-
-    res.status(200).json({ message: 'Vehicle ID assigned successfully', conductor });
+    console.log('Updated supervisor data:', JSON.stringify(updatedSupervisor, null, 2));
+    res.status(200).json({ supervisor: updatedSupervisor });
   } catch (error) {
-    console.error('Error assigning vehicle ID:', error);
+    console.error('Error updating supervisor:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// delete driver
+router.delete('/delete/driver/:id', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const driverId = req.params.id;
+    
+    const deletedDriver = await Driver.findByIdAndDelete(driverId);
 
+    if (!deletedDriver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    console.log('Deleted driver data:', JSON.stringify(deletedDriver, null, 2));
+    res.status(200).json({ message: 'Driver deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting driver:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// delete supervisor
+router.delete('/delete/supervisor/:id', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const supervisorId = req.params.id;
+
+    const deletedSupervisor = await Supervisor.findByIdAndDelete(supervisorId);
+
+    if (!deletedSupervisor) {
+      return res.status(404).json({ error: 'Supervisor not found' });
+    }
+
+    console.log('Deleted supervisor data:', JSON.stringify(deletedSupervisor, null, 2));
+    res.status(200).json({ message: 'Supervisor deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting supervisor:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 module.exports = router;
