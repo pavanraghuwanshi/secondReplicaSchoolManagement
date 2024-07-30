@@ -134,7 +134,6 @@ router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Update Child Route
 router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
   try {
@@ -195,7 +194,6 @@ router.get('/requests', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
@@ -249,5 +247,6 @@ router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 module.exports = router;

@@ -23,7 +23,7 @@ const requestSchema = new mongoose.Schema({
     ref: 'Parent',
     required: true,
   },
-  childId: {
+  childId : {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Child',
     required: true,

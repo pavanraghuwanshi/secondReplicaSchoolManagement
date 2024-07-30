@@ -41,6 +41,5 @@ supervisorSchema.methods.comparePassword = async function (password) {
     throw err;
   }
 };
-
 const Supervisor = mongoose.model("Supervisor", supervisorSchema);
 module.exports = Supervisor;

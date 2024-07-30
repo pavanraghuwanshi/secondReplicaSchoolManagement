@@ -1,114 +1,60 @@
 const express = require("express");
 const router = express.Router();
-const School = require('../models/school');
-const jwt = require('jsonwebtoken');
-const Child = require('../models/child');
-const Request = require('../models/request');
+const School = require("../models/school");
+const jwt = require("jsonwebtoken");
+const Child = require("../models/child");
+const Request = require("../models/request");
 const Parent = require("../models/Parent");
 const Driver = require("../models/driver");
-const Attendance = require('../models/attendence');
-const { schoolAuthMiddleware } = require('../jwt');
+const Supervisor = require("../models/supervisor");
+const Attendance = require("../models/attendence");
+const { schoolAuthMiddleware } = require("../jwt");
 // School Registration Route
-router.post('/register', async (req, res) => {
+router.post("/register", async (req, res) => {
   const { schoolName, username, password } = req.body;
 
   try {
     const existingSchool = await School.findOne({ username });
     if (existingSchool) {
-      return res.status(400).json({ error: 'School username already exists' });
+      return res.status(400).json({ error: "School username already exists" });
     }
     const newSchool = new School({ schoolName, username, password });
     await newSchool.save();
 
-    res.status(201).json({ message: 'School registered successfully' });
+    res.status(201).json({ message: "School registered successfully" });
   } catch (error) {
-    console.error('Error during registration:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error during registration:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 // School Login Route
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
     const school = await School.findOne({ username });
     if (!school) {
-      return res.status(400).json({ error: 'Invalid username or password' });
+      return res.status(400).json({ error: "Invalid username or password" });
     }
 
     // Compare password using the schema method
     const isMatch = await school.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid username or password' });
+      return res.status(400).json({ error: "Invalid username or password" });
     }
 
-    const token = jwt.sign({ id: school._id, username: school.username }, process.env.JWT_SECRET);
+    const token = jwt.sign(
+      { id: school._id, username: school.username },
+      process.env.JWT_SECRET
+    );
     res.status(200).json({
       success: true,
-      message: 'Login successful',
-      token: token
+      message: "Login successful",
+      token: token,
     });
   } catch (error) {
-    console.error('Error during login:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-// Assign Vehicle ID to Child
-router.post("/admin/assignVehicleId", async (req, res) => {
-  const { childId, vehicleId } = req.body;
-  try {
-    await Child.findByIdAndUpdate(childId, { vehicleId });
-    res.send({ message: "Vehicle ID assigned successfully", vehicleId });
-  } catch (error) {
-    res.status(500).send({ error: "Failed to assign Vehicle ID" });
-  }
-});
-// Update Vehicle ID for Child
-router.put("/child/updateVehicleId", async (req, res) => {
-  const { childId, vehicleId } = req.body;
-  try {
-    await Child.findByIdAndUpdate(childId, { vehicleId });
-    res.send({ message: "Vehicle ID updated successfully", vehicleId });
-  } catch (error) {
-    res.status(500).send({ error: "Failed to update Vehicle ID" });
-  }
-});
-// Get request data
-router.get('/getrequestdata', schoolAuthMiddleware, async (req, res) => {
-  try {
-    const requests = await Request.find({})
-      .populate({
-        path: 'childId',
-        select: 'childName class section parentId',
-        populate: {
-          path: 'parentId',
-          select: 'parentName phone'
-        }
-      })
-      .lean();
-
-    const transformedRequests = requests.map(request => {
-      const child = request.childId || {};
-      const parent = child.parentId || {};
-
-      return {
-        _id: request._id,
-        childName: child.childName,
-        class: child.class,
-        section: child.section,
-        parentName: parent.parentName || null,
-        phone: parent.phone || null,
-        requestType: request.requestType || null,
-        reason: request.reason || null,
-        date: request.date || null
-      };
-    });
-
-    console.log('Transformed request data:', JSON.stringify(transformedRequests, null, 2));
-    res.status(200).json({ requests: transformedRequests });
-  } catch (error) {
-    console.error('Error fetching request data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error during login:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 // Get children with vehicle IDs
@@ -146,7 +92,10 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
       })
     );
 
-    console.log("Transformed children data:", JSON.stringify(transformedChildren, null, 2));
+    console.log(
+      "Transformed children data:",
+      JSON.stringify(transformedChildren, null, 2)
+    );
     res.status(200).json({ children: transformedChildren });
   } catch (error) {
     console.error("Error fetching children:", error);
@@ -154,7 +103,7 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
   }
 });
 // Update child
-router.put('/update/:childId', schoolAuthMiddleware, async (req, res) => {
+router.put("/update/:childId", schoolAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
   const {
     childName,
@@ -167,7 +116,7 @@ router.put('/update/:childId', schoolAuthMiddleware, async (req, res) => {
     gender,
     parentName,
     email,
-    phone
+    phone,
   } = req.body;
 
   // Separate childData and parentData from the request body
@@ -179,31 +128,43 @@ router.put('/update/:childId', schoolAuthMiddleware, async (req, res) => {
     schoolName,
     dateOfBirth,
     childAge,
-    gender
+    gender,
   };
 
   const parentData = {
     parentName,
     email,
-    phone
+    phone,
   };
 
   try {
     const child = await Child.findById(childId).lean();
     if (!child) {
-      return res.status(404).json({ error: 'Child not found' });
+      return res.status(404).json({ error: "Child not found" });
     }
 
     // Update child data
-    const updatedChild = await Child.findByIdAndUpdate(childId, childData, { new: true }).lean();
-    console.log('Updated child data:', JSON.stringify(updatedChild, null, 2));
+    const updatedChild = await Child.findByIdAndUpdate(childId, childData, {
+      new: true,
+    }).lean();
+    console.log("Updated child data:", JSON.stringify(updatedChild, null, 2));
 
     let response = { child: updatedChild };
 
     // If parent data is provided and child has a parentId, update parent data
-    if ((parentData.parentName || parentData.email || parentData.phone) && child.parentId) {
-      const updatedParent = await Parent.findByIdAndUpdate(child.parentId, parentData, { new: true }).lean();
-      console.log('Updated parent data:', JSON.stringify(updatedParent, null, 2));
+    if (
+      (parentData.parentName || parentData.email || parentData.phone) &&
+      child.parentId
+    ) {
+      const updatedParent = await Parent.findByIdAndUpdate(
+        child.parentId,
+        parentData,
+        { new: true }
+      ).lean();
+      console.log(
+        "Updated parent data:",
+        JSON.stringify(updatedParent, null, 2)
+      );
 
       response.child.parentName = updatedParent.parentName;
       response.child.email = updatedParent.email;
@@ -213,17 +174,17 @@ router.put('/update/:childId', schoolAuthMiddleware, async (req, res) => {
 
     res.status(200).json(response);
   } catch (error) {
-    console.error('Error updating child:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error updating child:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 // Delete child
-router.delete('/delete/:childId', schoolAuthMiddleware, async (req, res) => {
+router.delete("/delete/:childId", schoolAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
   try {
     const child = await Child.findById(childId).lean();
     if (!child) {
-      return res.status(404).json({ error: 'Child not found' });
+      return res.status(404).json({ error: "Child not found" });
     }
 
     let parentData = {};
@@ -234,130 +195,286 @@ router.delete('/delete/:childId', schoolAuthMiddleware, async (req, res) => {
           parentName: parent.parentName,
           email: parent.email,
           phone: parent.phone,
-          parentId: parent._id
+          parentId: parent._id,
         };
-        const childCount = await Child.countDocuments({ parentId: child.parentId });
+        const childCount = await Child.countDocuments({
+          parentId: child.parentId,
+        });
         if (childCount === 1) {
           await Parent.findByIdAndDelete(child.parentId);
         }
       }
     }
     await Child.findByIdAndDelete(childId);
-    console.log('Deleted child data:', JSON.stringify(child, null, 2));
+    console.log("Deleted child data:", JSON.stringify(child, null, 2));
     if (parentData.parentId) {
-      console.log('Associated parent data:', JSON.stringify(parentData, null, 2));
+      console.log(
+        "Associated parent data:",
+        JSON.stringify(parentData, null, 2)
+      );
     }
 
-    res.status(200).json({ 
-      message: 'Child deleted successfully',
+    res.status(200).json({
+      message: "Child deleted successfully",
       child,
-      parent: parentData 
+      parent: parentData,
     });
   } catch (error) {
-    console.error('Error deleting child:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error deleting child:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 // Route to get attendance records for a specific child
-router.get('/attendance/:childId', schoolAuthMiddleware, async (req, res) => {
+router.get("/attendance/:childId", schoolAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
   try {
     const child = await Child.findById(childId).lean();
     if (!child) {
-      return res.status(404).json({ message: 'Child not found' });
+      return res.status(404).json({ message: "Child not found" });
     }
-    const records = await Attendance.find({ childId }).sort({ date: -1 }).lean();
+    const records = await Attendance.find({ childId })
+      .sort({ date: -1 })
+      .lean();
     if (records.length === 0) {
-      return res.status(404).json({ message: 'No attendance records found for this child' });
+      return res
+        .status(404)
+        .json({ message: "No attendance records found for this child" });
     }
     const response = {
       childName: child.childName,
-      attendanceRecords: records
+      attendanceRecords: records,
     };
     res.status(200).json(response);
   } catch (error) {
-    console.error('Error fetching attendance records:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching attendance records:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 // Get all pending requests
-router.get('/pending-requests', schoolAuthMiddleware, async (req, res) => {
+router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
-    const requests = await Request.find({ statusOfRequest: 'pending' })
-      .populate('parentId', 'parentName email')
-      .populate('childId', 'childName vehicleId')
+    const requests = await Request.find({ statusOfRequest: "pending" })
+      .populate("parentId", "parentName email")
+      .populate("childId", "childName vehicleId")
       .lean();
 
-    const formattedRequests = requests.map(request => ({
+    const formattedRequests = requests.map((request) => ({
       requestId: request._id,
       statusOfRequest: request.statusOfRequest,
-      parentId: request.parentId._id,
-      parentName: request.parentId.parentName,
-      email: request.parentId.email,
-      childId: request.childId._id,
-      childName: request.childId.childName,
-      vehicleId: request.childId.vehicleId
+      parentId: request.parentId ? request.parentId._id : null,
+      parentName: request.parentId ? request.parentId.parentName : null,
+      email: request.parentId ? request.parentId.email : null,
+      childId: request.childId ? request.childId._id : null,
+      childName: request.childId ? request.childId.childName : null,
+      vehicleId: request.childId ? request.childId.vehicleId : null,
     }));
 
-    res.status(200).json({ 
-      requests: formattedRequests 
+    res.status(200).json({
+      requests: formattedRequests,
     });
   } catch (error) {
-    console.error('Error fetching requests:', error);
-    res.status(500).json({ 
-      error: 'Internal server error' 
+    console.error("Error fetching requests:", error);
+    res.status(500).json({
+      error: "Internal server error",
     });
   }
 });
 //review request
-router.post('/review-request/:requestId', schoolAuthMiddleware, async (req, res) => {
-  try {
-    const { statusOfRequest } = req.body;
-    const { requestId } = req.params;
+router.post(
+  "/review-request/:requestId",
+  schoolAuthMiddleware,
+  async (req, res) => {
+    try {
+      const { statusOfRequest } = req.body;
+      const { requestId } = req.params;
 
-    if (!['approved', 'denied'].includes(statusOfRequest)) {
-      return res.status(400).json({ error: 'Invalid statusOfRequest' });
-    }
-
-    const request = await Request.findById(requestId);
-    if (!request) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
-
-    request.statusOfRequest = statusOfRequest;
-
-    if (statusOfRequest === 'approved' && request.requestType === 'changeRoute') {
-      const child = await Child.findById(request.childId);
-      if (!child) {
-        return res.status(404).json({ error: 'Child not found' });
+      if (!["approved", "denied"].includes(statusOfRequest)) {
+        return res.status(400).json({ error: "Invalid statusOfRequest" });
       }
-      child.vehicleId = request.newRoute;
-      await child.save();
+
+      const request = await Request.findById(requestId);
+      if (!request) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+
+      request.statusOfRequest = statusOfRequest;
+
+      if (
+        statusOfRequest === "approved" &&
+        request.requestType === "changeRoute"
+      ) {
+        const child = await Child.findById(request.childId);
+        if (!child) {
+          return res.status(404).json({ error: "Child not found" });
+        }
+        child.vehicleId = request.newRoute;
+        await child.save();
+      }
+      await request.save();
+
+      // Assuming notifyParent is a function to send notifications
+      const notifyParent = (parentId, message) => {
+        // Your notification logic here
+        console.log(`Notification to parentId ${parentId}: ${message}`);
+      };
+
+      notifyParent(
+        request.parentId,
+        `Your request has been ${statusOfRequest}.`
+      );
+
+      res
+        .status(200)
+        .json({ message: "Request reviewed successfully", request });
+    } catch (error) {
+      console.error("Error reviewing request:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
-    await request.save();
-
-    // Assuming notifyParent is a function to send notifications
-    const notifyParent = (parentId, message) => {
-      // Your notification logic here
-      console.log(`Notification to parentId ${parentId}: ${message}`);
-    };
-
-    notifyParent(request.parentId, `Your request has been ${statusOfRequest}.`);
-
-    res.status(200).json({ message: 'Request reviewed successfully', request });
+  }
+);
+// Assign Vehicle ID to Child
+router.post("/admin/assignVehicleId", async (req, res) => {
+  const { childId, vehicleId } = req.body;
+  try {
+    await Child.findByIdAndUpdate(childId, { vehicleId });
+    res.send({ message: "Vehicle ID assigned successfully", vehicleId });
   } catch (error) {
-    console.error('Error reviewing request:', error);
+    res.status(500).send({ error: "Failed to assign Vehicle ID" });
+  }
+});
+// Update Vehicle ID for Child
+router.put("/child/updateVehicleId", async (req, res) => {
+  const { childId, vehicleId } = req.body;
+  try {
+    await Child.findByIdAndUpdate(childId, { vehicleId });
+    res.send({ message: "Vehicle ID updated successfully", vehicleId });
+  } catch (error) {
+    res.status(500).send({ error: "Failed to update Vehicle ID" });
+  }
+});
+// Get all approved requests
+router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
+  try {
+    const approvedRequests = await Request.find({ statusOfRequest: "approved" })
+      .populate("parentId", "parentName email phone")
+      .populate("childId", "childName class")
+      .lean();
+
+    const formattedRequests = approvedRequests.map((request) => ({
+      childName: request.childId ? request.childId.childName : null,
+      statusOfRequest: request.statusOfRequest,
+      class: request.childId.class,
+      parentName: request.parentId ? request.parentId.parentName : null,
+      email: request.parentId ? request.parentId.email : null,
+      phone: request.parentId ? request.parentId.phone : null,
+    }));
+    res.status(200).json({
+      requests: formattedRequests,
+    });
+  } catch (error) {
+    console.error("Error fetching approved requests:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+});
+// Get all children with denied requests
+router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const deniedRequests = await Request.find({ statusOfRequest: 'denied' })
+      .populate("parentId", "parentName email phone")
+      .populate('childId', 'childName vehicleId class')
+      .lean();
+
+    // Filter out requests where childId is null or not populated
+    const children = deniedRequests
+      .filter(request => request.childId)
+      .map(request => ({
+        childId: request.childId._id,
+        childName: request.childId.childName,
+        vehicleId: request.childId.vehicleId,
+        class: request.childId.class,
+        statusOfRequest: request.statusOfRequest,
+        parentName: request.parentId ? request.parentId.parentName : null,
+        email: request.parentId ? request.parentId.email : null,
+        phone: request.parentId ? request.parentId.phone : null,
+      }));
+
+    res.status(200).json({ children });
+  } catch (error) {
+    console.error('Error fetching children with denied requests:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.get('/read/alldrivers',schoolAuthMiddleware, async (req, res) => {
+// Get all drivers
+router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
   try {
     const drivers = await Driver.find({});
-    console.log("Raw drivers data:", JSON.stringify(drivers, null, 2));
+    console.log('Raw drivers data:', JSON.stringify(drivers, null, 2));
     res.status(200).json({ drivers });
   } catch (error) {
-    console.error("Error fetching drivers:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Error fetching drivers:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+// Get all conductors
+router.get('/read/allconductors', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const conductors = await Conductor.find({});
+    console.log('Raw conductors data:', JSON.stringify(conductors, null, 2));
+    res.status(200).json({ conductors });
+  } catch (error) {
+    console.error('Error fetching conductors:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// Assign vehicle ID to a driver
+router.put('/assign-vehicle/driver/:driverId', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { driverId } = req.params;
+    const { vehicleId } = req.body;
+
+    if (!vehicleId) {
+      return res.status(400).json({ error: 'Vehicle ID is required' });
+    }
+
+    const driver = await Driver.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    driver.vehicleId = vehicleId;
+    await driver.save();
+
+    res.status(200).json({ message: 'Vehicle ID assigned successfully', driver });
+  } catch (error) {
+    console.error('Error assigning vehicle ID:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// Assign vehicle ID to a conductor
+router.put('/assign-vehicle/conductor/:conductorId', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { conductorId } = req.params;
+    const { vehicleId } = req.body;
+
+    if (!vehicleId) {
+      return res.status(400).json({ error: 'Vehicle ID is required' });
+    }
+
+    const conductor = await Conductor.findById(conductorId);
+    if (!conductor) {
+      return res.status(404).json({ error: 'Conductor not found' });
+    }
+
+    conductor.vehicleId = vehicleId;
+    await conductor.save();
+
+    res.status(200).json({ message: 'Vehicle ID assigned successfully', conductor });
+  } catch (error) {
+    console.error('Error assigning vehicle ID:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
