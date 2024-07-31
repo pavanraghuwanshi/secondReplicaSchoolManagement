@@ -9,7 +9,6 @@ const attendanceSchema = new mongoose.Schema({
   parentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Parent',
-    required: true
   },
   date: {
     type: String,

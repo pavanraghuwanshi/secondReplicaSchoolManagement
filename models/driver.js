@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
+const { encrypt, decrypt } = require('./cryptoUtils'); 
 
 const driverSchema = new mongoose.Schema({
-  name: {
+  driverName: {
     type: String,
     required: true,
   },
@@ -11,12 +11,12 @@ const driverSchema = new mongoose.Schema({
     required: true,
   },
   phone_no: {
-    type: String,
+    type: Number,
     required: true,
   },
   password: {
     type: String,
-    required: true
+    required: true,
   },
   email: {
     type: String,
@@ -29,9 +29,6 @@ const driverSchema = new mongoose.Schema({
   aadharImage: {
     type: String,
   },
-  username: {
-    type: String,
-  },
   vehicleId: {
     type: String,
   },
@@ -41,31 +38,20 @@ const driverSchema = new mongoose.Schema({
   profileImage: {
     type: String,
   },
-  vehicleId : {
-    type:String
-  }
-});
-driverSchema.pre("save", async function (next) {
-  const driver = this;
-  if (!driver.isModified("password")) return next();
-  try {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(driver.password, salt);
-    driver.password = hashedPassword;
-    next();
-  } catch (err) {
-    return next(err);
-  }
+  encryptedPassword: String
 });
 
-driverSchema.methods.comparePassword = async function (password) {
-  try {
-    const isMatch = await bcrypt.compare(password, this.password);
-    return isMatch;
-  } catch (err) {
-    throw err;
+driverSchema.pre('save', async function(next) {
+  if (this.isModified('password')) {
+    this.encryptedPassword = encrypt(this.password);
+    this.password = undefined; 
   }
+  next();
+});
+driverSchema.methods.comparePassword = function(candidatePassword) {
+  const decryptedPassword = decrypt(this.encryptedPassword);
+  return candidatePassword === decryptedPassword;
 };
 
 const DriverCollection = mongoose.model("driverCollection", driverSchema);
-module.exports = DriverCollection;
+module.exports =  DriverCollection;

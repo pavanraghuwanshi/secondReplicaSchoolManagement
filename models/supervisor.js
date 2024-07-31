@@ -1,45 +1,55 @@
 const mongoose = require("mongoose");
-const bcrypt = require('bcrypt');
-
+const { encrypt } = require('./cryptoUtils');
+const {decrypt} = require('./cryptoUtils');
 const supervisorSchema = new mongoose.Schema({
   supervisorName: {
     type: String,
     required: true,
   },
-  email:{
+  address: {
     type: String,
     required: true,
   },
-  password:{
+  email: {
     type: String,
     required: true,
   },
-  phone :{
+  password: {
+    type: String,
+    required: true,
+  },
+  phone_no: {
     type: Number,
     required: true,
   },
-  vehicleId: String
-});
-supervisorSchema.pre('save', async function (next) {
-  const superVisor = this;
-  if (!superVisor.isModified('password')) return next();
-  try {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(superVisor.password, salt);
-    superVisor.password = hashedPassword;
-    next();
-  } catch (err) {
-    return next(err);
-  }
+  aadhar: {
+    type: String,
+  },
+  aadharImage: {
+    type: String,
+  },
+  vehicleId: {
+    type: String,
+  },
+  schoolId: {
+    type: String,
+  },
+  profileImage: {
+    type: String,
+  },
+  encryptedPassword: String
 });
 
-supervisorSchema.methods.comparePassword = async function (password) {
-  try {
-    const isMatch = await bcrypt.compare(password, this.password);
-    return isMatch;
-  } catch (err) {
-    throw err;
+supervisorSchema.pre('save', async function(next) {
+  if (this.isModified('password')) {
+    this.encryptedPassword = encrypt(this.password);
+    this.password = undefined; 
   }
+  next();
+});
+supervisorSchema.methods.comparePassword = function(candidatePassword) {
+  const decryptedPassword = decrypt(this.encryptedPassword);
+  return candidatePassword === decryptedPassword;
 };
 const Supervisor = mongoose.model("Supervisor", supervisorSchema);
 module.exports = Supervisor;

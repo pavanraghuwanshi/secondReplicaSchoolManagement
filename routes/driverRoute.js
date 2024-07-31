@@ -1,14 +1,15 @@
 const express = require("express");
 const router = express.Router();
 // const bcrypt = require("bcrypt");
-const DriverCollection = require("../models/driver");
+const  DriverCollection = require("../models/driver");
+const { encrypt } = require('../models/cryptoUtils');
 const { generateToken,jwtAuthMiddleware } = require("../jwt");
 
 // Registration route
 router.post("/register", async (req, res) => {
   try {
     const data = {
-      name: req.body.name,
+      driverName: req.body.driverName,
       address: req.body.address,
       phone_no: req.body.phone_no,
       email: req.body.email,
@@ -16,21 +17,30 @@ router.post("/register", async (req, res) => {
     };
     const { email } = data;
     console.log("Received registration data:", data);
+
     const existingDriver = await DriverCollection.findOne({ email });
     if (existingDriver) {
-      console.log("email already exists");
-      return res.status(400).json({ error: "email already exists" });
+      console.log("Email already exists");
+      return res.status(400).json({ error: "Email already exists" });
     }
+
+    // Encrypt the password before saving
+    data.encryptedPassword = encrypt(data.password);
+    console.log("Encrypted password:", data.encryptedPassword);
+
     const newDriver = new DriverCollection(data);
     const response = await newDriver.save();
     console.log("Data saved:", response);
+
     const payload = {
       id: response.id,
       email: response.email,
     };
     console.log("JWT payload:", JSON.stringify(payload));
+    
     const token = generateToken(payload);
     console.log("Generated token:", token);
+
     res.status(201).json({ response, token });
   } catch (error) {
     console.error("Error during registration:", error);

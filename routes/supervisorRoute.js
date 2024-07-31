@@ -3,6 +3,9 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const Child = require("../models/child");
 const Supervisor = require("../models/supervisor");
+const Parent = require('../models/Parent');
+const Attendance = require('../models/attendence')
+const { encrypt } = require('../models/cryptoUtils');
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
 // const Attendance = require("../models/attendence");
 
@@ -11,28 +14,38 @@ router.post("/register", async (req, res) => {
   try {
     const data = {
       supervisorName: req.body.supervisorName,
-      phone: req.body.phone,
+      phone_no: req.body.phone_no,
       email: req.body.email,
+      address: req.body.address,
       password: req.body.password,
     };
     const { email } = data;
     console.log("Received registration data:", data);
+
     const existingSupervisor = await Supervisor.findOne({ email });
     if (existingSupervisor) {
-      console.log("email already exists");
-      return res.status(400).json({ error: "email already exists" });
+      console.log("Email already exists");
+      return res.status(400).json({ error: "Email already exists" });
     }
+
+    // Encrypt the password before saving
+    data.encryptedPassword = encrypt(data.password);
+    console.log("Encrypted password:", data.encryptedPassword);
+
     const newSupervisor = new Supervisor(data);
     const response = await newSupervisor.save();
     console.log("Data saved:", response);
+
     const payload = {
       id: response.id,
       email: response.email,
     };
     console.log("JWT payload:", JSON.stringify(payload));
+    
     const token = generateToken(payload);
     console.log("Generated token:", token);
-    res.status(201).json({ response, token });
+
+    res.status(201).json({ response: { ...response.toObject(), encryptedPassword: data.encryptedPassword }, token });
   } catch (error) {
     console.error("Error during registration:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -174,54 +187,34 @@ router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// for attendance and status
-// router.put("/mark-attendance/:childId", jwtAuthMiddleware, async (req, res) => {
-//   const { childId } = req.params;
-//   const { isPresent } = req.body;
-//   if (typeof isPresent !== "boolean") {
-//     return res.status(400).json({ error: "Invalid status type" });
-//   }
-//   try {
-//     const today = new Date().toISOString().split("T")[0];
-//     let attendanceRecord = await Attendance.findOne({ childId, date: today });
-//     if (attendanceRecord) {
-//       attendanceRecord.status = isPresent;
-//       await attendanceRecord.save();
-//     } else {
-//       attendanceRecord = new Attendance({
-//         childId,
-//         date: today,
-//         status: isPresent,
-//       });
-//       await attendanceRecord.save();
-//     }
-//     const statusString = isPresent ? "present" : "absent";
-//     const notificationStatus = isPresent;
-//     const parent = await Parent.findOne({ children: childId });
-//     if (parent) {
-//       await sendNotification(parent._id, {
-//         childId,
-//         status: notificationStatus,
-//       });
-//     }
-//     const newAttendanceForDashboard = new Attendance({
-//       childId,
-//       date: today,
-//       status: isPresent,
-//     });
-//     await newAttendanceForDashboard.save();
-//     console.log(`Child ${childId} marked as ${statusString} for ${today}`);
-//     res
-//       .status(200)
-//       .json({ message: `Child marked as ${statusString} for ${today}` });
-//   } catch (error) {
-//     console.error(
-//       `Error marking child as ${isPresent ? "present" : "absent"}:`,
-//       error
-//     );
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
-
+// Route for marking attendance
+router.put("/mark-attendance", jwtAuthMiddleware, async (req, res) => {
+  const { childId } = req.body;
+  const { isPresent } = req.body;
+  if (typeof isPresent !== "boolean") {
+    return res.status(400).json({ error: "Invalid status type" });
+  }
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    let attendanceRecord = await Attendance.findOne({ childId, date: today });
+    if (attendanceRecord) {
+      attendanceRecord.status = isPresent;
+      await attendanceRecord.save();
+    } else {
+      attendanceRecord = new Attendance({
+        childId,
+        date: today,
+        status: isPresent,
+      });
+      await attendanceRecord.save();
+    }
+    const statusString = isPresent ? "present" : "absent";
+    console.log(`Child ${childId} marked as ${statusString} for ${today}`);
+    res.status(200).json({ message: `Child marked as ${statusString} for ${today}` });
+  } catch (error) {
+    console.error(`Error marking child as ${isPresent ? "present" : "absent"}:`, error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+})
 
 module.exports = router;
