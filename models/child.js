@@ -40,6 +40,7 @@ const childSchema = new mongoose.Schema({
     required: true,
   },
   vehicleId: { type: String, default: null },
+  registrationDate: { type: Date, default: Date.now }
 });
 
 const Child = mongoose.model('Child', childSchema);

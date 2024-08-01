@@ -10,16 +10,19 @@ const Request = require("../models/request");
 // Parent Registration Route
 router.post('/register', async (req, res) => {
   try {
-    const { parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender } = req.body;
+    const { parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken } = req.body;
 
     // Check if parent email already exists
     const existingParent = await Parent.findOne({ email });
     if (existingParent) {
       return res.status(400).json({ error: 'Parent email already exists' });
     }
-    const newParent = new Parent({ parentName, email, password, phone });
+    
+    // Create new parent
+    const newParent = new Parent({ parentName, email, password, phone, fcmToken });
     await newParent.save();
 
+    // Create new child
     const newChild = new Child({
       childName,
       parentName,
@@ -34,8 +37,12 @@ router.post('/register', async (req, res) => {
       parentId: newParent._id
     });
     await newChild.save();
+
+    // Link child to parent
     newParent.children.push(newChild._id);
     await newParent.save();
+
+    // Generate JWT token
     const payload = { id: newParent._id, email: newParent.email };
     const token = generateToken(payload);
 
@@ -45,6 +52,7 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 // Parent Login Route
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;

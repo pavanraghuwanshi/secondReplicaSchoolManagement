@@ -14,9 +14,13 @@ const attendanceSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  status: {
-    type: Boolean,
-    required: true
+  pickup: { 
+    type: Boolean, 
+    default: null 
+  },
+  drop: { 
+    type: Boolean, 
+    default: null 
   }
 });
 

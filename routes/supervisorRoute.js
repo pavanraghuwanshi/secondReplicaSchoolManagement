@@ -7,7 +7,8 @@ const Parent = require('../models/Parent');
 const Attendance = require('../models/attendence')
 const { encrypt } = require('../models/cryptoUtils');
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
-// const Attendance = require("../models/attendence");
+const sendNotification = require("../utils/sendNotification");
+const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -165,6 +166,7 @@ router.delete("/delete", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Error deleting supervisor details" });
   }
 });
+
 // get children
 router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
   try {
@@ -187,34 +189,83 @@ router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// Route for marking attendance
-router.put("/mark-attendance", jwtAuthMiddleware, async (req, res) => {
-  const { childId } = req.body;
-  const { isPresent } = req.body;
+// Route for marking pickup attendance
+router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
+  const { childId, isPresent } = req.body;
+
   if (typeof isPresent !== "boolean") {
-    return res.status(400).json({ error: "Invalid status type" });
+    return res.status(400).json({ error: "Invalid input" });
   }
+
+  const today = new Date();
+  const formattedDate = formatDateToDDMMYYYY(today);
+
   try {
-    const today = new Date().toISOString().split("T")[0];
-    let attendanceRecord = await Attendance.findOne({ childId, date: today });
-    if (attendanceRecord) {
-      attendanceRecord.status = isPresent;
-      await attendanceRecord.save();
-    } else {
-      attendanceRecord = new Attendance({
-        childId,
-        date: today,
-        status: isPresent,
-      });
-      await attendanceRecord.save();
+    let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
+
+    if (!attendanceRecord) {
+      attendanceRecord = new Attendance({ childId, date: formattedDate, pickup: null, drop: null });
     }
-    const statusString = isPresent ? "present" : "absent";
-    console.log(`Child ${childId} marked as ${statusString} for ${today}`);
-    res.status(200).json({ message: `Child marked as ${statusString} for ${today}` });
+
+    attendanceRecord.pickup = isPresent;
+    await attendanceRecord.save();
+
+    const child = await Child.findById(childId).populate('parentId');
+    const parent = child.parentId;
+
+    if (parent && parent.fcmToken) {
+      const actionMessage = isPresent ? "picked up from the bus stop" : "not present at the bus stop for pickup";
+      const title = "Child Pickup Notification";
+      const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate}.`;
+
+      await sendNotification(parent.fcmToken, title, body);
+      console.log(`Notification sent to parent: ${body}`);
+    }
+
+    res.status(200).json({ message: `Child marked as ${isPresent ? "present" : "absent"} for pickup on ${formattedDate}` });
   } catch (error) {
-    console.error(`Error marking child as ${isPresent ? "present" : "absent"}:`, error);
+    console.error(`Error marking child as ${isPresent ? "present" : "absent"} for pickup:`, error);
     res.status(500).json({ error: "Internal server error" });
   }
-})
+});
+// Route for marking drop attendance
+router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
+  const { childId, isPresent } = req.body;
+
+  if (typeof isPresent !== "boolean") {
+    return res.status(400).json({ error: "Invalid input" });
+  }
+
+  const today = new Date();
+  const formattedDate = formatDateToDDMMYYYY(today);
+
+  try {
+    let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
+
+    if (!attendanceRecord) {
+      attendanceRecord = new Attendance({ childId, date: formattedDate, pickup: null, drop: null });
+    }
+
+    attendanceRecord.drop = isPresent;
+    await attendanceRecord.save();
+
+    const child = await Child.findById(childId).populate('parentId');
+    const parent = child.parentId;
+
+    if (parent && parent.fcmToken) {
+      const actionMessage = isPresent ? "dropped off at the bus stop" : "not present in the bus for drop";
+      const title = "Child Drop Notification";
+      const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate}.`;
+
+      await sendNotification(parent.fcmToken, title, body);
+      console.log(`Notification sent to parent: ${body}`);
+    }
+
+    res.status(200).json({ message: `Child marked as ${isPresent ? "present" : "absent"} for drop on ${formattedDate}` });
+  } catch (error) {
+    console.error(`Error marking child as ${isPresent ? "present" : "absent"} for drop:`, error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 module.exports = router;

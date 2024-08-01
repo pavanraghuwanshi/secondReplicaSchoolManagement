@@ -9,6 +9,7 @@ const Attendance = require("../models/attendence");
 const { schoolAuthMiddleware } = require("../jwt");
 const { decrypt } = require('../models/cryptoUtils');
 const DriverCollection = require('../models/driver');
+const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 const jwt = require("jsonwebtoken");
 // School Registration Route
 router.post("/register", async (req, res) => {
@@ -92,6 +93,7 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
         return {
           ...child,
           ...parentData,
+          registrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate))
         };
       })
     );
