@@ -7,3 +7,5 @@ admin.initializeApp({
 });
 
 module.exports = admin;
+
+name, class, rollno, date, pickup , absent present,
