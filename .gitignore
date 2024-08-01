@@ -6,4 +6,5 @@ node_modules/
 # Environment variables
 .env
 
-firebase.json
+# Firebase service account key (sensitive file)
+firebaseServiceAccountKey.json
