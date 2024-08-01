@@ -1,3 +1,11 @@
-/node_modules
+# .gitignore
+
+# Node modules
+node_modules/
+
+# Environment variables
 .env
+
+# Firebase configuration
+firebase.js
 firebase.json
