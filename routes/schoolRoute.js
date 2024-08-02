@@ -152,12 +152,13 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
     const formattedRequests = approvedRequests.map((request) => ({
       childName: request.childId ? request.childId.childName : null,
       statusOfRequest: request.statusOfRequest,
-      class: request.childId.class,
+      class: request.childId ? request.childId.class : null,
       parentName: request.parentId ? request.parentId.parentName : null,
       email: request.parentId ? request.parentId.email : null,
       phone: request.parentId ? request.parentId.phone : null,
       requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
     }));
+
     res.status(200).json({
       requests: formattedRequests,
     });
@@ -168,6 +169,7 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
+
 // Get all children with denied requests
 router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -269,28 +271,30 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
       })
       .exec();
 
-    const responseData = attendanceRecords.map(record => {
+    const childrenData = attendanceRecords.map(record => {
       if (record.childId && record.childId.parentId) {
         return {
+          _id: record.childId._id,
           childName: record.childId.childName,
-          phone: record.childId.parentId.phone,
           class: record.childId.class,
+          rollno: record.childId.rollno,
           section: record.childId.section,
+          parentId: record.childId.parentId._id,
+          phone: record.childId.parentId.phone,
           pickupStatus: record.pickup,
-          dropStatus: record.drop
+          dropStatus: record.drop,
         };
       } else {
         return null;
       }
     }).filter(record => record !== null);
 
-    res.status(200).json(responseData);
+    res.status(200).json({ children: childrenData });
   } catch (error) {
     console.error("Error fetching attendance data:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 // POST METHOD
 //review request
@@ -353,8 +357,6 @@ router.post("/admin/assignVehicleId", async (req, res) => {
     res.status(500).send({ error: "Failed to assign Vehicle ID" });
   }
 });
-
-
 //PUT METHOD
 // Update child
 router.put("/update/:childId", schoolAuthMiddleware, async (req, res) => {

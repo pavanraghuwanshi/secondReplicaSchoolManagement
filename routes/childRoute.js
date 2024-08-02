@@ -10,7 +10,7 @@ const Request = require("../models/request");
 // Parent Registration Route
 router.post('/register', async (req, res) => {
   try {
-    const {parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint } = req.body;
+    const {parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint ,home} = req.body;
 
     // Check if parent email already exists
     const existingParent = await Parent.findOne({ email });
@@ -34,6 +34,7 @@ router.post('/register', async (req, res) => {
       dateOfBirth,
       childAge,
       gender,
+      home,
       pickupPoint,
       parentId: newParent._id
     });
