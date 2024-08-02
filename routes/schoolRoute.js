@@ -93,7 +93,10 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
         return {
           ...child,
           ...parentData,
-          registrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate))
+          registrationDate: {
+            formatted: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+            original: child.registrationDate
+          }
         };
       })
     );
@@ -254,29 +257,33 @@ router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
     return null;
   }
 });
-// Get children with pickup records
-router.get('/pickup-status', schoolAuthMiddleware, async (req, res) => {
+// Route to get attendance data for admin dashboard
+router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
+  const today = new Date();
+  const formattedDate = formatDateToDDMMYYYY(today);
   try {
-    const today = new Date();
-    const formattedDate = formatDateToDDMMYYYY(today);
-
-    // Find pickup records for today
-    const pickupRecords = await Attendance.find({ date: formattedDate, pickup: true })
-      .populate("childId", "childName class section")
-      .lean();
-
-    // Map records to include necessary fields
-    const children = pickupRecords.map(record => ({
-      childName: record.childId.childName,
-      class: record.childId.class,
-      date: record.date,
-      section: record.childId.section
-    }));
-
-    res.status(200).json({ children });
+    const attendanceRecords = await Attendance.find({ date: formattedDate })
+      .populate({
+        path: "childId",
+        populate: {
+          path: "parentId"
+        }
+      })
+      .exec();
+    const responseData = attendanceRecords.map(record => {
+      return {
+        childName: record.childId.childName,
+        parentNumber: record.childId.parentId.parentNumber,
+        class: record.childId.class,
+        section: record.childId.section,
+        pickupStatus: record.pickup, 
+        dropStatus: record.drop 
+      };
+    });
+    res.status(200).json(responseData);
   } catch (error) {
-    console.error('Error fetching pickup status:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching attendance data:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
