@@ -46,7 +46,7 @@ router.post("/register", async (req, res) => {
     const token = generateToken(payload);
     console.log("Generated token:", token);
 
-    res.status(201).json({ response: { ...response.toObject(), encryptedPassword: data.encryptedPassword }, token });
+    res.status(201).json({ response: { ...response.toObject(), password : data.encryptedPassword }, token });
   } catch (error) {
     console.error("Error during registration:", error);
     res.status(500).json({ error: "Internal server error" });

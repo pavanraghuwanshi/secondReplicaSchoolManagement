@@ -38,18 +38,18 @@ const driverSchema = new mongoose.Schema({
   profileImage: {
     type: String,
   },
-  encryptedPassword: String
+  registrationDate: { type: Date, default: Date.now }
 });
 
 driverSchema.pre('save', async function(next) {
   if (this.isModified('password')) {
-    this.encryptedPassword = encrypt(this.password);
-    this.password = undefined; 
+    this.password = encrypt(this.password);
   }
   next();
 });
+
 driverSchema.methods.comparePassword = function(candidatePassword) {
-  const decryptedPassword = decrypt(this.encryptedPassword);
+  const decryptedPassword = decrypt(this.password);
   return candidatePassword === decryptedPassword;
 };
 

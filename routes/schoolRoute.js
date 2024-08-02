@@ -108,32 +108,6 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// Route to get attendance records for a specific child
-router.get("/attendance/:childId", schoolAuthMiddleware, async (req, res) => {
-  const { childId } = req.params;
-  try {
-    const child = await Child.findById(childId).lean();
-    if (!child) {
-      return res.status(404).json({ message: "Child not found" });
-    }
-    const records = await Attendance.find({ childId })
-      .sort({ date: -1 })
-      .lean();
-    if (records.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No attendance records found for this child" });
-    }
-    const response = {
-      childName: child.childName,
-      attendanceRecords: records,
-    };
-    res.status(200).json(response);
-  } catch (error) {
-    console.error("Error fetching attendance records:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 // Get all pending requests
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -144,8 +118,7 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
 
     const formattedRequests = requests.map((request) => ({
       requestId: request._id,
-      reason:request.reason,
-      class:request.class,
+      reason: request.reason,
       class: request.childId ? request.childId.class : null,
       statusOfRequest: request.statusOfRequest,
       parentId: request.parentId ? request.parentId._id : null,
@@ -154,6 +127,7 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
       email: request.parentId ? request.parentId.email : null,
       childId: request.childId ? request.childId._id : null,
       childName: request.childId ? request.childId.childName : null,
+      requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
     }));
 
     res.status(200).json({
@@ -181,6 +155,7 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
       parentName: request.parentId ? request.parentId.parentName : null,
       email: request.parentId ? request.parentId.email : null,
       phone: request.parentId ? request.parentId.phone : null,
+      requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
     }));
     res.status(200).json({
       requests: formattedRequests,
@@ -212,6 +187,7 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
         parentName: request.parentId ? request.parentId.parentName : null,
         email: request.parentId ? request.parentId.email : null,
         phone: request.parentId ? request.parentId.phone : null,
+        requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
       }));
 
     res.status(200).json({ children });
@@ -226,8 +202,8 @@ router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
     const drivers = await DriverCollection.find({});
     const driverData = drivers.map(driver => {
       try {
-        console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.encryptedPassword}`);
-        const decryptedPassword = decrypt(driver.encryptedPassword);
+        console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
+        const decryptedPassword = decrypt(driver.password);
         return {
           id:driver._id,
           driverName: driver.driverName,
@@ -235,7 +211,8 @@ router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
           phone_no: driver.phone_no,
           email: driver.email,
           vehicleId: driver.vehicleId,
-          password: decryptedPassword
+          password: decryptedPassword,
+          registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate))
         };
       } catch (decryptError) {
         console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
@@ -254,8 +231,8 @@ router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
     const supervisors = await Supervisor.find({});
     const supervisorData = supervisors.map(supervisor => {
       try {
-        console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.encryptedPassword}`);
-        const decryptedPassword = decrypt(supervisor.encryptedPassword);
+        console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
+        const decryptedPassword = decrypt(supervisor.password);
         return {
           id:supervisor._id,
           supervisorName: supervisor.supervisorName,
@@ -263,7 +240,8 @@ router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
           phone_no: supervisor.phone_no,
           email: supervisor.email,
           vehicleId: supervisor.vehicleId,
-          password: decryptedPassword
+          password: decryptedPassword,
+          registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate))
         };
       } catch (decryptError) {
         console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);

@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
-const { encrypt } = require('./cryptoUtils');
-const {decrypt} = require('./cryptoUtils');
+const { encrypt, decrypt } = require('./cryptoUtils');
+
 const supervisorSchema = new mongoose.Schema({
   supervisorName: {
     type: String,
@@ -37,19 +37,20 @@ const supervisorSchema = new mongoose.Schema({
   profileImage: {
     type: String,
   },
-  encryptedPassword: String
+  registrationDate: { type: Date, default: Date.now }
 });
 
 supervisorSchema.pre('save', async function(next) {
   if (this.isModified('password')) {
-    this.encryptedPassword = encrypt(this.password);
-    this.password = undefined; 
+    this.password = encrypt(this.password);
   }
   next();
 });
+
 supervisorSchema.methods.comparePassword = function(candidatePassword) {
-  const decryptedPassword = decrypt(this.encryptedPassword);
+  const decryptedPassword = decrypt(this.password);
   return candidatePassword === decryptedPassword;
 };
+
 const Supervisor = mongoose.model("Supervisor", supervisorSchema);
 module.exports = Supervisor;

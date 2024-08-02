@@ -21,7 +21,7 @@ const attendanceSchema = new mongoose.Schema({
   drop: { 
     type: Boolean, 
     default: null 
-  }
+  },
 });
 
 const Attendance = mongoose.model('Attendance', attendanceSchema);

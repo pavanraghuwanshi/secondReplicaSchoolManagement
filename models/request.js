@@ -47,7 +47,8 @@ const requestSchema = new mongoose.Schema({
       date: { type: String },
       isAbsent: { type: Boolean, default: true }
     }
-  ]
+  ],
+    requestDate: { type: Date, default: Date.now }
 });
 
 const Request = mongoose.model('Request', requestSchema);

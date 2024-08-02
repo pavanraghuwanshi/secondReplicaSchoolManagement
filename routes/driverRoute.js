@@ -10,16 +10,16 @@ router.post("/register", async (req, res) => {
   try {
     const data = {
       driverName: req.body.driverName,
-      address: req.body.address,
       phone_no: req.body.phone_no,
       email: req.body.email,
-      password: req.body.password
+      address: req.body.address,
+      password: req.body.password,
     };
     const { email } = data;
     console.log("Received registration data:", data);
 
-    const existingDriver = await DriverCollection.findOne({ email });
-    if (existingDriver) {
+    const existingdriver = await DriverCollection.findOne({ email });
+    if (existingdriver) {
       console.log("Email already exists");
       return res.status(400).json({ error: "Email already exists" });
     }
@@ -28,8 +28,8 @@ router.post("/register", async (req, res) => {
     data.encryptedPassword = encrypt(data.password);
     console.log("Encrypted password:", data.encryptedPassword);
 
-    const newDriver = new DriverCollection(data);
-    const response = await newDriver.save();
+    const newdriver = new DriverCollection(data);
+    const response = await newdriver.save();
     console.log("Data saved:", response);
 
     const payload = {
@@ -41,7 +41,7 @@ router.post("/register", async (req, res) => {
     const token = generateToken(payload);
     console.log("Generated token:", token);
 
-    res.status(201).json({ response, token });
+    res.status(201).json({ response: { ...response.toObject(), password : data.encryptedPassword }, token });
   } catch (error) {
     console.error("Error during registration:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -59,7 +59,10 @@ router.post("/login", async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
-    const token = generateToken({ id: driver._id, email: driver.email });
+    const token = generateToken({
+      id: driver._id,
+      email: driver.email,
+    });
     res.status(200).json({
       success: true,
       message: "Login successful",
