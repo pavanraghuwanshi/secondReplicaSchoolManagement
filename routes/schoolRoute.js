@@ -93,10 +93,8 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
         return {
           ...child,
           ...parentData,
-          registrationDate: {
-            formatted: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-            original: child.registrationDate
-          }
+          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+          originalRegistrationDate: child.registrationDate
         };
       })
     );
