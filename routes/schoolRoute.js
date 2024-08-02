@@ -268,22 +268,29 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
         }
       })
       .exec();
+
     const responseData = attendanceRecords.map(record => {
-      return {
-        childName: record.childId.childName,
-        parentNumber: record.childId.parentId.parentNumber,
-        class: record.childId.class,
-        section: record.childId.section,
-        pickupStatus: record.pickup, 
-        dropStatus: record.drop 
-      };
-    });
+      if (record.childId && record.childId.parentId) {
+        return {
+          childName: record.childId.childName,
+          phone: record.childId.parentId.phone,
+          class: record.childId.class,
+          section: record.childId.section,
+          pickupStatus: record.pickup,
+          dropStatus: record.drop
+        };
+      } else {
+        return null;
+      }
+    }).filter(record => record !== null);
+
     res.status(200).json(responseData);
   } catch (error) {
     console.error("Error fetching attendance data:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 // POST METHOD
 //review request
