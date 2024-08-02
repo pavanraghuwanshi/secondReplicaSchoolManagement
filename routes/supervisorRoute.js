@@ -7,7 +7,7 @@ const Parent = require('../models/Parent');
 const Attendance = require('../models/attendence')
 const { encrypt } = require('../models/cryptoUtils');
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
-const sendNotification = require("../utils/sendNotification");
+// const sendNotification = require("../utils/sendNotification");
 const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 
 // Registration route
@@ -211,16 +211,16 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
     await attendanceRecord.save();
 
     const child = await Child.findById(childId).populate('parentId');
-    const parent = child.parentId;
+    // const parent = child.parentId;
 
-    if (parent && parent.fcmToken) {
-      const actionMessage = isPresent ? "picked up from the bus stop" : "not present at the bus stop for pickup";
-      const title = "Child Pickup Notification";
-      const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate}.`;
+    // if (parent && parent.fcmToken) {
+    //   const actionMessage = isPresent ? "picked up from the bus stop" : "not present at the bus stop for pickup";
+    //   const title = "Child Pickup Notification";
+    //   const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate}.`;
 
-      await sendNotification(parent.fcmToken, title, body);
-      console.log(`Notification sent to parent: ${body}`);
-    }
+    //   await sendNotification(parent.fcmToken, title, body);
+    //   console.log(`Notification sent to parent: ${body}`);
+    // }
 
     res.status(200).json({ message: `Child marked as ${isPresent ? "present" : "absent"} for pickup on ${formattedDate}` });
   } catch (error) {
@@ -252,14 +252,14 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
     const child = await Child.findById(childId).populate('parentId');
     const parent = child.parentId;
 
-    if (parent && parent.fcmToken) {
-      const actionMessage = isPresent ? "dropped off at the bus stop" : "not present in the bus for drop";
-      const title = "Child Drop Notification";
-      const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate}.`;
+    // if (parent && parent.fcmToken) {
+    //   const actionMessage = isPresent ? "dropped off at the bus stop" : "not present in the bus for drop";
+    //   const title = "Child Drop Notification";
+    //   const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate}.`;
 
-      await sendNotification(parent.fcmToken, title, body);
-      console.log(`Notification sent to parent: ${body}`);
-    }
+    //   await sendNotification(parent.fcmToken, title, body);
+    //   console.log(`Notification sent to parent: ${body}`);
+    // }
 
     res.status(200).json({ message: `Child marked as ${isPresent ? "present" : "absent"} for drop on ${formattedDate}` });
   } catch (error) {
