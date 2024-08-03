@@ -60,7 +60,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-
 // GET METHOD 
 // Get children with vehicle IDs
 router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
@@ -94,7 +93,6 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
           ...child,
           ...parentData,
           formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-          originalRegistrationDate: child.registrationDate
         };
       })
     );
@@ -264,12 +262,20 @@ router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
     return null;
   }
 });
+
+
 // Route to get attendance data for admin dashboard
+const convertDate = (dateStr) => {
+  const dateParts = dateStr.split('-');
+  const jsDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);
+  return {
+    date: dateStr,
+    originalDate: jsDate
+  };
+}
 router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
-  const today = new Date();
-  const formattedDate = formatDateToDDMMYYYY(today);
   try {
-    const attendanceRecords = await Attendance.find({ date: formattedDate })
+    const attendanceRecords = await Attendance.find({})
       .populate({
         path: "childId",
         populate: {
@@ -279,18 +285,24 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
       .lean();
 
     const childrenData = attendanceRecords
-      .filter(record => record.childId && record.childId.parentId) // Filter out invalid records
-      .map(record => ({
-        _id: record.childId._id,
-        childName: record.childId.childName,
-        class: record.childId.class,
-        rollno: record.childId.rollno,
-        section: record.childId.section,
-        parentId: record.childId.parentId._id,
-        phone: record.childId.parentId.phone,
-        pickupStatus: record.pickup,
-        dropStatus: record.drop,
-      }));
+      .filter(record => record.childId && record.childId.parentId)
+      .map(record => {
+        const { date, originalDate } = convertDate(record.date);
+
+        return {
+          _id: record.childId._id,
+          childName: record.childId.childName,
+          class: record.childId.class,
+          rollno: record.childId.rollno,
+          section: record.childId.section,
+          parentId: record.childId.parentId._id,
+          phone: record.childId.parentId.phone,
+          pickupStatus: record.pickup,
+          dropStatus: record.drop,
+          date: date,
+          originalDate: originalDate
+        };
+      });
 
     res.status(200).json({ children: childrenData });
   } catch (error) {
@@ -298,7 +310,6 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 // POST METHOD
 //review request
