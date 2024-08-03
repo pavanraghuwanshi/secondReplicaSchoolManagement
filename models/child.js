@@ -12,10 +12,7 @@ const childSchema = new mongoose.Schema({
   gender: { type: String, enum: ['female', 'male'], required: true },
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', required: true },
   vehicleId: { type: String, default: null },
-  registrationDate: { type: Date, default: Date.now },
-  home:{
-    type: String, required: true
-  }
+  registrationDate: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('Child', childSchema);
