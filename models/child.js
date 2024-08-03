@@ -13,6 +13,9 @@ const childSchema = new mongoose.Schema({
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', required: true },
   vehicleId: { type: String, default: null },
   registrationDate: { type: Date, default: Date.now },
+  home:{
+    type: String, required: true
+  }
 });
 
 module.exports = mongoose.model('Child', childSchema);
