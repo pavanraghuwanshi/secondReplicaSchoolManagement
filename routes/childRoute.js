@@ -34,7 +34,6 @@ router.post('/register', async (req, res) => {
       dateOfBirth,
       childAge,
       gender,
-      home,
       pickupPoint,
       parentId: newParent._id
     });
