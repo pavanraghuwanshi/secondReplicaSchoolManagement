@@ -117,17 +117,20 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
       .populate("childId", "childName class")
       .lean();
 
-    const formattedRequests = requests.map((request) => ({
+    // Filter out requests where parent or child does not exist
+    const validRequests = requests.filter(request => request.parentId && request.childId);
+
+    const formattedRequests = validRequests.map((request) => ({
       requestId: request._id,
       reason: request.reason,
-      class: request.childId ? request.childId.class : null,
+      class: request.childId.class,
       statusOfRequest: request.statusOfRequest,
-      parentId: request.parentId ? request.parentId._id : null,
-      parentName: request.parentId ? request.parentId.parentName : null,
-      phone: request.parentId ? request.parentId.phone : null,
-      email: request.parentId ? request.parentId.email : null,
-      childId: request.childId ? request.childId._id : null,
-      childName: request.childId ? request.childId.childName : null,
+      parentId: request.parentId._id,
+      parentName: request.parentId.parentName,
+      phone: request.parentId.phone,
+      email: request.parentId.email,
+      childId: request.childId._id,
+      childName: request.childId.childName,
       requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
     }));
 
@@ -141,6 +144,7 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
+
 // Get all approved requests
 router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -149,13 +153,16 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
       .populate("childId", "childName class")
       .lean();
 
-    const formattedRequests = approvedRequests.map((request) => ({
-      childName: request.childId ? request.childId.childName : null,
+    // Filter out requests where parent or child does not exist
+    const validRequests = approvedRequests.filter(request => request.parentId && request.childId);
+
+    const formattedRequests = validRequests.map((request) => ({
+      childName: request.childId.childName,
       statusOfRequest: request.statusOfRequest,
-      class: request.childId ? request.childId.class : null,
-      parentName: request.parentId ? request.parentId.parentName : null,
-      email: request.parentId ? request.parentId.email : null,
-      phone: request.parentId ? request.parentId.phone : null,
+      class: request.childId.class,
+      parentName: request.parentId.parentName,
+      email: request.parentId.email,
+      phone: request.parentId.phone,
       requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
     }));
 
@@ -169,7 +176,6 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
-
 // Get all children with denied requests
 router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -178,27 +184,28 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
       .populate('childId', 'childName vehicleId class')
       .lean();
 
-    // Filter out requests where childId is null or not populated
-    const children = deniedRequests
-      .filter(request => request.childId)
-      .map(request => ({
-        childId: request.childId._id,
-        childName: request.childId.childName,
-        vehicleId: request.childId.vehicleId,
-        class: request.childId.class,
-        statusOfRequest: request.statusOfRequest,
-        parentName: request.parentId ? request.parentId.parentName : null,
-        email: request.parentId ? request.parentId.email : null,
-        phone: request.parentId ? request.parentId.phone : null,
-        requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
-      }));
+    // Filter out requests where parentId or childId is null or not populated
+    const validRequests = deniedRequests.filter(request => request.parentId && request.childId);
 
-    res.status(200).json({ children });
+    const formattedRequests = validRequests.map(request => ({
+      childId: request.childId._id,
+      childName: request.childId.childName,
+      vehicleId: request.childId.vehicleId,
+      class: request.childId.class,
+      statusOfRequest: request.statusOfRequest,
+      parentName: request.parentId.parentName,
+      email: request.parentId.email,
+      phone: request.parentId.phone,
+      requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
+    }));
+
+    res.status(200).json({ requests: formattedRequests });
   } catch (error) {
-    console.error('Error fetching children with denied requests:', error);
+    console.error('Error fetching denied requests:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 // Get all drivers
 router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -269,25 +276,21 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
           path: "parentId"
         }
       })
-      .exec();
+      .lean();
 
-    const childrenData = attendanceRecords.map(record => {
-      if (record.childId && record.childId.parentId) {
-        return {
-          _id: record.childId._id,
-          childName: record.childId.childName,
-          class: record.childId.class,
-          rollno: record.childId.rollno,
-          section: record.childId.section,
-          parentId: record.childId.parentId._id,
-          phone: record.childId.parentId.phone,
-          pickupStatus: record.pickup,
-          dropStatus: record.drop,
-        };
-      } else {
-        return null;
-      }
-    }).filter(record => record !== null);
+    const childrenData = attendanceRecords
+      .filter(record => record.childId && record.childId.parentId) // Filter out invalid records
+      .map(record => ({
+        _id: record.childId._id,
+        childName: record.childId.childName,
+        class: record.childId.class,
+        rollno: record.childId.rollno,
+        section: record.childId.section,
+        parentId: record.childId.parentId._id,
+        phone: record.childId.parentId.phone,
+        pickupStatus: record.pickup,
+        dropStatus: record.drop,
+      }));
 
     res.status(200).json({ children: childrenData });
   } catch (error) {
@@ -295,6 +298,7 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 // POST METHOD
 //review request
