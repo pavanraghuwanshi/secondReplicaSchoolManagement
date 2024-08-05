@@ -166,7 +166,6 @@ router.delete("/delete", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Error deleting supervisor details" });
   }
 });
-
 // get children
 router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
   try {
@@ -212,7 +211,6 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
 
     const child = await Child.findById(childId).populate('parentId');
     // const parent = child.parentId;
-
     // if (parent && parent.fcmToken) {
     //   const actionMessage = isPresent ? "picked up from the bus stop" : "not present at the bus stop for pickup";
     //   const title = "Child Pickup Notification";
@@ -245,7 +243,6 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
     if (!attendanceRecord) {
       attendanceRecord = new Attendance({ childId, date: formattedDate, pickup: null, drop: null });
     }
-
     attendanceRecord.drop = isPresent;
     await attendanceRecord.save();
 

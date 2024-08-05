@@ -373,90 +373,61 @@ router.post("/admin/assignVehicleId", async (req, res) => {
   }
 });
 //PUT METHOD
-// Update child
-router.put("/update/:childId", schoolAuthMiddleware, async (req, res) => {
+
+// Update child information
+router.put('/update-child/:childId', schoolAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
-  const {
-    childName,
-    class: childClass,
-    rollno,
-    section,
-    schoolName,
-    dateOfBirth,
-    childAge,
-    gender,
-    parentName,
-    email,
-    phone,
-  } = req.body;
-
-  // Separate childData and parentData from the request body
-  const childData = {
-    childName,
-    class: childClass,
-    rollno,
-    section,
-    schoolName,
-    dateOfBirth,
-    childAge,
-    gender,
-  };
-
-  const parentData = {
-    parentName,
-    email,
-    phone,
-  };
+  const { vehicleId, ...updateFields } = req.body;
 
   try {
-    const child = await Child.findById(childId).lean();
+    const child = await Child.findById(childId);
+
     if (!child) {
-      return res.status(404).json({ error: "Child not found" });
+      return res.status(404).json({ error: 'Child not found' });
     }
 
-    // Update child data
-    const updatedChild = await Child.findByIdAndUpdate(childId, childData, {
-      new: true,
-    }).lean();
-    console.log("Updated child data:", JSON.stringify(updatedChild, null, 2));
-
-    let response = { child: updatedChild };
-
-    // If parent data is provided and child has a parentId, update parent data
-    if (
-      (parentData.parentName || parentData.email || parentData.phone) &&
-      child.parentId
-    ) {
-      const updatedParent = await Parent.findByIdAndUpdate(
-        child.parentId,
-        parentData,
-        { new: true }
-      ).lean();
-      console.log(
-        "Updated parent data:",
-        JSON.stringify(updatedParent, null, 2)
-      );
-
-      response.child.parentName = updatedParent.parentName;
-      response.child.email = updatedParent.email;
-      response.child.phone = updatedParent.phone;
-      response.child.parentId = updatedParent._id;
+    // Update fields
+    if (vehicleId) {
+      child.vehicleId = vehicleId;
     }
 
-    res.status(200).json(response);
+    Object.keys(updateFields).forEach((field) => {
+      child[field] = updateFields[field];
+    });
+
+    await child.save();
+
+    // Fetch updated child data with parent info
+    const updatedChild = await Child.findById(childId).lean();
+    let parentData = {};
+
+    if (updatedChild.parentId) {
+      const parent = await Parent.findById(updatedChild.parentId).lean();
+      parentData = {
+        parentName: parent ? parent.parentName : null,
+        email: parent ? parent.email : null,
+        phone: parent ? parent.phone : null,
+        parentId: parent ? parent._id : null,
+      };
+    } else {
+      parentData = {
+        parentName: null,
+        email: null,
+        phone: null,
+        parentId: null,
+      };
+    }
+
+    const transformedChild = {
+      ...updatedChild,
+      ...parentData,
+      formattedRegistrationDate: formatDateToDDMMYYYY(new Date(updatedChild.registrationDate)),
+    };
+
+    res.status(200).json({ message: 'Child information updated successfully', child: transformedChild });
   } catch (error) {
-    console.error("Error updating child:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-// Update Vehicle ID for Child
-router.put("/child/updateVehicleId", async (req, res) => {
-  const { childId, vehicleId } = req.body;
-  try {
-    await Child.findByIdAndUpdate(childId, { vehicleId });
-    res.send({ message: "Vehicle ID updated successfully", vehicleId });
-  } catch (error) {
-    res.status(500).send({ error: "Failed to update Vehicle ID" });
+    console.error('Error updating child information:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 // update driver

@@ -127,7 +127,7 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Get Parent Data Route
+// Get Parent Data Routez
 router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
