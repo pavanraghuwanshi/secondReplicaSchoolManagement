@@ -176,10 +176,11 @@ router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
     const children = await Child.find({ deviceId }).lean();
     console.log("Raw children data:", JSON.stringify(children, null, 2));
     const transformedChildren = children.map((child) => ({
+      childId: child._id, 
       childName: child.childName,
       class: child.class,
       section: child.section,
-      pickupPoint:child.pickupPoint
+      pickupPoint: child.pickupPoint
     }));
     console.log(
       "Transformed children data:",
@@ -191,6 +192,7 @@ router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 //Route for marking pickup attendance
 router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
   const { childId, isPresent } = req.body;
