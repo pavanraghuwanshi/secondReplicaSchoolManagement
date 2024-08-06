@@ -29,7 +29,7 @@ const driverSchema = new mongoose.Schema({
   aadharImage: {
     type: String,
   },
-  vehicleId: {
+  deviceId: {
     type: String,
   },
   schoolId: {

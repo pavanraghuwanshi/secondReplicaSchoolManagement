@@ -61,7 +61,7 @@ router.post("/login", async (req, res) => {
 });
 
 // GET METHOD 
-// Get children with vehicle IDs
+// Get children with device IDs
 router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
   try {
     const children = await Child.find({}).lean();
@@ -69,25 +69,23 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
 
     const transformedChildren = await Promise.all(
       children.map(async (child) => {
-        let parentData = {};
-        if (child.parentId) {
-          const parent = await Parent.findById(child.parentId).lean();
-          console.log("Parent data:", JSON.stringify(parent, null, 2));
-
-          parentData = {
-            parentName: parent ? parent.parentName : null,
-            email: parent ? parent.email : null,
-            phone: parent ? parent.phone : null,
-            parentId: parent ? parent._id : null,
-          };
-        } else {
-          parentData = {
-            parentName: null,
-            email: null,
-            phone: null,
-            parentId: null,
-          };
+        if (!child.parentId) {
+          return null; // Skip children without a parentId
         }
+
+        const parent = await Parent.findById(child.parentId).lean();
+        if (!parent) {
+          return null; // Skip children whose parent is not found
+        }
+
+        console.log("Parent data:", JSON.stringify(parent, null, 2));
+
+        const parentData = {
+          parentName: parent.parentName,
+          email: parent.email,
+          phone: parent.phone,
+          parentId: parent._id,
+        };
 
         return {
           ...child,
@@ -97,16 +95,20 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
       })
     );
 
+    // Filter out null values from the transformedChildren array
+    const filteredChildren = transformedChildren.filter(child => child !== null);
+
     console.log(
       "Transformed children data:",
-      JSON.stringify(transformedChildren, null, 2)
+      JSON.stringify(filteredChildren, null, 2)
     );
-    res.status(200).json({ children: transformedChildren });
+    res.status(200).json({ children: filteredChildren });
   } catch (error) {
     console.error("Error fetching children:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 // Get all pending requests
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -142,7 +144,6 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
-
 // Get all approved requests
 router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -179,7 +180,7 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
   try {
     const deniedRequests = await Request.find({ statusOfRequest: 'denied' })
       .populate("parentId", "parentName email phone")
-      .populate('childId', 'childName vehicleId class')
+      .populate('childId', 'childName deviceId class')
       .lean();
 
     // Filter out requests where parentId or childId is null or not populated
@@ -188,7 +189,7 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
     const formattedRequests = validRequests.map(request => ({
       childId: request.childId._id,
       childName: request.childId.childName,
-      vehicleId: request.childId.vehicleId,
+      deviceId: request.childId.deviceId,
       class: request.childId.class,
       statusOfRequest: request.statusOfRequest,
       parentName: request.parentId.parentName,
@@ -203,7 +204,6 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Get all drivers
 router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -218,7 +218,7 @@ router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
           address: driver.address,
           phone_no: driver.phone_no,
           email: driver.email,
-          vehicleId: driver.vehicleId,
+          deviceId: driver.deviceId,
           password: decryptedPassword,
           registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate))
         };
@@ -247,7 +247,7 @@ router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
           address: supervisor.address,
           phone_no: supervisor.phone_no,
           email: supervisor.email,
-          vehicleId: supervisor.vehicleId,
+          deviceId: supervisor.deviceId,
           password: decryptedPassword,
           registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate))
         };
@@ -262,7 +262,96 @@ router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
     return null;
   }
 });
+router.get('/read/data-by-deviceId', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { deviceId } = req.query;
 
+    if (!deviceId) {
+      return res.status(400).json({ error: 'Device ID is required' });
+    }
+
+    // Fetch Supervisor data
+    const supervisor = await Supervisor.findOne({ deviceId }).lean();
+    let supervisorData = {};
+    if (supervisor) {
+      try {
+        console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
+        const decryptedPassword = decrypt(supervisor.password);
+        supervisorData = {
+          id: supervisor._id,
+          supervisorName: supervisor.supervisorName,
+          address: supervisor.address,
+          phone_no: supervisor.phone_no,
+          email: supervisor.email,
+          deviceId: supervisor.deviceId,
+          password: decryptedPassword,
+          registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate))
+        };
+      } catch (decryptError) {
+        console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
+      }
+    }
+
+    // Fetch Driver data
+    const driver = await DriverCollection.findOne({ deviceId }).lean();
+    let driverData = {};
+    if (driver) {
+      try {
+        console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
+        const decryptedPassword = decrypt(driver.password);
+        driverData = {
+          id: driver._id,
+          driverName: driver.driverName,
+          address: driver.address,
+          phone_no: driver.phone_no,
+          email: driver.email,
+          deviceId: driver.deviceId,
+          password: decryptedPassword,
+          registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate))
+        };
+      } catch (decryptError) {
+        console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
+      }
+    }
+
+    // Fetch Child data
+    const children = await Child.find({ deviceId }).lean();
+    const transformedChildren = await Promise.all(
+      children.map(async (child) => {
+        let parentData = {};
+        if (child.parentId) {
+          const parent = await Parent.findById(child.parentId).lean();
+          parentData = {
+            parentName: parent ? parent.parentName : null,
+            email: parent ? parent.email : null,
+            phone: parent ? parent.phone : null,
+            parentId: parent ? parent._id : null,
+          };
+        }
+
+        return {
+          ...child,
+          ...parentData,
+          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+        };
+      })
+    );
+       // Combine results into desired structure
+       const responseData = {
+        deviceId: deviceId,
+        data: {
+          childData: transformedChildren,
+          driverData: driverData,
+          supervisorData: supervisorData
+        }
+      };
+    res.status(200).json(responseData);
+
+  } catch (error) {
+    console.error('Error fetching data by deviceId:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Route to get attendance data for admin dashboard
 const convertDate = (dateStr) => {
@@ -337,7 +426,7 @@ router.post("/review-request/:requestId",schoolAuthMiddleware,async (req, res) =
         if (!child) {
           return res.status(404).json({ error: "Child not found" });
         }
-        child.vehicleId = request.newRoute;
+        child.deviceId = request.newRoute;
         await child.save();
       }
       await request.save();
@@ -362,45 +451,29 @@ router.post("/review-request/:requestId",schoolAuthMiddleware,async (req, res) =
     }
   }
 );
-// Assign Vehicle ID to Child
-router.post("/admin/assignVehicleId", async (req, res) => {
-  const { childId, vehicleId } = req.body;
-  try {
-    await Child.findByIdAndUpdate(childId, { vehicleId });
-    res.send({ message: "Vehicle ID assigned successfully", vehicleId });
-  } catch (error) {
-    res.status(500).send({ error: "Failed to assign Vehicle ID" });
-  }
-});
-//PUT METHOD
 
+
+//PUT METHOD
 // Update child information
 router.put('/update-child/:childId', schoolAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
-  const { vehicleId, ...updateFields } = req.body;
-
+  const { deviceId, ...updateFields } = req.body;
   try {
     const child = await Child.findById(childId);
-
     if (!child) {
       return res.status(404).json({ error: 'Child not found' });
     }
-
     // Update fields
-    if (vehicleId) {
-      child.vehicleId = vehicleId;
+    if (deviceId) {
+      child.deviceId = deviceId;
     }
-
     Object.keys(updateFields).forEach((field) => {
       child[field] = updateFields[field];
     });
-
     await child.save();
-
     // Fetch updated child data with parent info
     const updatedChild = await Child.findById(childId).lean();
     let parentData = {};
-
     if (updatedChild.parentId) {
       const parent = await Parent.findById(updatedChild.parentId).lean();
       parentData = {
@@ -431,38 +504,94 @@ router.put('/update-child/:childId', schoolAuthMiddleware, async (req, res) => {
   }
 });
 // update driver
-router.put('/update/driver/:id', schoolAuthMiddleware, async (req, res) => {
+router.put('/update-driver/:id', schoolAuthMiddleware, async (req, res) => {
   try {
     const driverId = req.params.id;
-    const updateData = req.body;
-    
-    const updatedDriver = await DriverCollection.findByIdAndUpdate(driverId, updateData, { new: true });
-
-    if (!updatedDriver) {
+    const { deviceId, ...updateFields } = req.body;
+    // Find the driver by ID
+    const driver = await DriverCollection.findById(driverId);
+    if (!driver) {
       return res.status(404).json({ error: 'Driver not found' });
     }
+    // Update deviceId if provided
+    if (deviceId) {
+      driver.deviceId = deviceId;
+    }
 
-    console.log('Updated driver data:', JSON.stringify(updatedDriver, null, 2));
-    res.status(200).json({ driver: updatedDriver });
+    // Update other fields
+    Object.keys(updateFields).forEach((field) => {
+      driver[field] = updateFields[field];
+    });
+
+    // Save the updated driver
+    await driver.save();
+
+    // Fetch updated driver data with decrypted password
+    const updatedDriver = await DriverCollection.findById(driverId).lean();
+    let decryptedPassword = '';
+    try {
+      console.log(`Decrypting password for driver: ${updatedDriver.driverName}, encryptedPassword: ${updatedDriver.password}`);
+      decryptedPassword = decrypt(updatedDriver.password);
+    } catch (decryptError) {
+      console.error(`Error decrypting password for driver: ${updatedDriver.driverName}`, decryptError);
+    }
+
+    const transformedDriver = {
+      ...updatedDriver,
+      password: decryptedPassword,
+      registrationDate: formatDateToDDMMYYYY(new Date(updatedDriver.registrationDate))
+    };
+
+    console.log('Updated driver data:', JSON.stringify(transformedDriver, null, 2));
+    res.status(200).json({ message: 'Driver information updated successfully', driver: transformedDriver });
   } catch (error) {
     console.error('Error updating driver:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 // update the supervsior
-router.put('/update/supervisor/:id', schoolAuthMiddleware, async (req, res) => {
+router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
   try {
     const supervisorId = req.params.id;
-    const updateData = req.body;
+    const { deviceId, ...updateFields } = req.body;
 
-    const updatedSupervisor = await Supervisor.findByIdAndUpdate(supervisorId, updateData, { new: true });
-
-    if (!updatedSupervisor) {
+    // Find the supervisor by ID
+    const supervisor = await Supervisor.findById(supervisorId);
+    if (!supervisor) {
       return res.status(404).json({ error: 'Supervisor not found' });
     }
 
-    console.log('Updated supervisor data:', JSON.stringify(updatedSupervisor, null, 2));
-    res.status(200).json({ supervisor: updatedSupervisor });
+    // Update deviceId if provided
+    if (deviceId) {
+      supervisor.deviceId = deviceId;
+    }
+
+    // Update other fields
+    Object.keys(updateFields).forEach((field) => {
+      supervisor[field] = updateFields[field];
+    });
+
+    // Save the updated supervisor
+    await supervisor.save();
+
+    // Fetch updated supervisor data with decrypted password
+    const updatedSupervisor = await Supervisor.findById(supervisorId).lean();
+    let decryptedPassword = '';
+    try {
+      console.log(`Decrypting password for supervisor: ${updatedSupervisor.supervisorName}, encryptedPassword: ${updatedSupervisor.password}`);
+      decryptedPassword = decrypt(updatedSupervisor.password);
+    } catch (decryptError) {
+      console.error(`Error decrypting password for supervisor: ${updatedSupervisor.supervisorName}`, decryptError);
+    }
+
+    const transformedSupervisor = {
+      ...updatedSupervisor,
+      password: decryptedPassword,
+      registrationDate: formatDateToDDMMYYYY(new Date(updatedSupervisor.registrationDate))
+    };
+
+    console.log('Updated supervisor data:', JSON.stringify(transformedSupervisor, null, 2));
+    res.status(200).json({ message: 'Supervisor information updated successfully', supervisor: transformedSupervisor });
   } catch (error) {
     console.error('Error updating supervisor:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -470,7 +599,7 @@ router.put('/update/supervisor/:id', schoolAuthMiddleware, async (req, res) => {
 });
 
 
-// DELETE METHD
+// DELETE METHOD
 // Delete child
 router.delete("/delete/:childId", schoolAuthMiddleware, async (req, res) => {
   const { childId } = req.params;

@@ -6,20 +6,70 @@ const { generateToken, jwtAuthMiddleware } = require("../jwt");
 const router = express.Router();
 require('dotenv').config();
 const Request = require("../models/request");
+const { encrypt } = require('../models/cryptoUtils');
 
 // Parent Registration Route
+// router.post('/register', async (req, res) => {
+//   try {
+//     const {parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint} = req.body;
+
+//     // Check if parent email already exists
+//     const existingParent = await Parent.findOne({ email });
+//     if (existingParent) {
+//       return res.status(400).json({ error: 'Parent email already exists' });
+//     }
+    
+//     // Create new parent
+//     const newParent = new Parent({ parentName, email, password, phone, fcmToken });
+//     await newParent.save();
+
+//     // Create new child
+//     const newChild = new Child({
+//       childName,
+//       parentName,
+//       email,
+//       class: childClass,
+//       rollno,
+//       section,
+//       schoolName,
+//       dateOfBirth,
+//       childAge,
+//       gender,
+//       pickupPoint,
+//       parentId: newParent._id
+//     });
+//     await newChild.save();
+
+//     // Link child to parent
+//     newParent.children.push(newChild._id);
+//     await newParent.save();
+
+//     // Generate JWT token
+//     const payload = { id: newParent._id, email: newParent.email };
+//     const token = generateToken(payload);
+
+//     res.status(201).json({ parent: newParent, child: newChild, token });
+//   } catch (error) {
+//     console.error('Error during registration:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.post('/register', async (req, res) => {
   try {
-    const {parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint} = req.body;
+    const { parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint } = req.body;
 
     // Check if parent email already exists
     const existingParent = await Parent.findOne({ email });
     if (existingParent) {
       return res.status(400).json({ error: 'Parent email already exists' });
     }
-    
+
+    // Encrypt the password before saving
+    const encryptedPassword = encrypt(password);
+    console.log("Encrypted password:", encryptedPassword);
+
     // Create new parent
-    const newParent = new Parent({ parentName, email, password, phone, fcmToken });
+    const newParent = new Parent({ parentName, email, password: encryptedPassword, phone, fcmToken });
     await newParent.save();
 
     // Create new child
@@ -47,12 +97,69 @@ router.post('/register', async (req, res) => {
     const payload = { id: newParent._id, email: newParent.email };
     const token = generateToken(payload);
 
-    res.status(201).json({ parent: newParent, child: newChild, token });
+    res.status(201).json({
+      parent: newParent.toObject(),
+      child: newChild.toObject(),
+      token
+    });
   } catch (error) {
     console.error('Error during registration:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.post('/register', async (req, res) => {
+//   try {
+//     const { parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint } = req.body;
+
+//     // Check if parent email already exists
+//     const existingParent = await Parent.findOne({ email });
+//     if (existingParent) {
+//       return res.status(400).json({ error: 'Parent email already exists' });
+//     }
+
+//     // Encrypt the password before saving
+//     const encryptedPassword = encrypt(password);
+//     console.log("Encrypted password:", encryptedPassword);
+
+//     // Create new parent
+//     const newParent = new Parent({ parentName, email, password: encryptedPassword, phone, fcmToken });
+//     await newParent.save();
+
+//     // Create new child
+//     const newChild = new Child({
+//       childName,
+//       parentName,
+//       email,
+//       class: childClass,
+//       rollno,
+//       section,
+//       schoolName,
+//       dateOfBirth,
+//       childAge,
+//       gender,
+//       pickupPoint,
+//       parentId: newParent._id
+//     });
+//     await newChild.save();
+
+//     // Link child to parent
+//     newParent.children.push(newChild._id);
+//     await newParent.save();
+
+//     // Generate JWT token
+//     const payload = { id: newParent._id, email: newParent.email };
+//     const token = generateToken(payload);
+
+//     res.status(201).json({
+//       parent: newParent.toObject(),
+//       child: newChild.toObject(),
+//       token
+//     });
+//   } catch (error) {
+//     console.error('Error during registration:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 
 // Parent Login Route
 router.post('/login', async (req, res) => {

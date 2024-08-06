@@ -68,7 +68,7 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
 
     if (requestType === 'changeRoute') {
       // Update the child's vehicle ID
-      child.vehicleId = newRoute;
+      child.deviceId = newRoute;
       await child.save();
     }
     await newRequest.save();

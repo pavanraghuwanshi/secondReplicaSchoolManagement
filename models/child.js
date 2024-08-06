@@ -11,7 +11,7 @@ const childSchema = new mongoose.Schema({
   pickupPoint:{type: String},
   gender: { type: String, enum: ['female', 'male'], required: true },
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', required: true },
-  vehicleId: { type: String, default: null },
+  deviceId: { type: String, default: null },
   registrationDate: { type: Date, default: Date.now }
 });
 

@@ -169,15 +169,18 @@ router.delete("/delete", jwtAuthMiddleware, async (req, res) => {
 // get children
 router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
   try {
-    const children = await Child.find({}).lean();
+    const { deviceId } = req.query;
+    if (!deviceId) {
+      return res.status(400).json({ error: "device ID is required" });
+    }
+    const children = await Child.find({ deviceId }).lean();
     console.log("Raw children data:", JSON.stringify(children, null, 2));
-
     const transformedChildren = children.map((child) => ({
       childName: child.childName,
       class: child.class,
       section: child.section,
+      pickupPoint:child.pickupPoint
     }));
-
     console.log(
       "Transformed children data:",
       JSON.stringify(transformedChildren, null, 2)
@@ -195,7 +198,6 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
   if (typeof isPresent !== "boolean") {
     return res.status(400).json({ error: "Invalid input" });
   }
-
   const today = new Date();
   const formattedDate = formatDateToDDMMYYYY(today);
 
@@ -264,4 +266,6 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
 module.exports = router;

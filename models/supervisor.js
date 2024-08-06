@@ -28,7 +28,7 @@ const supervisorSchema = new mongoose.Schema({
   aadharImage: {
     type: String,
   },
-  vehicleId: {
+  deviceId: {
     type: String,
   },
   schoolId: {
@@ -46,11 +46,11 @@ supervisorSchema.pre('save', async function(next) {
   }
   next();
 });
-
 supervisorSchema.methods.comparePassword = function(candidatePassword) {
   const decryptedPassword = decrypt(this.password);
   return candidatePassword === decryptedPassword;
 };
+
 
 const Supervisor = mongoose.model("Supervisor", supervisorSchema);
 module.exports = Supervisor;
