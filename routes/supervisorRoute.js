@@ -9,6 +9,7 @@ const { encrypt } = require('../models/cryptoUtils');
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
 // const sendNotification = require("../utils/sendNotification");
 const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
+const {formatTime} = require('../utils/timeUtils');
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -200,8 +201,10 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
   if (typeof isPresent !== "boolean") {
     return res.status(400).json({ error: "Invalid input" });
   }
+
   const today = new Date();
   const formattedDate = formatDateToDDMMYYYY(today);
+  const currentTime = formatTime(today);
 
   try {
     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
@@ -211,6 +214,7 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
     }
 
     attendanceRecord.pickup = isPresent;
+    attendanceRecord.pickupTime = currentTime;
     await attendanceRecord.save();
 
     const child = await Child.findById(childId).populate('parentId');
@@ -218,13 +222,13 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
     // if (parent && parent.fcmToken) {
     //   const actionMessage = isPresent ? "picked up from the bus stop" : "not present at the bus stop for pickup";
     //   const title = "Child Pickup Notification";
-    //   const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate}.`;
+    //   const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate} at ${currentTime}.`;
 
     //   await sendNotification(parent.fcmToken, title, body);
     //   console.log(`Notification sent to parent: ${body}`);
     // }
 
-    res.status(200).json({ message: `Child marked as ${isPresent ? "present" : "absent"} for pickup on ${formattedDate}` });
+    res.status(200).json({ message: `Child marked as ${isPresent ? "present" : "absent"} for pickup on ${formattedDate} at ${currentTime}` });
   } catch (error) {
     console.error(`Error marking child as ${isPresent ? "present" : "absent"} for pickup:`, error);
     res.status(500).json({ error: "Internal server error" });
@@ -240,6 +244,7 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
 
   const today = new Date();
   const formattedDate = formatDateToDDMMYYYY(today);
+  const currentTime = formatTime(today); // Get the current time
 
   try {
     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
@@ -247,7 +252,9 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
     if (!attendanceRecord) {
       attendanceRecord = new Attendance({ childId, date: formattedDate, pickup: null, drop: null });
     }
+
     attendanceRecord.drop = isPresent;
+    attendanceRecord.dropTime = currentTime; // Add this line to save the drop time
     await attendanceRecord.save();
 
     const child = await Child.findById(childId).populate('parentId');
@@ -256,13 +263,13 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
     // if (parent && parent.fcmToken) {
     //   const actionMessage = isPresent ? "dropped off at the bus stop" : "not present in the bus for drop";
     //   const title = "Child Drop Notification";
-    //   const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate}.`;
+    //   const body = `Your child ${child.childName} was ${actionMessage} on ${formattedDate} at ${currentTime}.`;
 
     //   await sendNotification(parent.fcmToken, title, body);
     //   console.log(`Notification sent to parent: ${body}`);
     // }
 
-    res.status(200).json({ message: `Child marked as ${isPresent ? "present" : "absent"} for drop on ${formattedDate}` });
+    res.status(200).json({ message: `Child marked as ${isPresent ? "present" : "absent"} for drop on ${formattedDate} at ${currentTime}` });
   } catch (error) {
     console.error(`Error marking child as ${isPresent ? "present" : "absent"} for drop:`, error);
     res.status(500).json({ error: "Internal server error" });

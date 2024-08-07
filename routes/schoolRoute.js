@@ -387,9 +387,12 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
           parentId: record.childId.parentId._id,
           phone: record.childId.parentId.phone,
           pickupStatus: record.pickup,
+          pickupTime: record.pickupTime,
+          deviceId:record.childId.deviceId,
           dropStatus: record.drop,
-          date: date,
-          originalDate: originalDate
+          dropTime: record.dropTime,
+          formattedDate: date,
+          date: originalDate
         };
       });
 
@@ -451,7 +454,6 @@ router.post("/review-request/:requestId",schoolAuthMiddleware,async (req, res) =
     }
   }
 );
-
 
 //PUT METHOD
 // Update child information

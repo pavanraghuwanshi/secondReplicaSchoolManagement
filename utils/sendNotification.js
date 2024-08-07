@@ -1,5 +1,6 @@
+// // notification.js
 // const admin = require('firebase-admin');
-// require("dotenv").config();
+// require('dotenv').config();
 
 // // Load environment variables for Firebase service account
 // const serviceAccount = {
@@ -12,11 +13,11 @@
 //   auth_uri: process.env.FIREBASE_AUTH_URI,
 //   token_uri: process.env.FIREBASE_TOKEN_URI,
 //   auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
-//   client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
+//   client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
 // };
 
 // admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount)
+//   credential: admin.credential.cert(serviceAccount),
 // });
 
 // // Function to send push notifications
@@ -24,12 +25,12 @@
 //   const message = {
 //     notification: {
 //       title,
-//       body
+//       body,
 //     },
-//     token
+//     token,
 //   };
 
-//   admin.messaging().send(message)
+//   return admin.messaging().send(message)
 //     .then((response) => {
 //       console.log('Successfully sent message:', response);
 //     })
