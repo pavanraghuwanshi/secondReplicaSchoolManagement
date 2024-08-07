@@ -57,7 +57,6 @@ const { encrypt } = require('../models/cryptoUtils');
 router.post('/register', async (req, res) => {
   try {
     const { parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint } = req.body;
-
     // Check if parent email already exists
     const existingParent = await Parent.findOne({ email });
     if (existingParent) {
@@ -190,7 +189,7 @@ router.post('/login', async (req, res) => {
 // Add Child Route
 router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
   try {
-    const { childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender } = req.body;
+    const { childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, pickupPoint } = req.body;
 
     // Extract parentId from the JWT token payload
     const parentId = req.user.id;
@@ -205,7 +204,8 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
       dateOfBirth,
       childAge,
       gender,
-      parentId 
+      parentId ,
+      pickupPoint
     });
 
     await newChild.save();
