@@ -389,6 +389,7 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
           pickupStatus: record.pickup,
           pickupTime: record.pickupTime,
           deviceId:record.childId.deviceId,
+          pickupPoint:record.childId.pickupPoint,
           dropStatus: record.drop,
           dropTime: record.dropTime,
           formattedDate: date,
