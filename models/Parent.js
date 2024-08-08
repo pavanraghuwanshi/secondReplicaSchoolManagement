@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+
+
+
 const parentSchema = new mongoose.Schema({
   parentName: {
     type: String,
@@ -25,8 +28,7 @@ const parentSchema = new mongoose.Schema({
   resetTokenExpires: Date,
   fcmToken: {
     type: String
-  },
-  deviceId: { type: String, default: null },
+  }
 });
 parentSchema.pre('save', async function (next) {
   const parent = this;
@@ -40,6 +42,10 @@ parentSchema.pre('save', async function (next) {
     return next(err);
   }
 });
+
+
+
+
 parentSchema.methods.comparePassword = async function (password) {
   try {
     const isMatch = await bcrypt.compare(password, this.password);
@@ -48,5 +54,8 @@ parentSchema.methods.comparePassword = async function (password) {
     throw err;
   }
 };
+
+
+
 const Parent = mongoose.model('Parent', parentSchema);
 module.exports = Parent;

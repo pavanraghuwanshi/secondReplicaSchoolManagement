@@ -205,20 +205,18 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
   const today = new Date();
   const formattedDate = formatDateToDDMMYYYY(today);
   const currentTime = formatTime(today);
-
   try {
     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
 
     if (!attendanceRecord) {
       attendanceRecord = new Attendance({ childId, date: formattedDate, pickup: null, drop: null });
     }
-
     attendanceRecord.pickup = isPresent;
     attendanceRecord.pickupTime = currentTime;
     await attendanceRecord.save();
 
     const child = await Child.findById(childId).populate('parentId');
-    // const parent = child.parentId;
+    const parent = child.parentId;
     // if (parent && parent.fcmToken) {
     //   const actionMessage = isPresent ? "picked up from the bus stop" : "not present at the bus stop for pickup";
     //   const title = "Child Pickup Notification";
@@ -244,7 +242,7 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
 
   const today = new Date();
   const formattedDate = formatDateToDDMMYYYY(today);
-  const currentTime = formatTime(today); // Get the current time
+  const currentTime = formatTime(today); 
 
   try {
     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });

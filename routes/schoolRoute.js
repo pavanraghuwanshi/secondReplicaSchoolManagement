@@ -60,6 +60,8 @@ router.post("/login", async (req, res) => {
   }
 });
 
+
+
 // GET METHOD 
 // Get children with device IDs
 router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
@@ -70,12 +72,12 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
     const transformedChildren = await Promise.all(
       children.map(async (child) => {
         if (!child.parentId) {
-          return null; // Skip children without a parentId
+          return null; 
         }
 
         const parent = await Parent.findById(child.parentId).lean();
         if (!parent) {
-          return null; // Skip children whose parent is not found
+          return null;
         }
 
         console.log("Parent data:", JSON.stringify(parent, null, 2));
@@ -108,7 +110,6 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Get all pending requests
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -162,7 +163,7 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
       parentName: request.parentId.parentName,
       email: request.parentId.email,
       phone: request.parentId.phone,
-      requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
+      formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null, // Formatted request date
     }));
 
     res.status(200).json({
@@ -195,7 +196,8 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
       parentName: request.parentId.parentName,
       email: request.parentId.email,
       phone: request.parentId.phone,
-      requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
+      requestDate: request.requestDate,
+      formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null // Formatted request date
     }));
 
     res.status(200).json({ requests: formattedRequests });
@@ -220,7 +222,8 @@ router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
           email: driver.email,
           deviceId: driver.deviceId,
           password: decryptedPassword,
-          registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate))
+          registrationDate:driver.registrationDate,
+          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate))
         };
       } catch (decryptError) {
         console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
@@ -249,7 +252,8 @@ router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
           email: supervisor.email,
           deviceId: supervisor.deviceId,
           password: decryptedPassword,
-          registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate))
+          registrationDate:supervisor.registrationDate,
+          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate))
         };
       } catch (decryptError) {
         console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
@@ -352,7 +356,6 @@ router.get('/read/data-by-deviceId', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Route to get attendance data for admin dashboard
 const convertDate = (dateStr) => {
   const dateParts = dateStr.split('-');
@@ -404,57 +407,60 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
   }
 });
 
+
+
 // POST METHOD
 //review request
-router.post("/review-request/:requestId",schoolAuthMiddleware,async (req, res) => {
-    try {
-      const { statusOfRequest } = req.body;
-      const { requestId } = req.params;
+router.post("/review-request/:requestId", schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { statusOfRequest } = req.body;
+    const { requestId } = req.params;
 
-      if (!["approved", "denied"].includes(statusOfRequest)) {
-        return res.status(400).json({ error: "Invalid statusOfRequest" });
-      }
-
-      const request = await Request.findById(requestId);
-      if (!request) {
-        return res.status(404).json({ error: "Request not found" });
-      }
-
-      request.statusOfRequest = statusOfRequest;
-
-      if (
-        statusOfRequest === "approved" &&
-        request.requestType === "changeRoute"
-      ) {
-        const child = await Child.findById(request.childId);
-        if (!child) {
-          return res.status(404).json({ error: "Child not found" });
-        }
-        child.deviceId = request.newRoute;
-        await child.save();
-      }
-      await request.save();
-
-      // Assuming notifyParent is a function to send notifications
-      const notifyParent = (parentId, message) => {
-        // Your notification logic here
-        console.log(`Notification to parentId ${parentId}: ${message}`);
-      };
-
-      notifyParent(
-        request.parentId,
-        `Your request has been ${statusOfRequest}.`
-      );
-
-      res
-        .status(200)
-        .json({ message: "Request reviewed successfully", request });
-    } catch (error) {
-      console.error("Error reviewing request:", error);
-      res.status(500).json({ error: "Internal server error" });
+    if (!["approved", "denied"].includes(statusOfRequest)) {
+      return res.status(400).json({ error: "Invalid statusOfRequest" });
     }
+
+    const request = await Request.findById(requestId);
+    if (!request) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    request.statusOfRequest = statusOfRequest;
+
+    if (statusOfRequest === "approved" && request.requestType === "changeRoute") {
+      const child = await Child.findById(request.childId);
+      if (!child) {
+        return res.status(404).json({ error: "Child not found" });
+      }
+      child.deviceId = request.newRoute;
+      await child.save();
+    }
+    await request.save();
+
+    const today = new Date();
+    const formattedDate = formatDateToDDMMYYYY(today);
+    const formattedRequestDate = formatDateToDDMMYYYY(new Date(request.requestDate));
+
+    // Assuming notifyParent is a function to send notifications
+    const notifyParent = (parentId, message) => {
+      // Your notification logic here
+      console.log(`Notification to parentId ${parentId}: ${message}`);
+    };
+
+    notifyParent(request.parentId, `Your request has been ${statusOfRequest}.`);
+
+    res.status(200).json({
+      message: `Request reviewed successfully on ${formattedDate}`,
+      request: {
+        ...request.toObject(),
+        formattedRequestDate
+      }
+    });
+  } catch (error) {
+    console.error("Error reviewing request:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-);
+});
 
 //PUT METHOD
 // Update child information

@@ -6,7 +6,6 @@ const { generateToken, jwtAuthMiddleware } = require("../jwt");
 const router = express.Router();
 require('dotenv').config();
 const Request = require("../models/request");
-const { encrypt } = require('../models/cryptoUtils');
 
 // Parent Registration Route
 router.post('/register', async (req, res) => {
@@ -54,6 +53,8 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 // router.post('/register', async (req, res) => {
 //   try {
 //     const { parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint } = req.body;
