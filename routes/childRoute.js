@@ -54,7 +54,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-
 // router.post('/register', async (req, res) => {
 //   try {
 //     const { parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint } = req.body;

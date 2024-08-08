@@ -64,6 +64,55 @@ router.post("/login", async (req, res) => {
 
 // GET METHOD 
 // Get children with device IDs
+// router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const children = await Child.find({}).lean();
+//     console.log("Raw children data:", JSON.stringify(children, null, 2));
+
+//     const transformedChildren = await Promise.all(
+//       children.map(async (child) => {
+//         if (!child.parentId) {
+//           return null; 
+//         }
+
+//         const parent = await Parent.findById(child.parentId).lean();
+//         if (!parent) {
+//           return null;
+//         }
+
+//         console.log("Parent data:", JSON.stringify(parent, null, 2));
+//         const decryptedPassword = decrypt(parent.password);
+//         const parentData = {
+//           parentName: parent.parentName,
+//           email: parent.email,
+//           phone: parent.phone,
+//           password: decryptedPassword,
+//           parentId: parent._id,
+//         };
+
+//         return {
+//           ...child,
+//           ...parentData,
+//           formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+//         };
+//       })
+//     );
+
+//     // Filter out null values from the transformedChildren array
+//     const filteredChildren = transformedChildren.filter(child => child !== null);
+
+//     console.log(
+//       "Transformed children data:",
+//       JSON.stringify(filteredChildren, null, 2)
+//     );
+//     res.status(200).json({ children: filteredChildren });
+//   } catch (error) {
+//     console.error("Error fetching children:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
+
+
 router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
   try {
     const children = await Child.find({}).lean();
@@ -82,11 +131,15 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
 
         console.log("Parent data:", JSON.stringify(parent, null, 2));
 
+        // Decrypt the parent's password
+        const decryptedPassword = decrypt(parent.password);
+
         const parentData = {
           parentName: parent.parentName,
           email: parent.email,
           phone: parent.phone,
           parentId: parent._id,
+          password: decryptedPassword // Include decrypted password
         };
 
         return {
@@ -110,6 +163,7 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 // Get all pending requests
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -132,7 +186,8 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
       email: request.parentId.email,
       childId: request.childId._id,
       childName: request.childId.childName,
-      requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+      RequestDate:request.requestDate,
+      formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
     }));
 
     res.status(200).json({
@@ -163,6 +218,7 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
       parentName: request.parentId.parentName,
       email: request.parentId.email,
       phone: request.parentId.phone,
+      RequestDate:request.requestDate,
       formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null, // Formatted request date
     }));
 
@@ -552,7 +608,7 @@ router.put('/update-driver/:id', schoolAuthMiddleware, async (req, res) => {
     };
 
     console.log('Updated driver data:', JSON.stringify(transformedDriver, null, 2));
-    res.status(200).json({ message: 'Driver information updated successfully', driver: transformedDriver });
+    res.status(200).json({ message: 'Driver information updated successfully', drivers: transformedDriver });
   } catch (error) {
     console.error('Error updating driver:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -600,7 +656,7 @@ router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
     };
 
     console.log('Updated supervisor data:', JSON.stringify(transformedSupervisor, null, 2));
-    res.status(200).json({ message: 'Supervisor information updated successfully', supervisor: transformedSupervisor });
+    res.status(200).json({ message: 'Supervisor information updated successfully', supervisors: transformedSupervisor });
   } catch (error) {
     console.error('Error updating supervisor:', error);
     res.status(500).json({ error: 'Internal server error' });
