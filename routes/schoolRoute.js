@@ -61,9 +61,8 @@ router.post("/login", async (req, res) => {
 });
 
 
-
 // GET METHOD 
-// Get children with device IDs
+// Get children 
 // router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
 //   try {
 //     const children = await Child.find({}).lean();
@@ -81,13 +80,16 @@ router.post("/login", async (req, res) => {
 //         }
 
 //         console.log("Parent data:", JSON.stringify(parent, null, 2));
+
+//         // Decrypt the parent's password
 //         const decryptedPassword = decrypt(parent.password);
+
 //         const parentData = {
 //           parentName: parent.parentName,
 //           email: parent.email,
 //           phone: parent.phone,
-//           password: decryptedPassword,
 //           parentId: parent._id,
+//           password: decryptedPassword // Include decrypted password
 //         };
 
 //         return {
@@ -111,8 +113,6 @@ router.post("/login", async (req, res) => {
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // });
-
-
 router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
   try {
     const children = await Child.find({}).lean();
@@ -121,7 +121,7 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
     const transformedChildren = await Promise.all(
       children.map(async (child) => {
         if (!child.parentId) {
-          return null; 
+          return null;
         }
 
         const parent = await Parent.findById(child.parentId).lean();
@@ -129,10 +129,17 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
           return null;
         }
 
-        console.log("Parent data:", JSON.stringify(parent, null, 2));
+        console.log("Parent data before decryption:", JSON.stringify(parent, null, 2));
 
-        // Decrypt the parent's password
-        const decryptedPassword = decrypt(parent.password);
+        let decryptedPassword;
+        try {
+          decryptedPassword = decrypt(parent.password);
+          console.log(`Decrypted password for parent ${parent.parentName}: ${decryptedPassword}`);
+        } catch (decryptError) {
+          console.error(`Error decrypting password for parent ${parent.parentName}`, decryptError);
+          // Return null or handle the error as needed
+          return null;
+        }
 
         const parentData = {
           parentName: parent.parentName,
@@ -150,7 +157,6 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
       })
     );
 
-    // Filter out null values from the transformedChildren array
     const filteredChildren = transformedChildren.filter(child => child !== null);
 
     console.log(
@@ -163,6 +169,9 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
+
 
 // Get all pending requests
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
@@ -747,4 +756,6 @@ router.delete('/delete/supervisor/:id', schoolAuthMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 module.exports = router;
