@@ -467,24 +467,18 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// Route for fetching present children
+
 router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
   try {
-    const presentChildrenRecords = await Attendance.find({
-      $or: [
-        { pickup: true },
-        { drop: true }
-      ]
-    })
-    .populate({
-      path: "childId",
-      populate: {
-        path: "parentId"
-      }
-    })
-    .lean();
-
-    const presentChildrenData = presentChildrenRecords
+    const attendanceRecords = await Attendance.find({ pickup: true })
+      .populate({
+        path: "childId",
+        populate: {
+          path: "parentId"
+        }
+      })
+      .lean();
+    const childrenData = attendanceRecords
       .filter(record => record.childId && record.childId.parentId)
       .map(record => {
         const { date, originalDate } = convertDate(record.date);
@@ -501,37 +495,29 @@ router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
           pickupTime: record.pickupTime,
           deviceId: record.childId.deviceId,
           pickupPoint: record.childId.pickupPoint,
-          dropStatus: record.drop,
-          dropTime: record.dropTime,
           formattedDate: date,
           date: originalDate
         };
       });
 
-    res.status(200).json({ children: presentChildrenData });
+    res.status(200).json({ children: childrenData });
   } catch (error) {
-    console.error("Error fetching present children data:", error);
+    console.error("Error fetching present pickup data:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// Route for fetching absent children
+
 router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
   try {
-    const absentChildrenRecords = await Attendance.find({
-      $or: [
-        { pickup: false },
-        { drop: false }
-      ]
-    })
-    .populate({
-      path: "childId",
-      populate: {
-        path: "parentId"
-      }
-    })
-    .lean();
-
-    const absentChildrenData = absentChildrenRecords
+    const attendanceRecords = await Attendance.find({ pickup: false })
+      .populate({
+        path: "childId",
+        populate: {
+          path: "parentId"
+        }
+      })
+      .lean();
+    const childrenData = attendanceRecords
       .filter(record => record.childId && record.childId.parentId)
       .map(record => {
         const { date, originalDate } = convertDate(record.date);
@@ -544,25 +530,21 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
           section: record.childId.section,
           parentId: record.childId.parentId._id,
           phone: record.childId.parentId.phone,
-          pickupStatus: record.pickup ? "Present" : "Absent",
+          pickupStatus: record.pickup,
           pickupTime: record.pickupTime,
           deviceId: record.childId.deviceId,
           pickupPoint: record.childId.pickupPoint,
-          dropStatus: record.drop ? "Present" : "Absent",
-          dropTime: record.dropTime,
           formattedDate: date,
           date: originalDate
         };
       });
 
-    res.status(200).json({ children: absentChildrenData });
+    res.status(200).json({ children: childrenData });
   } catch (error) {
     console.error("Error fetching absent children data:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
 
 
 // POST METHOD
