@@ -63,56 +63,6 @@ router.post("/login", async (req, res) => {
 
 // GET METHOD 
 // Get children 
-// router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     const children = await Child.find({}).lean();
-//     console.log("Raw children data:", JSON.stringify(children, null, 2));
-
-//     const transformedChildren = await Promise.all(
-//       children.map(async (child) => {
-//         if (!child.parentId) {
-//           return null; 
-//         }
-
-//         const parent = await Parent.findById(child.parentId).lean();
-//         if (!parent) {
-//           return null;
-//         }
-
-//         console.log("Parent data:", JSON.stringify(parent, null, 2));
-
-//         // Decrypt the parent's password
-//         const decryptedPassword = decrypt(parent.password);
-
-//         const parentData = {
-//           parentName: parent.parentName,
-//           email: parent.email,
-//           phone: parent.phone,
-//           parentId: parent._id,
-//           password: decryptedPassword // Include decrypted password
-//         };
-
-//         return {
-//           ...child,
-//           ...parentData,
-//           formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-//         };
-//       })
-//     );
-
-//     // Filter out null values from the transformedChildren array
-//     const filteredChildren = transformedChildren.filter(child => child !== null);
-
-//     console.log(
-//       "Transformed children data:",
-//       JSON.stringify(filteredChildren, null, 2)
-//     );
-//     res.status(200).json({ children: filteredChildren });
-//   } catch (error) {
-//     console.error("Error fetching children:", error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
 router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
   try {
     const children = await Child.find({}).lean();
@@ -468,6 +418,7 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
   }
 });
 
+// present child during 
 router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
   try {
     const attendanceRecords = await Attendance.find({ pickup: true })
@@ -543,6 +494,59 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Error fetching absent children data:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// status
+router.get('/status/:childId', async (req, res) => {
+  try {
+      const { childId } = req.params;
+      const child = await Child.findById(childId).populate('parentId');
+      if (!child) {
+          return res.status(404).json({ message: 'Child not found' });
+      }
+      const parent = child.parentId;
+
+      // Fetch the most recent attendance record for the child
+      const attendance = await Attendance.findOne({ childId })
+          .sort({ date: -1 })
+          .limit(1);
+
+      const request = await Request.findOne({ childId })
+          .sort({ requestDate: -1 })
+          .limit(1);
+
+      // Fetch the supervisor based on deviceId
+      let supervisor = null;
+      if (child.deviceId) {
+          supervisor = await Supervisor.findOne({ deviceId: child.deviceId });
+      }
+
+      const response = {
+          childName: child.childName,
+          childClass: child.class,
+          parentName: parent.parentName,
+          parentNumber: parent.phone,
+          pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : null,
+          dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : null,
+          pickupTime: attendance ? attendance.pickupTime : null,
+          dropTime: attendance ? attendance.dropTime : null,
+          request: request ? {
+              requestType: request.requestType,
+              startDate: request.startDate || null,
+              endDate: request.endDate || null,
+              reason: request.reason || null,
+              newRoute: request.newRoute || null,
+              statusOfRequest: request.statusOfRequest,
+              requestDate: request.requestDate ? formatDateToDDMMYYYY(request.requestDate) : null,
+          } : null,
+          supervisorName: supervisor ? supervisor.supervisorName : null
+      };
+
+      res.json({ status: response });
+  } catch (error) {
+      console.error('Error fetching child status:', error);
+      res.status(500).json({ message: 'Server error' });
   }
 });
 

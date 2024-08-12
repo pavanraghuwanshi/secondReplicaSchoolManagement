@@ -201,7 +201,6 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
   if (typeof isPresent !== "boolean") {
     return res.status(400).json({ error: "Invalid input" });
   }
-
   const today = new Date();
   const formattedDate = formatDateToDDMMYYYY(today);
   const currentTime = formatTime(today);
@@ -273,6 +272,5 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 module.exports = router;
