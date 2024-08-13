@@ -4,12 +4,14 @@ const bcrypt = require("bcrypt");
 const Child = require("../models/child");
 const Supervisor = require("../models/supervisor");
 const Parent = require('../models/Parent');
-const Attendance = require('../models/attendence')
+const Attendance = require('../models/attendence');
+const Geofencing = require('../models/geofence')
 const { encrypt } = require('../models/cryptoUtils');
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
 // const sendNotification = require("../utils/sendNotification");
 const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 const {formatTime} = require('../utils/timeUtils');
+
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -79,16 +81,36 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-// Get supervisor's data
+// Get supervisor's dat
 router.get("/getsupervisorData", jwtAuthMiddleware, async (req, res) => {
   try {
     const supervisorId = req.user.id;
     console.log(`Fetching data for supervisor with ID: ${supervisorId}`);
+
+    // Fetch the supervisor data
     const supervisor = await Supervisor.findById(supervisorId);
     if (!supervisor) {
-      return res.status(404).json({ error: "supervisor not found" });
+      return res.status(404).json({ error: "Supervisor not found" });
     }
-    res.status(200).json({ supervisor });
+
+    // Fetch the geofencing data based on the supervisor's deviceId
+    const geofencingData = await Geofencing.find({ deviceId: supervisor.deviceId }).lean();
+
+    // If no geofencing data found, provide default empty data
+    const transformedGeofencingData = geofencingData.length
+      ? geofencingData.map(area => ({
+          id: area._id,
+          name: area.name,
+          description: area.description || '',
+          area: area.area,
+          calendarId: area.calendarId,
+          attributes: area.attributes || {},
+          isCrossed:false
+        }))
+      : [{ id: null, name: 'No geofencing data available', description: '', area: '', calendarId: null, attributes: {} }];
+
+    // Include geofencing data in the response
+    res.status(200).json({ supervisor, geofencing: transformedGeofencingData });
   } catch (error) {
     console.error("Error fetching supervisor data:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -231,6 +253,7 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 // Route for marking drop attendance
 router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
   const { childId, isPresent } = req.body;
@@ -272,5 +295,96 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
+// Create a new geofencing area
+router.post("/geofencing", jwtAuthMiddleware, async (req, res) => {
+  try {
+    const { name, description, area, calendarId, attributes, deviceId } = req.body;
+    if (!name || !area || !deviceId) {
+      return res.status(400).json({ error: "Name, area, and device ID are required" });
+    }
+    const newGeofencing = new Geofencing({
+      name,
+      description,
+      area,
+      calendarId,
+      attributes,
+      deviceId
+    });
+    const savedGeofencing = await newGeofencing.save();
+    res.status(201).json({ message: "Geofencing area created successfully", geofencing: savedGeofencing });
+  } catch (error) {
+    console.error("Error creating geofencing area:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+// Update an existing geofencing area
+// router.put("/geofencing/:id", jwtAuthMiddleware, async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { name, description, area, calendarId, attributes } = req.body;
+
+//     // Find and update the geofencing area by ID
+//     const updatedGeofencing = await Geofencing.findByIdAndUpdate(
+//       id,
+//       { name, description, area, calendarId, attributes },
+//       { new: true }
+//     );
+
+//     if (!updatedGeofencing) {
+//       return res.status(404).json({ error: "Geofencing area not found" });
+//     }
+
+//     res.status(200).json({ message: "Geofencing area updated successfully", geofencing: updatedGeofencing });
+//   } catch (error) {
+//     console.error("Error updating geofencing area:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
+// // Delete a geofencing area
+// router.delete("/geofencing/:id", jwtAuthMiddleware, async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     // Find and delete the geofencing area by ID
+//     const deletedGeofencing = await Geofencing.findByIdAndDelete(id);
+
+//     if (!deletedGeofencing) {
+//       return res.status(404).json({ error: "Geofencing area not found" });
+//     }
+
+//     res.status(200).json({ message: "Geofencing area deleted successfully" });
+//   } catch (error) {
+//     console.error("Error deleting geofencing area:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
+
+// // Get all geofencing areas for a supervisor
+// router.get("/geofencing", jwtAuthMiddleware, async (req, res) => {
+//   try {
+//     const { deviceId } = req.query;
+
+//     if (!deviceId) {
+//       return res.status(400).json({ error: "Device ID is required" });
+//     }
+
+//     // Find all geofencing areas associated with the given device ID
+//     const geofencingAreas = await Geofencing.find({ deviceId }).lean();
+
+//     if (!geofencingAreas.length) {
+//       return res.status(404).json({ error: "No geofencing areas found" });
+//     }
+
+//     res.status(200).json({ geofencing: geofencingAreas });
+//   } catch (error) {
+//     console.error("Error fetching geofencing areas:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
+
 
 module.exports = router;

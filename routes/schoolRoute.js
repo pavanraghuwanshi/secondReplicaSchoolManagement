@@ -496,7 +496,6 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // status
 router.get('/status/:childId', async (req, res) => {
   try {
@@ -506,22 +505,18 @@ router.get('/status/:childId', async (req, res) => {
           return res.status(404).json({ message: 'Child not found' });
       }
       const parent = child.parentId;
-
       // Fetch the most recent attendance record for the child
       const attendance = await Attendance.findOne({ childId })
           .sort({ date: -1 })
           .limit(1);
-
       const request = await Request.findOne({ childId })
           .sort({ requestDate: -1 })
           .limit(1);
-
       // Fetch the supervisor based on deviceId
       let supervisor = null;
       if (child.deviceId) {
           supervisor = await Supervisor.findOne({ deviceId: child.deviceId });
       }
-
       const response = {
           childName: child.childName,
           childClass: child.class,
@@ -531,6 +526,7 @@ router.get('/status/:childId', async (req, res) => {
           dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : null,
           pickupTime: attendance ? attendance.pickupTime : null,
           dropTime: attendance ? attendance.dropTime : null,
+          date: attendance ? attendance.date : null,
           request: request ? {
               requestType: request.requestType,
               startDate: request.startDate || null,
@@ -542,15 +538,12 @@ router.get('/status/:childId', async (req, res) => {
           } : null,
           supervisorName: supervisor ? supervisor.supervisorName : null
       };
-
-      res.json({ status: response });
+      res.json({ children : response });
   } catch (error) {
       console.error('Error fetching child status:', error);
       res.status(500).json({ message: 'Server error' });
   }
 });
-
-
 // POST METHOD
 //review request
 router.post("/review-request/:requestId", schoolAuthMiddleware, async (req, res) => {
@@ -705,13 +698,11 @@ router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
   try {
     const supervisorId = req.params.id;
     const { deviceId, ...updateFields } = req.body;
-
     // Find the supervisor by ID
     const supervisor = await Supervisor.findById(supervisorId);
     if (!supervisor) {
       return res.status(404).json({ error: 'Supervisor not found' });
     }
-
     // Update deviceId if provided
     if (deviceId) {
       supervisor.deviceId = deviceId;
@@ -748,7 +739,6 @@ router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 // DELETE METHOD
 // Delete child
@@ -833,6 +823,8 @@ router.delete('/delete/supervisor/:id', schoolAuthMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 
 
 module.exports = router;
