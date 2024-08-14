@@ -9,8 +9,7 @@ const Geofencing = require('../models/geofence')
 const { encrypt } = require('../models/cryptoUtils');
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
 // const sendNotification = require("../utils/sendNotification");
-const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
-const {formatTime} = require('../utils/timeUtils');
+const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
 
 
 // Registration route
@@ -217,6 +216,7 @@ router.get("/read/all-children", jwtAuthMiddleware, async (req, res) => {
 });
 
 //Route for marking pickup attendance
+
 router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
   const { childId, isPresent } = req.body;
 
@@ -235,7 +235,6 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
     attendanceRecord.pickup = isPresent;
     attendanceRecord.pickupTime = currentTime;
     await attendanceRecord.save();
-
     const child = await Child.findById(childId).populate('parentId');
     const parent = child.parentId;
     // if (parent && parent.fcmToken) {
@@ -253,7 +252,6 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Route for marking drop attendance
 router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
   const { childId, isPresent } = req.body;

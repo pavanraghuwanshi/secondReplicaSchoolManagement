@@ -6,7 +6,9 @@ const { generateToken, jwtAuthMiddleware } = require("../jwt");
 const router = express.Router();
 const Geofencing = require('../models/geofence')
 require('dotenv').config();
+const Attendance = require('../models/attendence')
 const Request = require("../models/request");
+const {formatTime} = require('../utils/dateUtils');
 
 // Parent Registration Route
 router.post('/register', async (req, res) => {
@@ -207,7 +209,7 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Get Parent Data Routez
+// Get Parent Data 
 router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
@@ -336,6 +338,33 @@ router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+// get status
+router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
+  const { childId } = req.params;
+  try {
+    // Find the most recent attendance record for the given child
+    const attendanceRecord = await Attendance.findOne({ childId }).sort({ date: -1 });
+
+    if (!attendanceRecord) {
+      return res.status(404).json({ error: 'No attendance record found for this child' });
+    }
+    // Send response with only the isPresent boolean values for pickup and drop
+    res.status(200).json({
+      childId: childId,
+      pickupStatus: attendanceRecord.pickup, 
+      dropStatus: attendanceRecord.drop,     
+      date: attendanceRecord.date,            
+      pickupTime: attendanceRecord.pickupTime,
+      dropTime: attendanceRecord.dropTime
+    });
+  } catch (error) {
+    console.error('Error fetching status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 
 module.exports = router;

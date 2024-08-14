@@ -497,7 +497,7 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
   }
 });
 // status
-router.get('/status/:childId', async (req, res) => {
+router.get('/status/:childId',schoolAuthMiddleware,  async (req, res) => {
   try {
       const { childId } = req.params;
       const child = await Child.findById(childId).populate('parentId');
@@ -544,6 +544,18 @@ router.get('/status/:childId', async (req, res) => {
       res.status(500).json({ message: 'Server error' });
   }
 });
+
+// get parents
+router.get('/parents',schoolAuthMiddleware, async (req, res) => {
+  try {
+    const parents = await Parent.find().populate('children');
+    res.status(200).json({"parents":parents});
+  } catch (error) {
+    console.error('Error fetching parents:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST METHOD
 //review request
 router.post("/review-request/:requestId", schoolAuthMiddleware, async (req, res) => {
