@@ -546,16 +546,45 @@ router.get('/status/:childId',schoolAuthMiddleware,  async (req, res) => {
 });
 
 // get parents
-router.get('/parents',schoolAuthMiddleware, async (req, res) => {
+router.get('/parents', schoolAuthMiddleware, async (req, res) => {
   try {
-    const parents = await Parent.find().populate('children');
-    res.status(200).json({"parents":parents});
+    const parents = await Parent.find().populate('children').lean();
+
+    const transformedParents = await Promise.all(
+      parents.map(async (parent) => {
+        let decryptedPassword;
+        try {
+          decryptedPassword = decrypt(parent.password);
+          console.log(`Decrypted password for parent ${parent.parentName}: ${decryptedPassword}`);
+        } catch (decryptError) {
+          console.error(`Error decrypting password for parent ${parent.parentName}`, decryptError);
+          // Handle the error as needed
+          return null;
+        }
+
+        // Format child dates
+        const transformedChildren = parent.children.map(child => ({
+          ...child,
+          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+        }));
+
+        return {
+          ...parent,
+          password: decryptedPassword,
+          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(parent.parentRegistrationDate)),
+          children: transformedChildren,
+        };
+      })
+    );
+
+    const filteredParents = transformedParents.filter(parent => parent !== null);
+
+    res.status(200).json({ parents: filteredParents });
   } catch (error) {
     console.error('Error fetching parents:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // POST METHOD
 //review request
 router.post("/review-request/:requestId", schoolAuthMiddleware, async (req, res) => {

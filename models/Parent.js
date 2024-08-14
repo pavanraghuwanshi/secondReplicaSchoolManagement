@@ -28,7 +28,8 @@ const parentSchema = new mongoose.Schema({
   resetTokenExpires: Date,
   fcmToken: {
     type: String
-  }
+  },
+  parentRegistrationDate: { type: Date, default: Date.now }
 });
 
 // parentSchema.pre('save', async function (next) {
