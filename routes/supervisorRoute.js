@@ -255,7 +255,6 @@ router.put("/mark-pickup", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Route for marking drop attendance
 router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
   const { childId, isPresent } = req.body;
@@ -295,7 +294,6 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 
 // Create a new geofencing area

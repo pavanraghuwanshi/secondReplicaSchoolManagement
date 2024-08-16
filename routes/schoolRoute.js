@@ -949,7 +949,7 @@ router.put('/update-parent/:id', schoolAuthMiddleware, async (req, res) => {
 });
 
 // registration status
-router.put('/registerStatus/:parentId/', async (req, res) => {
+router.put('/registerStatus/:parentId/', schoolAuthMiddleware,async (req, res) => {
   try {
     const { parentId } = req.params;
     const { action } = req.body; 
