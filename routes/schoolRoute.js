@@ -122,43 +122,8 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
 });
 
 // Get all pending requests
-// router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     const requests = await Request.find({ statusOfRequest: "pending" })
-//       .populate("parentId", "parentName email phone")
-//       .populate("childId", "childName class")
-//       .lean();
 
-//     // Filter out requests where parent or child does not exist
-//     const validRequests = requests.filter(request => request.parentId && request.childId);
-
-//     const formattedRequests = validRequests.map((request) => ({
-//       requestId: request._id,
-//       reason: request.reason,
-//       class: request.childId.class,
-//       statusOfRequest: request.statusOfRequest,
-//       parentId: request.parentId._id,
-//       parentName: request.parentId.parentName,
-//       phone: request.parentId.phone,
-//       email: request.parentId.email,
-//       childId: request.childId._id,
-//       childName: request.childId.childName,
-//       RequestDate:request.requestDate,
-//       formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
-//     }));
-
-//     res.status(200).json({
-//       requests: formattedRequests,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching requests:", error);
-//     res.status(500).json({
-//       error: "Internal server error",
-//     });
-//   }
-// });
-
-
+//null newroute
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
     const requests = await Request.find({ statusOfRequest: "pending" })
@@ -187,13 +152,19 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
         formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
       };
 
-      // Conditionally add startDate and endDate based on requestType
+      // Conditionally add fields based on requestType
       if (request.requestType === 'leave') {
         formattedRequest.startDate = request.startDate || null;
         formattedRequest.endDate = request.endDate || null;
+        formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
+      } else if (request.requestType === 'changeRoute') {
+        formattedRequest.newRoute = request.newRoute || null;
+        formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
+        formattedRequest.endDate = null;
       } else {
         formattedRequest.startDate = null;
         formattedRequest.endDate = null;
+        formattedRequest.newRoute = null;
       }
 
       return formattedRequest;
@@ -209,6 +180,65 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
+
+
+// without null newroute
+// router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const requests = await Request.find({ statusOfRequest: "pending" })
+//       .populate("parentId", "parentName email phone")
+//       .populate("childId", "childName class")
+//       .lean();
+
+//     // Filter out requests where parent or child does not exist
+//     const validRequests = requests.filter(request => request.parentId && request.childId);
+
+//     const formattedRequests = validRequests.map((request) => {
+//       // Base request details
+//       const formattedRequest = {
+//         requestId: request._id,
+//         reason: request.reason,
+//         class: request.childId.class,
+//         statusOfRequest: request.statusOfRequest,
+//         parentId: request.parentId._id,
+//         parentName: request.parentId.parentName,
+//         phone: request.parentId.phone,
+//         email: request.parentId.email,
+//         childId: request.childId._id,
+//         childName: request.childId.childName,
+//         requestType: request.requestType,
+//         requestDate: request.requestDate,
+//         formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+//       };
+
+//       // Conditionally add fields based on requestType
+//       if (request.requestType === 'leave') {
+//         formattedRequest.startDate = request.startDate || null;
+//         formattedRequest.endDate = request.endDate || null;
+//         formattedRequest.newRoute = undefined; // Explicitly exclude newRoute for leave requests
+//       } else if (request.requestType === 'changeRoute') {
+//         formattedRequest.newRoute = request.newRoute || null;
+//         formattedRequest.startDate = null; // Explicitly set startDate and endDate to null for changeRoute requests
+//         formattedRequest.endDate = null;
+//       } else {
+//         formattedRequest.startDate = null;
+//         formattedRequest.endDate = null;
+//         formattedRequest.newRoute = null;
+//       }
+
+//       return formattedRequest;
+//     });
+
+//     res.status(200).json({
+//       requests: formattedRequests,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching requests:", error);
+//     res.status(500).json({
+//       error: "Internal server error",
+//     });
+//   }
+// });
 
 
 // Get all approved requests
@@ -552,8 +582,58 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
 // status
-router.get('/status/:childId',schoolAuthMiddleware,  async (req, res) => {
+// router.get('/status/:childId',schoolAuthMiddleware,  async (req, res) => {
+//   try {
+//       const { childId } = req.params;
+//       const child = await Child.findById(childId).populate('parentId');
+//       if (!child) {
+//           return res.status(404).json({ message: 'Child not found' });
+//       }
+//       const parent = child.parentId;
+//       // Fetch the most recent attendance record for the child
+//       const attendance = await Attendance.findOne({ childId })
+//           .sort({ date: -1 })
+//           .limit(1);
+//       const request = await Request.findOne({ childId })
+//           .sort({ requestDate: -1 })
+//           .limit(1);
+//       // Fetch the supervisor based on deviceId
+//       let supervisor = null;
+//       if (child.deviceId) {
+//           supervisor = await Supervisor.findOne({ deviceId: child.deviceId });
+//       }
+//       const response = {
+//           childName: child.childName,
+//           childClass: child.class,
+//           parentName: parent.parentName,
+//           parentNumber: parent.phone,
+//           pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : null,
+//           dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : null,
+//           pickupTime: attendance ? attendance.pickupTime : null,
+//           dropTime: attendance ? attendance.dropTime : null,
+//           date: attendance ? attendance.date : null,
+//           request: request ? {
+//               requestType: request.requestType,
+//               startDate: request.startDate || null,
+//               endDate: request.endDate || null,
+//               reason: request.reason || null,
+//               newRoute: request.newRoute || null,
+//               statusOfRequest: request.statusOfRequest,
+//               requestDate: request.requestDate ? formatDateToDDMMYYYY(request.requestDate) : null,
+//           } : null,
+//           supervisorName: supervisor ? supervisor.supervisorName : null
+//       };
+//       res.json({ children : response });
+//   } catch (error) {
+//       console.error('Error fetching child status:', error);
+//       res.status(500).json({ message: 'Server error' });
+//   }
+// });
+
+router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
   try {
       const { childId } = req.params;
       const child = await Child.findById(childId).populate('parentId');
@@ -583,23 +663,22 @@ router.get('/status/:childId',schoolAuthMiddleware,  async (req, res) => {
           pickupTime: attendance ? attendance.pickupTime : null,
           dropTime: attendance ? attendance.dropTime : null,
           date: attendance ? attendance.date : null,
-          request: request ? {
-              requestType: request.requestType,
-              startDate: request.startDate || null,
-              endDate: request.endDate || null,
-              reason: request.reason || null,
-              newRoute: request.newRoute || null,
-              statusOfRequest: request.statusOfRequest,
-              requestDate: request.requestDate ? formatDateToDDMMYYYY(request.requestDate) : null,
-          } : null,
+          requestType: request ? request.requestType : null,
+          startDate: request ? request.startDate || null : null,
+          endDate: request ? request.endDate || null : null,
+          reason: request ? request.reason || null : null,
+          newRoute: request ? request.newRoute || null : null,
+          statusOfRequest: request ? request.statusOfRequest : null,
+          requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : null,
           supervisorName: supervisor ? supervisor.supervisorName : null
       };
-      res.json({ children : response });
+      res.json(response);
   } catch (error) {
       console.error('Error fetching child status:', error);
       res.status(500).json({ message: 'Server error' });
   }
 });
+
 // get parents
 router.get('/parents', schoolAuthMiddleware, async (req, res) => {
   try {
