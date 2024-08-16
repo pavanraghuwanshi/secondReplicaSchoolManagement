@@ -11,6 +11,7 @@ const { decrypt } = require('../models/cryptoUtils');
 const DriverCollection = require('../models/driver');
 const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 const jwt = require("jsonwebtoken");
+
 // School Registration Route
 router.post("/register", async (req, res) => {
   const { schoolName, username, password } = req.body;
@@ -75,7 +76,7 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
         }
 
         const parent = await Parent.findById(child.parentId).lean();
-        if (!parent) {
+        if (!parent || parent.statusOfRegister === "rejected") {
           return null;
         }
 
@@ -119,7 +120,45 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 // Get all pending requests
+// router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const requests = await Request.find({ statusOfRequest: "pending" })
+//       .populate("parentId", "parentName email phone")
+//       .populate("childId", "childName class")
+//       .lean();
+
+//     // Filter out requests where parent or child does not exist
+//     const validRequests = requests.filter(request => request.parentId && request.childId);
+
+//     const formattedRequests = validRequests.map((request) => ({
+//       requestId: request._id,
+//       reason: request.reason,
+//       class: request.childId.class,
+//       statusOfRequest: request.statusOfRequest,
+//       parentId: request.parentId._id,
+//       parentName: request.parentId.parentName,
+//       phone: request.parentId.phone,
+//       email: request.parentId.email,
+//       childId: request.childId._id,
+//       childName: request.childId.childName,
+//       RequestDate:request.requestDate,
+//       formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
+//     }));
+
+//     res.status(200).json({
+//       requests: formattedRequests,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching requests:", error);
+//     res.status(500).json({
+//       error: "Internal server error",
+//     });
+//   }
+// });
+
+
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
     const requests = await Request.find({ statusOfRequest: "pending" })
@@ -130,20 +169,35 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     // Filter out requests where parent or child does not exist
     const validRequests = requests.filter(request => request.parentId && request.childId);
 
-    const formattedRequests = validRequests.map((request) => ({
-      requestId: request._id,
-      reason: request.reason,
-      class: request.childId.class,
-      statusOfRequest: request.statusOfRequest,
-      parentId: request.parentId._id,
-      parentName: request.parentId.parentName,
-      phone: request.parentId.phone,
-      email: request.parentId.email,
-      childId: request.childId._id,
-      childName: request.childId.childName,
-      RequestDate:request.requestDate,
-      formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null
-    }));
+    const formattedRequests = validRequests.map((request) => {
+      // Base request details
+      const formattedRequest = {
+        requestId: request._id,
+        reason: request.reason,
+        class: request.childId.class,
+        statusOfRequest: request.statusOfRequest,
+        parentId: request.parentId._id,
+        parentName: request.parentId.parentName,
+        phone: request.parentId.phone,
+        email: request.parentId.email,
+        childId: request.childId._id,
+        childName: request.childId.childName,
+        requestType: request.requestType,
+        requestDate: request.requestDate,
+        formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+      };
+
+      // Conditionally add startDate and endDate based on requestType
+      if (request.requestType === 'leave') {
+        formattedRequest.startDate = request.startDate || null;
+        formattedRequest.endDate = request.endDate || null;
+      } else {
+        formattedRequest.startDate = null;
+        formattedRequest.endDate = null;
+      }
+
+      return formattedRequest;
+    });
 
     res.status(200).json({
       requests: formattedRequests,
@@ -155,6 +209,8 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
+
+
 // Get all approved requests
 router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -544,21 +600,19 @@ router.get('/status/:childId',schoolAuthMiddleware,  async (req, res) => {
       res.status(500).json({ message: 'Server error' });
   }
 });
-
 // get parents
 router.get('/parents', schoolAuthMiddleware, async (req, res) => {
   try {
-    const parents = await Parent.find().populate('children').lean();
-
+    //  const parents = await Parent.find().populate('children').lean();
+    const parents = await Parent.find({ statusOfRegister : { $ne: "rejected" } }).populate('children').lean();
     const transformedParents = await Promise.all(
       parents.map(async (parent) => {
         let decryptedPassword;
         try {
-          decryptedPassword = decrypt(parent.password);
+          decryptedPassword = decrypt(parent.password); // Decrypt the password
           console.log(`Decrypted password for parent ${parent.parentName}: ${decryptedPassword}`);
         } catch (decryptError) {
           console.error(`Error decrypting password for parent ${parent.parentName}`, decryptError);
-          // Handle the error as needed
           return null;
         }
 
@@ -585,6 +639,10 @@ router.get('/parents', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
+
 // POST METHOD
 //review request
 router.post("/review-request/:requestId", schoolAuthMiddleware, async (req, res) => {
@@ -780,6 +838,65 @@ router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+//update the parents
+router.put('/update-parent/:id', schoolAuthMiddleware, async (req, res) => {
+  const parentId = req.params.id;
+  const { parentName, email, password, phone } = req.body;
+
+  try {
+    // Find the parent by ID
+    const parent = await Parent.findById(parentId);
+
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+    // Update only the allowed fields
+    if (parentName) parent.parentName = parentName;
+    if (email) parent.email = email;
+    if (phone) parent.phone = phone;
+    if (password) parent.password = password;
+    // Save the updated parent
+    await parent.save();
+    res.status(200).json({
+      message: 'Parent updated successfully',
+      parent: {
+        ...parent.toObject()
+      },
+    });
+  } catch (error) {
+    console.error('Error updating parent:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// registration status
+router.put('/registerStatus/:parentId/', async (req, res) => {
+  try {
+    const { parentId } = req.params;
+    const { action } = req.body; 
+
+    const parent = await Parent.findById(parentId);
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    if (action === 'approve') {
+      parent.statusOfRegister = 'approved';
+    } else if (action === 'reject') {
+      parent.statusOfRegister = 'rejected';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    await parent.save();
+
+    res.status(200).json({ message: `Registration ${action}d successfully.` });
+  } catch (error) {
+    console.error('Error during registration status update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 // DELETE METHOD
 // Delete child
@@ -861,6 +978,31 @@ router.delete('/delete/supervisor/:id', schoolAuthMiddleware, async (req, res) =
     res.status(200).json({ message: 'Supervisor deleted successfully' });
   } catch (error) {
     console.error('Error deleting supervisor:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// delete parents
+router.delete('/delete-parent/:id', schoolAuthMiddleware, async (req, res) => {
+  const parentId = req.params.id;
+
+  try {
+    // Find the parent by ID
+    const parent = await Parent.findById(parentId);
+
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    // Delete all children associated with the parent
+    await Child.deleteMany({ _id: { $in: parent.children } });
+
+    // Delete the parent
+    await Parent.findByIdAndDelete(parentId);
+
+    res.status(200).json({ message: 'Parent and associated children deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting parent:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -29,6 +29,7 @@ const parentSchema = new mongoose.Schema({
   fcmToken: {
     type: String
   },
+  statusOfRegister: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   parentRegistrationDate: { type: Date, default: Date.now }
 });
 
