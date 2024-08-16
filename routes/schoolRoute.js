@@ -774,6 +774,35 @@ router.post("/review-request/:requestId", schoolAuthMiddleware, async (req, res)
     res.status(500).json({ error: "Internal server error" });
   }
 });
+// registration status
+router.post('/registerStatus/:parentId/',schoolAuthMiddleware,async (req, res) => {
+  try {
+    const { parentId } = req.params;
+    const { action } = req.body; 
+
+    const parent = await Parent.findById(parentId);
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    if (action === 'approve') {
+      parent.statusOfRegister = 'approved';
+    } else if (action === 'reject') {
+      parent.statusOfRegister = 'rejected';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    await parent.save();
+
+    res.status(200).json({ message: `Registration ${action}d successfully.` });
+  } catch (error) {
+    console.error('Error during registration status update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 
 //PUT METHOD
 // Update child information
@@ -948,33 +977,6 @@ router.put('/update-parent/:id', schoolAuthMiddleware, async (req, res) => {
   }
 });
 
-// registration status
-router.put('/registerStatus/:parentId/', schoolAuthMiddleware,async (req, res) => {
-  try {
-    const { parentId } = req.params;
-    const { action } = req.body; 
-
-    const parent = await Parent.findById(parentId);
-    if (!parent) {
-      return res.status(404).json({ error: 'Parent not found' });
-    }
-
-    if (action === 'approve') {
-      parent.statusOfRegister = 'approved';
-    } else if (action === 'reject') {
-      parent.statusOfRegister = 'rejected';
-    } else {
-      return res.status(400).json({ error: 'Invalid action' });
-    }
-
-    await parent.save();
-
-    res.status(200).json({ message: `Registration ${action}d successfully.` });
-  } catch (error) {
-    console.error('Error during registration status update:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 
 // DELETE METHOD
