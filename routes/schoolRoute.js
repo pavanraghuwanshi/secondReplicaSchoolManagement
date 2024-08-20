@@ -683,7 +683,7 @@ router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
 router.get('/parents', schoolAuthMiddleware, async (req, res) => {
   try {
     //  const parents = await Parent.find().populate('children').lean();
-    const parents = await Parent.find({ statusOfRegister : { $ne: "rejected" } }).populate('children').lean();
+    const parents = await Parent.find().populate('children').lean();
     const transformedParents = await Promise.all(
       parents.map(async (parent) => {
         let decryptedPassword;
@@ -718,9 +718,6 @@ router.get('/parents', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
 
 // POST METHOD
 //review request

@@ -8,7 +8,8 @@ const Geofencing = require('../models/geofence')
 require('dotenv').config();
 const Attendance = require('../models/attendence')
 const Request = require("../models/request");
-
+const Supervisor = require('../models/supervisor');
+const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
 
 // Parent Registration Route
 router.post('/register', async (req, res) => {
@@ -288,32 +289,113 @@ router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
   }
 });
 
-
 // get status
+// router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
+//   const { childId } = req.params;
+//   try {
+//     // Find the most recent attendance record for the given child
+//     const attendanceRecord = await Attendance.findOne({ childId }).sort({ date: -1 });
+
+//     if (!attendanceRecord) {
+//       return res.status(404).json({ error: 'No attendance record found for this child' });
+//     }
+//     res.status(200).json({
+//       childId: childId,
+//       pickupStatus: attendanceRecord.pickup, 
+//       dropStatus: attendanceRecord.drop,     
+//       date: attendanceRecord.date,            
+//       pickupTime: attendanceRecord.pickupTime,
+//       dropTime: attendanceRecord.dropTime
+//     });
+//   } catch (error) {
+//     console.error('Error fetching status:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
+// without null values
+// router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
+//   const { childId } = req.params;
+
+//   try {
+//     // Get today's date in the format "dd-mm-yyyy"
+//     const today = new Date();
+//     const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
+
+//     // Find the most recent attendance record for the given child
+//     const attendanceRecord = await Attendance.findOne({ childId }).sort({ date: -1 });
+
+//     if (!attendanceRecord) {
+//       return res.status(404).json({ error: 'No attendance record found for this child' });
+//     }
+
+//     // Check if the attendance record is for today
+//     if (attendanceRecord.date !== formattedToday) {
+//       return res.status(404).json({ error: 'No attendance record found for today' });
+//     }
+
+//     // Allow viewing the status only until midnight (12:00 AM)
+//     const now = new Date();
+//     const midnight = new Date(today);
+//     midnight.setHours(24, 0, 0, 0); // Set to 12:00 AM of the next day
+
+//     if (now >= midnight) {
+//       return res.status(403).json({ error: 'The status is no longer available for today' });
+//     }
+
+//     // Send the response with today's status
+//     res.status(200).json({
+//       childId: childId,
+//       pickupStatus: attendanceRecord.pickup, 
+//       dropStatus: attendanceRecord.drop,     
+//       date: attendanceRecord.date,            
+//       pickupTime: attendanceRecord.pickupTime,
+//       dropTime: attendanceRecord.dropTime
+//     });
+//   } catch (error) {
+//     console.error('Error fetching status:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
+// with null values
 router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
+
   try {
+    // Get today's date in the format "dd-mm-yyyy"
+    const today = new Date();
+    const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
+
     // Find the most recent attendance record for the given child
-    const attendanceRecord = await Attendance.findOne({ childId }).sort({ date: -1 });
+    const attendanceRecord = await Attendance.findOne({ childId, date: formattedToday });
 
     if (!attendanceRecord) {
-      return res.status(404).json({ error: 'No attendance record found for this child' });
+      // If no record found, return null values for all fields
+      return res.status(200).json({
+        childId: childId,
+        pickupStatus: null,
+        dropStatus: null,
+        date: null,
+        pickupTime: null,
+        dropTime: null
+      });
     }
-    // Send response with only the isPresent boolean values for pickup and drop
+
+    // Send the response with today's status
     res.status(200).json({
       childId: childId,
-      pickupStatus: attendanceRecord.pickup, 
-      dropStatus: attendanceRecord.drop,     
-      date: attendanceRecord.date,            
-      pickupTime: attendanceRecord.pickupTime,
-      dropTime: attendanceRecord.dropTime
+      pickupStatus: attendanceRecord.pickup || null, 
+      dropStatus: attendanceRecord.drop || null,     
+      date: attendanceRecord.date || null,            
+      pickupTime: attendanceRecord.pickupTime || null,
+      dropTime: attendanceRecord.dropTime || null
     });
   } catch (error) {
     console.error('Error fetching status:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 
 module.exports = router;
