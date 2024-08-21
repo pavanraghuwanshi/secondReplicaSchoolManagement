@@ -5,22 +5,9 @@ const geofencingSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  description: {
-    type: String,
-    default: null,
-  },
   area: {
     type: String,
     required: true, 
-  },
-  calendarId: {
-    type: Number,
-    required: true,
-  },
-  attributes: {
-    type: Map,
-    of: String,  
-    default: {},
   },
   isCrossed: {
     type: Boolean,

@@ -10,7 +10,17 @@ const { encrypt } = require('../models/cryptoUtils');
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
 // const sendNotification = require("../utils/sendNotification");
 const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
+// const supervisorController = require('../controllers/supervisorController');
 
+
+// router.post("/register", supervisorController.registerSupervisor);
+// router.post("/login", supervisorController.loginSupervisor);
+// router.get("/getsupervisorData",  jwtAuthMiddleware,supervisorController.getSupervisordata);
+// router.put("/update",  jwtAuthMiddleware,supervisorController.updateSupervisor);
+// router.put("/update-password",  jwtAuthMiddleware,supervisorController.updatePassword);
+// router.delete("/delete",  jwtAuthMiddleware,supervisorController.deleteSupervisor);
+// router.get("/read/all-children",  jwtAuthMiddleware,supervisorController.getallChildren);
+// router.put('/mark-pickup',jwtAuthMiddleware,supervisorController.markPickup);
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -21,6 +31,8 @@ router.post("/register", async (req, res) => {
       email: req.body.email,
       address: req.body.address,
       password: req.body.password,
+      busName:req.body.busName,
+      licenseNumber:req.body.licenseNumber
     };
     const { email } = data;
     console.log("Received registration data:", data);
@@ -299,16 +311,13 @@ router.put("/mark-drop", jwtAuthMiddleware, async (req, res) => {
 // Create a new geofencing area
 router.post("/geofencing", jwtAuthMiddleware, async (req, res) => {
   try {
-    const { name, description, area, calendarId, attributes, deviceId } = req.body;
+    const { name, area, deviceId } = req.body;
     if (!name || !area || !deviceId) {
       return res.status(400).json({ error: "Name, area, and device ID are required" });
     }
     const newGeofencing = new Geofencing({
       name,
-      description,
       area,
-      calendarId,
-      attributes,
       deviceId
     });
     const savedGeofencing = await newGeofencing.save();

@@ -1086,6 +1086,4 @@ router.delete('/delete-parent/:id', schoolAuthMiddleware, async (req, res) => {
 });
 
 
-
-
 module.exports = router;

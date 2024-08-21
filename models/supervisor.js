@@ -37,6 +37,12 @@ const supervisorSchema = new mongoose.Schema({
   profileImage: {
     type: String,
   },
+  busName:{
+    type: String
+  },
+  licenseNumber:{
+    type: String
+  },
   registrationDate: { type: Date, default: Date.now }
 });
 
