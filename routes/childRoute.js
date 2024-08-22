@@ -14,7 +14,7 @@ const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
 // Parent Registration Route
 router.post('/register', async (req, res) => {
   try {
-    const {parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken, pickupPoint} = req.body;
+    const {parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken} = req.body;
 
     // Check if parent email already exists
     const existingParent = await Parent.findOne({ email });
@@ -41,7 +41,6 @@ router.post('/register', async (req, res) => {
       dateOfBirth,
       childAge,
       gender,
-      pickupPoint,
       parentId: newParent._id
     });
     await newChild.save();
@@ -57,6 +56,34 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ parent: newParent, child: newChild, token });
   } catch (error) {
     console.error('Error during registration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/update-pickup-point',jwtAuthMiddleware, async (req, res) => {
+  try {
+    const { childId, pickupPoint } = req.body;
+
+    // Validate input
+    if (!childId || !pickupPoint) {
+      return res.status(400).json({ error: 'Child ID and pickup point are required' });
+    }
+
+    // Find the child by ID and update the pickupPoint
+    const updatedChild = await Child.findByIdAndUpdate(
+      childId,
+      { pickupPoint },
+      { new: true, runValidators: true }
+    );
+
+    // Check if the child was found and updated
+    if (!updatedChild) {
+      return res.status(404).json({ error: 'Child not found' });
+    }
+
+    res.status(200).json({ message: 'Pickup point updated successfully', child: updatedChild });
+  } catch (error) {
+    console.error('Error updating pickup point:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -383,6 +410,7 @@ router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 module.exports = router;
