@@ -20,6 +20,7 @@ const driverRoutes = require("./routes/driverRoute");
 const supervisorRoutes = require("./routes/supervisorRoute");
 const requestRoutes = require('./routes/requestRoute');
 const schoolRoutes = require('./routes/schoolRoute');
+const geofence = require('./routes/geofenceRoute');
 
 // Use routes
 app.use("/parent", childRoutes);
@@ -27,6 +28,7 @@ app.use("/driver", driverRoutes);
 app.use("/supervisor", supervisorRoutes);
 app.use('/request',requestRoutes);
 app.use('/school',schoolRoutes);
+app.use('/geofence',geofence);
 
 // Start the server
 app.listen(PORT, () => {

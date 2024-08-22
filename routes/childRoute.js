@@ -125,40 +125,27 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
 router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
+    
     // Fetch the parent data and populate children
     const parent = await Parent.findById(parentId).populate('children');
+    
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found' });
     }
-    // Fetch geofencing data for each child's deviceId
-    const geofencingDataPromises = parent.children.map(async (child) => {
-      const geofencingData = await Geofencing.find({ deviceId: child.deviceId }).lean();
-      if (!geofencingData.length) {
-        return {
-          id: null,
-          name: "No geofencing data available",
-          description: "",
-          area: "",
-          calendarId: null,
-          attributes: {},
-          isCrossed:false
-        };
-      }
-      return geofencingData;
-    });
-    const geofencingDataResults = await Promise.all(geofencingDataPromises);
-    // Map the geofencing data to children
-    const childrenWithGeofencing = parent.children.map((child, index) => ({
-      ...child.toObject(), // Convert child document to plain object
-      geofencing: geofencingDataResults[index]
-    }));
-    // Respond with children and their geofencing data
-    res.status(200).json({ children: childrenWithGeofencing });
+
+    // Convert children documents to plain objects
+    const childrenData = parent.children.map(child => child.toObject());
+
+    // Respond with children data
+    res.status(200).json({ children: childrenData });
   } catch (error) {
     console.error('Error fetching child data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
 // Get Parent Data 
 router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
   try {

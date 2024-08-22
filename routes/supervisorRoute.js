@@ -352,6 +352,8 @@ router.post("/geofencing", jwtAuthMiddleware, async (req, res) => {
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // });
+
+
 // // Delete a geofencing area
 // router.delete("/geofencing/:id", jwtAuthMiddleware, async (req, res) => {
 //   try {
@@ -370,29 +372,5 @@ router.post("/geofencing", jwtAuthMiddleware, async (req, res) => {
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // });
-
-// // Get all geofencing areas for a supervisor
-// router.get("/geofencing", jwtAuthMiddleware, async (req, res) => {
-//   try {
-//     const { deviceId } = req.query;
-
-//     if (!deviceId) {
-//       return res.status(400).json({ error: "Device ID is required" });
-//     }
-
-//     // Find all geofencing areas associated with the given device ID
-//     const geofencingAreas = await Geofencing.find({ deviceId }).lean();
-
-//     if (!geofencingAreas.length) {
-//       return res.status(404).json({ error: "No geofencing areas found" });
-//     }
-
-//     res.status(200).json({ geofencing: geofencingAreas });
-//   } catch (error) {
-//     console.error("Error fetching geofencing areas:", error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
-
 
 module.exports = router;
