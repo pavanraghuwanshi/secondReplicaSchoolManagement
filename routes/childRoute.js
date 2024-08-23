@@ -14,7 +14,7 @@ const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
 // Parent Registration Route
 router.post('/register', async (req, res) => {
   try {
-    const {parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken} = req.body;
+    const {parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken,pickupPoint,busName} = req.body;
 
     // Check if parent email already exists
     const existingParent = await Parent.findOne({ email });
@@ -41,6 +41,8 @@ router.post('/register', async (req, res) => {
       dateOfBirth,
       childAge,
       gender,
+      pickupPoint,
+      busName,
       parentId: newParent._id
     });
     await newChild.save();

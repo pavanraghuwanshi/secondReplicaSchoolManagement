@@ -9,6 +9,7 @@ const childSchema = new mongoose.Schema({
   dateOfBirth: { type: String, required: true },
   childAge: { type: Number, required: true },
   pickupPoint:{type: String},
+  busName:{type:String},
   gender: { type: String, enum: ['female', 'male'], required: true },
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', required: true },
   deviceId: { type: String, default: null },
