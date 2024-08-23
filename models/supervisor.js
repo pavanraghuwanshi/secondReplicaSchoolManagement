@@ -40,9 +40,6 @@ const supervisorSchema = new mongoose.Schema({
   busName:{
     type: String
   },
-  licenseNumber:{
-    type: String
-  },
   registrationDate: { type: Date, default: Date.now }
 });
 

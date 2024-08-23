@@ -32,7 +32,7 @@ router.post("/register", async (req, res) => {
       address: req.body.address,
       password: req.body.password,
       busName:req.body.busName,
-      licenseNumber:req.body.licenseNumber
+      deviceId:req.body.deviceId
     };
     const { email } = data;
     console.log("Received registration data:", data);

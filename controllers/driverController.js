@@ -11,6 +11,8 @@ exports.registerDriver = async (req, res) => {
       email: req.body.email,
       address: req.body.address,
       password: req.body.password,
+      busName:req.body.busName,
+      deviceId:req.body.deviceId
     };
     const { email } = data;
     console.log("Received registration data:", data);
