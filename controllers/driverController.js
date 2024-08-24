@@ -67,29 +67,14 @@ exports.getDriverData = async (req, res) => {
       return res.status(404).json({ error: 'Driver not found' });
     }
 
-    let geofencingData = [];
-    if (driver.deviceId) {
-      geofencingData = await Geofencing.find({ deviceId: driver.deviceId }).lean();
-    }
-
-    const transformedGeofencingData = geofencingData.length
-      ? geofencingData.map(area => ({
-          id: area._id,
-          name: area.name,
-          description: area.description || '',
-          area: area.area,
-          calendarId: area.calendarId,
-          attributes: area.attributes || {},
-          isCrossed: false
-        }))
-      : [{ id: null, name: 'No geofencing data available', description: '', area: '', calendarId: null, attributes: {} }];
-
-    res.status(200).json({ driver, geofencing: transformedGeofencingData });
+    // Return the driver data without geofencing logic
+    res.status(200).json({ driver });
   } catch (error) {
     console.error('Error fetching driver data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 exports.updateDriver = async (req, res) => {
   try {

@@ -1,10 +1,8 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
 const Parent = require("../models/Parent");
 const Child = require("../models/child");
 const { generateToken, jwtAuthMiddleware } = require("../jwt");
 const router = express.Router();
-const Geofencing = require('../models/geofence')
 require('dotenv').config();
 const Attendance = require('../models/attendence')
 const Request = require("../models/request");
@@ -62,6 +60,32 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// Parent Login Route
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const parent = await Parent.findOne({ email });
+    if (!parent) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
+    const isMatch = await parent.comparePassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
+    // Generate JWT token for the parent
+    const token = generateToken({ id: parent._id, email: parent.email });
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token: token
+    });
+  } catch (err) {
+    console.error('Error during login:', err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 router.put('/update-pickup-point',jwtAuthMiddleware, async (req, res) => {
   try {
@@ -91,32 +115,6 @@ router.put('/update-pickup-point',jwtAuthMiddleware, async (req, res) => {
   }
 });
 
-// Parent Login Route
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const parent = await Parent.findOne({ email });
-    if (!parent) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-
-    const isMatch = await parent.comparePassword(password);
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-
-    // Generate JWT token for the parent
-    const token = generateToken({ id: parent._id, email: parent.email });
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      token: token
-    });
-  } catch (err) {
-    console.error('Error during login:', err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
 // Add Child Route
 router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
   try {
@@ -238,21 +236,9 @@ router.put("/update-parent/:parentId",jwtAuthMiddleware,async(req,res)=>{
     res.status(500).json({ error: 'Internal server error' });
   }
 })
-// get requests
-router.get('/requests', jwtAuthMiddleware, async (req, res) => {
-  try {
-    const parentId = req.user.id;  // Extract parentId from the JWT token payload
 
-    // Find all requests for the parent’s children
-    const requests = await Request.find({ parentId }).populate('childId');
-
-    res.status(200).json({ requests });
-  } catch (error) {
-    console.error('Error fetching requests:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
+//get requests of parents 
+router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
 
@@ -261,19 +247,15 @@ router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found' });
     }
-
     // Collect all child IDs
     const childIds = parent.children.map(child => child._id);
-
     // Fetch all requests for the children
     const requests = await Request.find({ childId: { $in: childIds } })
-      .select('requestType startDate endDate reason childId')
+      .select('requestType startDate endDate reason newRoute childId requestDate')
       .populate('childId', 'childName');
-
     // Group the requests
     const groupedRequests = [];
     const leaveRequests = {};
-
     requests.forEach(request => {
       if (request.requestType === 'leave') {
         const childId = request.childId._id;
@@ -283,28 +265,29 @@ router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
             requestType: 'leave',
             reason: request.reason,
             startDate: request.startDate,
-            endDate: request.endDate
+            endDate: request.endDate,
+            requestDate:request.requestDate
           };
         }
       } else {
         groupedRequests.push({
           childName: request.childId.childName,
-          date: request.startDate,  // Assuming 'date' refers to the start date
+          date: request.startDate, 
           requestType: request.requestType,
-          reason: request.reason
+          reason: request.reason,
+          newRoute:request.newRoute,
+          requestDate:request.requestDate
         });
       }
     });
-
-    // Add the grouped leave requests
     Object.values(leaveRequests).forEach(leaveRequest => groupedRequests.push(leaveRequest));
-
     res.status(200).json({ requests: groupedRequests });
   } catch (error) {
     console.error('Error fetching requests:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // get status
 // router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
@@ -378,17 +361,11 @@ router.get('/parent-requests', jwtAuthMiddleware, async (req, res) => {
 // with null values
 router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
-
   try {
-    // Get today's date in the format "dd-mm-yyyy"
     const today = new Date();
     const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
-
-    // Find the most recent attendance record for the given child
     const attendanceRecord = await Attendance.findOne({ childId, date: formattedToday });
-
     if (!attendanceRecord) {
-      // If no record found, return null values for all fields
       return res.status(200).json({
         childId: childId,
         pickupStatus: null,
@@ -398,8 +375,6 @@ router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
         dropTime: null
       });
     }
-
-    // Send the response with today's status
     res.status(200).json({
       childId: childId,
       pickupStatus: attendanceRecord.pickup || null, 
