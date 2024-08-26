@@ -1,28 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const {jwtAuthMiddleware} = require('../jwt');
-const Request = require('../models/request')
-const Child = require('../models/child')
+const { jwtAuthMiddleware } = require('../jwt');
+const Request = require('../models/request');
+const Child = require('../models/child');
 
-// Helper functions for date parsing and formatting
-function parseDDMMYYYYToDate(dateStr) {
-  const [day, month, year] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-function formatDateToDDMMYYYY(date) {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}-${month}-${year}`;
-}
+// Helper function to generate absences between two dates
 function generateAbsences(startDate, endDate) {
   const absences = [];
-  let currentDate = parseDDMMYYYYToDate(startDate);
-  const parsedEndDate = parseDDMMYYYYToDate(endDate);
-  while (currentDate <= parsedEndDate) {
+  let currentDate = new Date(startDate);
+  const end = new Date(endDate);
+  while (currentDate <= end) {
     absences.push({
-      date: formatDateToDDMMYYYY(currentDate),
-      isAbsent: true // true if the child is absent
+      date: new Date(currentDate),
+      isAbsent: true,
     });
     currentDate.setDate(currentDate.getDate() + 1);
   }
@@ -57,22 +47,22 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
 
     const newRequest = new Request({
       requestType,
-      startDate: requestType === 'leave' ? formatDateToDDMMYYYY(parseDDMMYYYYToDate(startDate)) : undefined,
-      endDate: requestType === 'leave' ? formatDateToDDMMYYYY(parseDDMMYYYYToDate(endDate)) : undefined,
+      startDate: requestType === 'leave' ? new Date(startDate) : undefined,
+      endDate: requestType === 'leave' ? new Date(endDate) : undefined,
       parentId,
       childId,
       reason,
       newRoute: requestType === 'changeRoute' ? newRoute : undefined,
-      absences: requestType === 'leave' ? generateAbsences(startDate, endDate) : []
+      absences: requestType === 'leave' ? generateAbsences(new Date(startDate), new Date(endDate)) : [],
     });
 
     if (requestType === 'changeRoute') {
-      // Update the child's vehicle ID
+      // Update the child's route
       child.deviceId = newRoute;
       await child.save();
     }
-    await newRequest.save();
 
+    await newRequest.save();
     res.status(201).json({ request: newRequest });
 
   } catch (error) {
@@ -80,6 +70,5 @@ router.post('/create-request', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 module.exports = router;

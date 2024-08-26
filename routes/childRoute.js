@@ -288,7 +288,6 @@ router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
   }
 });
 
-
 // get status
 // router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
 //   const { childId } = req.params;
