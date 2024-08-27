@@ -16,6 +16,18 @@ const schoolSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true
+  },
+  email:{
+    type: String,
+    required: true
+  },
+  mobileNo:{
+    type: String,
+    required: true
+  },
+  branch :{
+    type: String,
+    required: true
   }
 });
 
@@ -34,7 +46,6 @@ schoolSchema.pre('save', async function (next) {
   }
 });
 
-// Method to compare the provided password with the hashed password
 schoolSchema.methods.comparePassword = async function (password) {
   try {
     const isMatch = await bcrypt.compare(password, this.password);
@@ -44,7 +55,7 @@ schoolSchema.methods.comparePassword = async function (password) {
   }
 };
 
-// Create and export the School model
+
 const School = mongoose.model('School', schoolSchema);
 
 module.exports = School;

@@ -13,15 +13,55 @@ const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 const jwt = require("jsonwebtoken");
 
 // School Registration Route
+// router.post("/register", async (req, res) => {
+//   const { schoolName, username, password } = req.body;
+
+//   try {
+//     const existingSchool = await School.findOne({ username });
+//     if (existingSchool) {
+//       return res.status(400).json({ error: "School username already exists" });
+//     }
+//     const newSchool = new School({ schoolName, username, password });
+//     await newSchool.save();
+
+//     res.status(201).json({ message: "School registered successfully" });
+//   } catch (error) {
+//     console.error("Error during registration:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
+
+
 router.post("/register", async (req, res) => {
-  const { schoolName, username, password } = req.body;
+  const { schoolName, username, password, email, mobileNo, branch } = req.body;
 
   try {
-    const existingSchool = await School.findOne({ username });
-    if (existingSchool) {
+    // Check if the username already exists
+    const existingUsername = await School.findOne({ username });
+    if (existingUsername) {
       return res.status(400).json({ error: "School username already exists" });
     }
-    const newSchool = new School({ schoolName, username, password });
+
+    // Check if the email already exists
+    const existingEmail = await School.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({ error: "School email already exists" });
+    }
+
+    // Hash the password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create a new school object with the provided fields
+    const newSchool = new School({
+      schoolName,
+      username,
+      password: hashedPassword,
+      email,
+      mobileNo,
+      branch
+    });
+
+    // Save the new school to the database
     await newSchool.save();
 
     res.status(201).json({ message: "School registered successfully" });
@@ -30,6 +70,8 @@ router.post("/register", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
 // School Login Route
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
@@ -66,7 +108,9 @@ router.post("/login", async (req, res) => {
 // Get children 
 router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
   try {
-    const children = await Child.find({}).lean();
+      // Assuming schoolAuthMiddleware attaches schoolId to req
+    const { schoolId } = req;
+    const children = await Child.find({schoolId}).lean();
     console.log("Raw children data:", JSON.stringify(children, null, 2));
 
     const transformedChildren = await Promise.all(
@@ -798,6 +842,7 @@ router.post('/registerStatus/:parentId/',schoolAuthMiddleware,async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 

@@ -19,7 +19,7 @@ const supervisorSchema = new mongoose.Schema({
     required: true,
   },
   phone_no: {
-    type: Number,
+    type:   String,
     required: true,
   },
   aadhar: {
