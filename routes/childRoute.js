@@ -118,7 +118,7 @@ router.put('/update-pickup-point',jwtAuthMiddleware, async (req, res) => {
 // Add Child Route
 router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
   try {
-    const { childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, pickupPoint } = req.body;
+    const { childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, pickupPoint ,busName,deviceId} = req.body;
 
     // Extract parentId from the JWT token payload
     const parentId = req.user.id;
@@ -134,7 +134,8 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
       childAge,
       gender,
       parentId ,
-      pickupPoint
+      pickupPoint,
+      busName,deviceId
     });
 
     await newChild.save();
