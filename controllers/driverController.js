@@ -57,10 +57,11 @@ exports.registerDriver =  async (req, res) => {
       password,
       schoolName,
       licenseNumber,
-      vehicleId,
+      deviceId,
       address,
       phone_no,
-      fcmToken
+      fcmToken,
+
     } = req.body;
 
     console.log(`Registering driver with schoolName: "${schoolName.trim()}"`);
@@ -86,7 +87,7 @@ exports.registerDriver =  async (req, res) => {
       password, // No need to hash here, it will be done in the schema
       phone_no,
       licenseNumber,
-      vehicleId,
+      deviceId,
       fcmToken,
       address,
       schoolId: school._id, // Link to the school's ID
