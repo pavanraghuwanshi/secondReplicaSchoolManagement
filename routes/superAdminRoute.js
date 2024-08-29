@@ -8,6 +8,8 @@ const Request = require("../models/request");
 const Parent = require("../models/Parent");
 const { decrypt } = require('../models/cryptoUtils');
 const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
+
+
 router.post('/register', async (req, res) => {
   try {
     const data = {
@@ -143,6 +145,16 @@ router.get('/children-by-school', superadminMiddleware, async (req, res) => {
   }
 });
 
+router.get('/getschools',superadminMiddleware, async (req, res) => {
+  try {
+    // Fetch specific fields from the School collection
+    const schools = await School.find({}, 'schoolName username email mobileNo branch');
+    res.status(200).json({ schools });
+  } catch (error) {
+    console.error('Error fetching school list:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 
 // Route to get all parents for all schools for the superadmin
