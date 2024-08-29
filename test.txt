@@ -1,0 +1,4 @@
+
+do i need here also the schoolId for separting the diff schools data ,
+tell shruti that the delete child route endpoints are changed
+suppose this is the parents , of the school how can i get this superadmin 

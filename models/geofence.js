@@ -16,6 +16,10 @@ const geofencingSchema = new mongoose.Schema({
   deviceId: {
     type: String,
     required: true
+  },
+  schoolId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'School',
   }
 });
 

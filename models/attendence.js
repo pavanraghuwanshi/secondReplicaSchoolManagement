@@ -23,7 +23,11 @@ const attendanceSchema = new mongoose.Schema({
     default: null 
   },
   pickupTime: { type: String, default: null },
-  dropTime: { type: String, default: null }
+  dropTime: { type: String, default: null },
+  schoolId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'School'
+  }
 });
 
 const Attendance = mongoose.model('Attendance', attendanceSchema);

@@ -40,7 +40,8 @@ const supervisorSchema = new mongoose.Schema({
   busName:{
     type: String
   },
-  registrationDate: { type: Date, default: Date.now }
+  registrationDate: { type: Date, default: Date.now },
+  schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true }
 });
 
 supervisorSchema.pre('save', async function(next) {

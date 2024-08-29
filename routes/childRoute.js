@@ -6,28 +6,58 @@ const router = express.Router();
 require('dotenv').config();
 const Attendance = require('../models/attendence')
 const Request = require("../models/request");
-const Supervisor = require('../models/supervisor');
-const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
+const School = require("../models/school");
 
 // Parent Registration Route
 router.post('/register', async (req, res) => {
   try {
-    const {parentName, email, password, phone, childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, fcmToken,pickupPoint,busName,deviceId} = req.body;
+    const {
+      parentName,
+      email,
+      password,
+      phone,
+      childName,
+      class: childClass,
+      rollno,
+      section,
+      schoolName,
+      dateOfBirth,
+      childAge,
+      gender,
+      fcmToken,
+      pickupPoint,
+      busName,deviceId
+    } = req.body;
+
+    console.log(`Registering parent with schoolName: "${schoolName.trim()}"`);
 
     // Check if parent email already exists
     const existingParent = await Parent.findOne({ email });
     if (existingParent) {
       return res.status(400).json({ error: 'Parent email already exists' });
     }
-    
-    // Create new parent
-    // const newParent = new Parent({ parentName, email, password, phone, fcmToken });
-    // await newParent.save();
+
+    // Find the school by name
+    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') });
+
+    if (!school) {
+      console.log('School not found:', schoolName.trim());
+      return res.status(400).json({ error: 'School not found' });
+    }
+
     // Create new parent with a pending status
-    const newParent = new Parent({ parentName, email, password, phone, fcmToken, statusOfRegister : 'pending' });
+    const newParent = new Parent({
+      parentName,
+      email,
+      password, // No need to hash here, it will be done in the schema
+      phone,
+      fcmToken,
+      schoolId: school._id ,
+      statusOfRegister: 'pending'
+    });
     await newParent.save();
 
-    // Create new child
+    // Create new child linked to the school and parent
     const newChild = new Child({
       childName,
       parentName,
@@ -36,6 +66,7 @@ router.post('/register', async (req, res) => {
       rollno,
       section,
       schoolName,
+      schoolId: school._id, // Link to the school's ID
       dateOfBirth,
       childAge,
       gender,
@@ -51,7 +82,7 @@ router.post('/register', async (req, res) => {
     await newParent.save();
 
     // Generate JWT token
-    const payload = { id: newParent._id, email: newParent.email };
+    const payload = { id: newParent._id, email: newParent.email, schoolId: school._id };
     const token = generateToken(payload);
 
     res.status(201).json({ parent: newParent, child: newChild, token });
@@ -60,26 +91,48 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// Fetch School List Route
+router.get('/getschools', async (req, res) => {
+  try {
+    const schools = await School.find({}, 'schoolName');
+    res.status(200).json({ schools });
+  } catch (error) {
+    console.error('Error fetching school list:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Parent Login Route
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const parent = await Parent.findOne({ email });
+
+    // Check if parent exists
     if (!parent) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
 
+    // Compare provided password with stored hashed password
     const isMatch = await parent.comparePassword(password);
+
+    // Check if password matches
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
 
-    // Generate JWT token for the parent
-    const token = generateToken({ id: parent._id, email: parent.email });
+    // Generate JWT token with parent ID, email, and schoolId
+    const token = generateToken({
+      id: parent._id,
+      email: parent.email,
+      schoolId: parent.schoolId, // Add schoolId to the token payload
+    });
+
+    // Send success response with token
     res.status(200).json({
       success: true,
       message: "Login successful",
-      token: token
+      token: token,
     });
   } catch (err) {
     console.error('Error during login:', err);
@@ -87,25 +140,26 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.put('/update-pickup-point',jwtAuthMiddleware, async (req, res) => {
+router.put('/update-pickup-point', jwtAuthMiddleware, async (req, res) => {
   try {
     const { childId, pickupPoint } = req.body;
+    const { schoolId } = req; // Assuming `schoolId` is attached to the request by jwtAuthMiddleware
 
     // Validate input
     if (!childId || !pickupPoint) {
       return res.status(400).json({ error: 'Child ID and pickup point are required' });
     }
 
-    // Find the child by ID and update the pickupPoint
-    const updatedChild = await Child.findByIdAndUpdate(
-      childId,
+    // Find the child by ID and ensure they belong to the correct school
+    const updatedChild = await Child.findOneAndUpdate(
+      { _id: childId, schoolId: schoolId }, // Match by childId and schoolId
       { pickupPoint },
       { new: true, runValidators: true }
     );
 
     // Check if the child was found and updated
     if (!updatedChild) {
-      return res.status(404).json({ error: 'Child not found' });
+      return res.status(404).json({ error: 'Child not found or does not belong to this school' });
     }
 
     res.status(200).json({ message: 'Pickup point updated successfully', child: updatedChild });
@@ -115,27 +169,49 @@ router.put('/update-pickup-point',jwtAuthMiddleware, async (req, res) => {
   }
 });
 
+
 // Add Child Route
 router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
   try {
-    const { childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender, pickupPoint ,busName,deviceId} = req.body;
+    const {
+      childName,
+      class: childClass,
+      rollno,
+      section,
+      dateOfBirth,
+      childAge,
+      gender,
+      pickupPoint,
+      busName,
+      deviceId,
+      schoolName // Make sure to extract schoolName from the request body
+    } = req.body;
 
     // Extract parentId from the JWT token payload
     const parentId = req.user.id;
 
-    // Create new child with the parentId
+    // Find the school by name
+    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') });
+
+    if (!school) {
+      return res.status(400).json({ error: 'School not found' });
+    }
+
+    // Create new child with the parentId and schoolId
     const newChild = new Child({
       childName,
       class: childClass,
       rollno,
       section,
-      schoolName,
       dateOfBirth,
       childAge,
       gender,
-      parentId ,
       pickupPoint,
-      busName,deviceId
+      busName,
+      deviceId,
+      parentId,
+      schoolId: school._id, // Add the found schoolId to the child record
+      schoolName: school.schoolName // Ensure the correct schoolName is associated
     });
 
     await newChild.save();
@@ -144,19 +220,25 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
     await Parent.findByIdAndUpdate(parentId, { $push: { children: newChild._id } });
 
     res.status(201).json({ child: newChild });
-
   } catch (error) {
     console.error('Error during adding child:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
 // Get Children List Route
 router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
+    const schoolId = req.user.schoolId; // Assuming schoolId is in the JWT payload
     
-    // Fetch the parent data and populate children
-    const parent = await Parent.findById(parentId).populate('children');
+    // Fetch the parent data and populate children that match the schoolId
+    const parent = await Parent.findById(parentId).populate({
+      path: 'children',
+      match: { schoolId: schoolId } // Filter children by schoolId
+    });
     
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found' });
@@ -173,16 +255,22 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   }
 });
 
-
-
 // Get Parent Data 
 router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
-    const parent = await Parent.findById(parentId).select('-password'); // Exclude password field
+    const schoolId = req.user.schoolId; // Assuming schoolId is in the JWT payload
+    
+    // Find the parent by ID and exclude the password field
+    const parent = await Parent.findById(parentId).select('-password');
 
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    // Check if the schoolId matches
+    if (parent.schoolId.toString() !== schoolId) {
+      return res.status(403).json({ error: 'Unauthorized access to this school data' });
     }
 
     res.status(200).json({ parent });
@@ -191,16 +279,23 @@ router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 // Update Child Route
 router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;
     const { childName, class: childClass, rollno, section, schoolName, dateOfBirth, childAge, gender } = req.body;
     const parentId = req.user.id;
-    const child = await Child.findOne({ _id: childId, parentId });
+    const schoolId = req.schoolId;
+
+    // Find the child by ID, parentId, and schoolId
+    const child = await Child.findOne({ _id: childId, parentId, schoolId });
     if (!child) {
-      return res.status(404).json({ error: 'Child not found or does not belong to the authenticated parent' });
+      return res.status(404).json({ error: 'Child not found or does not belong to the authenticated parent or school' });
     }
+
+    // Update the child details
     child.childName = childName || child.childName;
     child.class = childClass || child.class;
     child.rollno = rollno || child.rollno;
@@ -218,45 +313,65 @@ router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
 // Update parent Route
-router.put("/update-parent/:parentId",jwtAuthMiddleware,async(req,res)=>{
+router.put("/update-parent/:parentId", jwtAuthMiddleware, async (req, res) => {
   try {
     const { parentId } = req.params;
-    const { parentName, email, phone} = req.body;
-    const parent = await Parent.findOne({ _id:parentId });
-    if (!parent) {
-      return res.status(404).json({ error: 'incorrect token' });
+    const { parentName, email, phone } = req.body;
+
+    // Ensure the authenticated parent is the one being updated
+    if (parentId !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized: You can only update your own profile' });
     }
+
+    // Find the parent by ID and ensure they belong to the correct school (if applicable)
+    const parent = await Parent.findOne({ _id: parentId, schoolId: req.schoolId });
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found or incorrect token' });
+    }
+
+    // Update the parent's details
     parent.parentName = parentName || parent.parentName;
     parent.email = email || parent.email;
     parent.phone = phone || parent.phone;
+
     await parent.save();
-    res.status(200).json({ parent});
+
+    res.status(200).json({ parent });
   } catch (error) {
-    console.error('Error during updating child:', error);
+    console.error('Error during updating parent:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-})
+});
+
 
 //get requests of parents 
 router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
+    const schoolId = req.user.schoolId; // Get the schoolId from the authenticated user
 
-    // Fetch the parent data along with their children
-    const parent = await Parent.findById(parentId).populate('children', '_id childName');
+    // Fetch the parent data along with their children, ensuring the correct school context
+    const parent = await Parent.findOne({ _id: parentId, schoolId }).populate('children', '_id childName');
     if (!parent) {
-      return res.status(404).json({ error: 'Parent not found' });
+      return res.status(404).json({ error: 'Parent not found or does not belong to the authenticated school' });
     }
+
     // Collect all child IDs
     const childIds = parent.children.map(child => child._id);
-    // Fetch all requests for the children
-    const requests = await Request.find({ childId: { $in: childIds } })
+
+    // Fetch all requests for the children, ensuring the requests are within the same school context
+    const requests = await Request.find({ childId: { $in: childIds }, schoolId })
       .select('requestType startDate endDate reason newRoute childId requestDate')
       .populate('childId', 'childName');
+
     // Group the requests
     const groupedRequests = [];
     const leaveRequests = {};
+
     requests.forEach(request => {
       if (request.requestType === 'leave') {
         const childId = request.childId._id;
@@ -267,7 +382,7 @@ router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
             reason: request.reason,
             startDate: request.startDate,
             endDate: request.endDate,
-            requestDate:request.requestDate
+            requestDate: request.requestDate
           };
         }
       } else {
@@ -276,12 +391,15 @@ router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
           date: request.startDate, 
           requestType: request.requestType,
           reason: request.reason,
-          newRoute:request.newRoute,
-          requestDate:request.requestDate
+          newRoute: request.newRoute,
+          requestDate: request.requestDate
         });
       }
     });
+
+    // Include leave requests in the grouped response
     Object.values(leaveRequests).forEach(leaveRequest => groupedRequests.push(leaveRequest));
+
     res.status(200).json({ requests: groupedRequests });
   } catch (error) {
     console.error('Error fetching requests:', error);
@@ -289,82 +407,23 @@ router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
   }
 });
 
-// get status
-// router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
-//   const { childId } = req.params;
-//   try {
-//     // Find the most recent attendance record for the given child
-//     const attendanceRecord = await Attendance.findOne({ childId }).sort({ date: -1 });
 
-//     if (!attendanceRecord) {
-//       return res.status(404).json({ error: 'No attendance record found for this child' });
-//     }
-//     res.status(200).json({
-//       childId: childId,
-//       pickupStatus: attendanceRecord.pickup, 
-//       dropStatus: attendanceRecord.drop,     
-//       date: attendanceRecord.date,            
-//       pickupTime: attendanceRecord.pickupTime,
-//       dropTime: attendanceRecord.dropTime
-//     });
-//   } catch (error) {
-//     console.error('Error fetching status:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-
-// without null values
-// router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
-//   const { childId } = req.params;
-
-//   try {
-//     // Get today's date in the format "dd-mm-yyyy"
-//     const today = new Date();
-//     const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
-
-//     // Find the most recent attendance record for the given child
-//     const attendanceRecord = await Attendance.findOne({ childId }).sort({ date: -1 });
-
-//     if (!attendanceRecord) {
-//       return res.status(404).json({ error: 'No attendance record found for this child' });
-//     }
-
-//     // Check if the attendance record is for today
-//     if (attendanceRecord.date !== formattedToday) {
-//       return res.status(404).json({ error: 'No attendance record found for today' });
-//     }
-
-//     // Allow viewing the status only until midnight (12:00 AM)
-//     const now = new Date();
-//     const midnight = new Date(today);
-//     midnight.setHours(24, 0, 0, 0); // Set to 12:00 AM of the next day
-
-//     if (now >= midnight) {
-//       return res.status(403).json({ error: 'The status is no longer available for today' });
-//     }
-
-//     // Send the response with today's status
-//     res.status(200).json({
-//       childId: childId,
-//       pickupStatus: attendanceRecord.pickup, 
-//       dropStatus: attendanceRecord.drop,     
-//       date: attendanceRecord.date,            
-//       pickupTime: attendanceRecord.pickupTime,
-//       dropTime: attendanceRecord.dropTime
-//     });
-//   } catch (error) {
-//     console.error('Error fetching status:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-
-// with null values
 router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
+  const parentId = req.user.id;
+  const schoolId = req.user.schoolId;
+
   try {
+    const child = await Child.findOne({ _id: childId, parentId, schoolId });
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found or does not belong to the authenticated parent/school' });
+    }
+
     const today = new Date();
     const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
-    const attendanceRecord = await Attendance.findOne({ childId, date: formattedToday });
+
+    const attendanceRecord = await Attendance.findOne({ childId, date: formattedToday, schoolId });
+    
     if (!attendanceRecord) {
       return res.status(200).json({
         childId: childId,
@@ -375,11 +434,12 @@ router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
         dropTime: null
       });
     }
+
     res.status(200).json({
       childId: childId,
-      pickupStatus: attendanceRecord.pickup || null, 
-      dropStatus: attendanceRecord.drop || null,     
-      date: attendanceRecord.date || null,            
+      pickupStatus: attendanceRecord.pickup || null,
+      dropStatus: attendanceRecord.drop || null,
+      date: attendanceRecord.date || null,
       pickupTime: attendanceRecord.pickupTime || null,
       dropTime: attendanceRecord.dropTime || null
     });
@@ -388,6 +448,8 @@ router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 
 
 

@@ -30,7 +30,8 @@ const parentSchema = new mongoose.Schema({
     type: String
   },
   statusOfRegister: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-  parentRegistrationDate: { type: Date, default: Date.now }
+  parentRegistrationDate: { type: Date, default: Date.now },
+  schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School'}
 });
 
 // parentSchema.pre('save', async function (next) {

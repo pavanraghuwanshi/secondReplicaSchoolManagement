@@ -22,7 +22,7 @@ const schoolSchema = new mongoose.Schema({
     required: true
   },
   mobileNo:{
-    type: String,
+    type: Number,
     required: true
   },
   branch :{
