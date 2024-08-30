@@ -8,6 +8,10 @@ const Request = require("../models/request");
 const Parent = require("../models/Parent");
 const { decrypt } = require('../models/cryptoUtils');
 const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
+const Supervisor = require("../models/supervisor");
+const Attendance = require("../models/attendence");
+const DriverCollection = require('../models/driver');
+const jwt = require("jsonwebtoken");
 
 
 router.post('/register', async (req, res) => {
@@ -145,16 +149,37 @@ router.get('/children-by-school', superadminMiddleware, async (req, res) => {
   }
 });
 
-router.get('/getschools',superadminMiddleware, async (req, res) => {
+router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
     // Fetch specific fields from the School collection
-    const schools = await School.find({}, 'schoolName username email mobileNo branch');
-    res.status(200).json({ schools });
+    const schools = await School.find({}, 'schoolName username email mobileNo branch password').lean();
+
+    // Decrypt the password for each school
+    const transformedSchools = await Promise.all(schools.map(async (school) => {
+      let decryptedPassword;
+      try {
+        decryptedPassword = decrypt(school.password); // Decrypt the password
+        console.log(`Decrypted password for school ${school.schoolName}: ${decryptedPassword}`);
+      } catch (decryptError) {
+        console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
+        decryptedPassword = "Error decrypting password"; // Handle decryption errors
+      }
+
+      // Return the school object with the decrypted password
+      return {
+        ...school,
+        password: decryptedPassword
+      };
+    }));
+
+    // Send the response with the transformed school data
+    res.status(200).json({ schools: transformedSchools });
   } catch (error) {
     console.error('Error fetching school list:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // Route to get all parents for all schools for the superadmin
