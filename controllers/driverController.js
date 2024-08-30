@@ -61,6 +61,7 @@ exports.registerDriver =  async (req, res) => {
       address,
       phone_no,
       fcmToken,
+      busName
 
     } = req.body;
 
@@ -90,6 +91,7 @@ exports.registerDriver =  async (req, res) => {
       deviceId,
       fcmToken,
       address,
+      busName,
       schoolId: school._id, // Link to the school's ID
       statusOfRegister: 'pending'
     });
