@@ -32,17 +32,21 @@ const driverSchema = new mongoose.Schema({
   deviceId: {
     type: String,
   },
-  schoolId: {
-    type: String,
-  },
   profileImage: {
     type: String,
   },
-  busName:{
-    type: String
+  busName: {
+    type: String,
   },
-  registrationDate: { type: Date, default: Date.now },
-  schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true }
+  schoolId: { // Correct schoolId definition
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'School',
+    required: true,
+  },
+  registrationDate: { 
+    type: Date, 
+    default: Date.now 
+  }
 });
 
 driverSchema.pre('save', async function(next) {

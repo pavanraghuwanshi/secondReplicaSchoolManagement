@@ -71,7 +71,7 @@ const superadminMiddleware = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const superadmin = await Superadmin.findOne({ _id: decoded.id, email: decoded.email });
+    const superadmin = await Superadmin.findOne({ _id: decoded.id, username: decoded.username });
     if (!superadmin) {
       return res.status(401).json({ error: 'Invalid token' });
     }

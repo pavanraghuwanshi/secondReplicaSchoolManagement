@@ -398,77 +398,104 @@ router.get('/all-denied-requests', superadminMiddleware, async (req, res) => {
   }
 });
 // Route to get all drivers across all schools for the superadmin
-router.get('/all-drivers', superadminMiddleware, async (req, res) => {
+router.get('/drivers-by-school', superadminMiddleware, async (req, res) => {
   try {
-    // Fetch all drivers across all schools
-    const drivers = await DriverCollection.find()
-      .populate('schoolId', 'schoolName') // Include the school name
+    // Fetch all schools
+    const schools = await School.find({}).lean();
 
-    const driverData = drivers.map(driver => {
-      try {
-        console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
-        const decryptedPassword = decrypt(driver.password);
-        return {
-          id: driver._id,
-          driverName: driver.driverName,
-          address: driver.address,
-          phone_no: driver.phone_no,
-          email: driver.email,
-          deviceId: driver.deviceId,
-          password: decryptedPassword,
-          registrationDate: driver.registrationDate,
-          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
-          schoolName: driver.schoolId.schoolName, // Include the school name
-        };
-      } catch (decryptError) {
-        console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
-        return null;
-      }
-    }).filter(driver => driver !== null);
+    // Initialize an empty array to hold driver data by school
+    const driversBySchool = await Promise.all(schools.map(async (school) => {
+      const schoolName = school.schoolName;
 
-    // Send the formatted driver data as a JSON response
-    res.status(200).json({ drivers: driverData });
+      // Fetch drivers associated with the current school
+      const drivers = await DriverCollection.find({ schoolId: school._id })
+        .lean();
+
+      return {
+        schoolName: schoolName,
+        drivers: drivers.map((driver) => {
+          let decryptedPassword;
+          try {
+            decryptedPassword = decrypt(driver.password);
+          } catch (decryptError) {
+            decryptedPassword = "Error decrypting password";
+          }
+
+          return {
+            driverId: driver._id,
+            driverName: driver.driverName,
+            address: driver.address,
+            phone_no: driver.phone_no,
+            email: driver.email,
+            busName: driver.busName,
+            deviceId: driver.deviceId,
+            registrationDate: driver.registrationDate,
+            formattedRegistrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
+            password: decryptedPassword, // Include decrypted password
+          };
+        }),
+      };
+    }));
+
+    // Send the response
+    res.status(200).json(driversBySchool);
   } catch (error) {
-    console.error('Error fetching drivers:', error);
+    console.error('Error fetching drivers by school:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 // Route to get all supervisors across all schools for the superadmin
-router.get('/all-supervisors', superadminMiddleware, async (req, res) => {
+router.get('/supervisors-by-school', superadminMiddleware, async (req, res) => {
   try {
-    // Fetch all supervisors across all schools
-    const supervisors = await Supervisor.find()
-      .populate('schoolId', 'schoolName'); // Include the school name
+    // Fetch all schools
+    const schools = await School.find({}).lean();
 
-    const supervisorData = supervisors.map(supervisor => {
-      try {
-        console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
-        const decryptedPassword = decrypt(supervisor.password);
+    // Initialize an empty array to hold supervisors data by school
+    const supervisorsBySchool = await Promise.all(schools.map(async (school) => {
+      const schoolName = school.schoolName;
+
+      // Fetch supervisors with populated school data
+      const supervisors = await Supervisor.find({ schoolId: school._id })
+        .lean();
+
+      // Format supervisor data
+      const formattedSupervisors = supervisors.map(supervisor => {
+        let decryptedPassword;
+        try {
+          // Decrypt the supervisor's password
+          decryptedPassword = decrypt(supervisor.password);
+        } catch (decryptError) {
+          decryptedPassword = "Error decrypting password";
+        }
+
         return {
-          id: supervisor._id,
+          supervisorId: supervisor._id,
           supervisorName: supervisor.supervisorName,
           address: supervisor.address,
           phone_no: supervisor.phone_no,
           email: supervisor.email,
           deviceId: supervisor.deviceId,
-          password: decryptedPassword,
+          password: decryptedPassword, // Include decrypted password
           registrationDate: supervisor.registrationDate,
-          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)),
-          schoolName: supervisor.schoolId.schoolName, // Include the school name
+          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)), // Format registration date
         };
-      } catch (decryptError) {
-        console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
-        return null;
-      }
-    }).filter(supervisor => supervisor !== null);
+      });
 
-    // Send the formatted supervisor data as a JSON response
-    res.status(200).json({ supervisors: supervisorData });
+      return {
+        schoolName: schoolName,
+        supervisors: formattedSupervisors, // Include the formatted supervisors list
+      };
+    }));
+
+    // Send the response
+    res.status(200).json(supervisorsBySchool);
   } catch (error) {
-    console.error('Error fetching supervisors:', error);
+    // Log and handle any errors
+    console.error('Error fetching supervisors by school:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 // Route to get data by deviceId for a superadmin
 router.get('/read/data-by-deviceId', superadminMiddleware, async (req, res) => {
   const { deviceId } = req.query;
@@ -478,93 +505,100 @@ router.get('/read/data-by-deviceId', superadminMiddleware, async (req, res) => {
   }
 
   try {
-    // Fetch Supervisor data across all schools
-    const supervisor = await Supervisor.findOne({ deviceId }).lean();
-    let supervisorData = {};
-    if (supervisor) {
-      try {
-        console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
-        const decryptedPassword = decrypt(supervisor.password);
-        supervisorData = {
-          id: supervisor._id,
-          supervisorName: supervisor.supervisorName,
-          address: supervisor.address,
-          phone_no: supervisor.phone_no,
-          email: supervisor.email,
-          deviceId: supervisor.deviceId,
-          password: decryptedPassword,
-          registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)),
-          schoolName: supervisor.schoolId ? supervisor.schoolId.schoolName : null // Assuming schoolId is populated
-        };
-      } catch (decryptError) {
-        console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
-      }
-    }
+    // Fetch all schools
+    const schools = await School.find({}).lean();
 
-    // Fetch Driver data across all schools
-    const driver = await DriverCollection.findOne({ deviceId }).lean();
-    let driverData = {};
-    if (driver) {
-      try {
-        console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
-        const decryptedPassword = decrypt(driver.password);
-        driverData = {
-          id: driver._id,
-          driverName: driver.driverName,
-          address: driver.address,
-          phone_no: driver.phone_no,
-          email: driver.email,
-          deviceId: driver.deviceId,
-          password: decryptedPassword,
-          registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
-          schoolName: driver.schoolId ? driver.schoolId.schoolName : null // Assuming schoolId is populated
-        };
-      } catch (decryptError) {
-        console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
-      }
-    }
+    // Fetch data for each school
+    const dataBySchool = await Promise.all(schools.map(async (school) => {
+      const schoolName = school.schoolName;
 
-    // Fetch Child data across all schools
-    const children = await Child.find({ deviceId }).lean();
-    const transformedChildren = await Promise.all(
-      children.map(async (child) => {
-        let parentData = {};
-        if (child.parentId) {
-          const parent = await Parent.findById(child.parentId).lean();
-          parentData = {
-            parentName: parent ? parent.parentName : null,
-            email: parent ? parent.email : null,
-            phone: parent ? parent.phone : null,
-            parentId: parent ? parent._id : null,
+      // Fetch Supervisor data for the school
+      const supervisor = await Supervisor.findOne({ deviceId, schoolId: school._id }).lean();
+      let supervisorData = {};
+      if (supervisor) {
+        try {
+          console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
+          const decryptedPassword = decrypt(supervisor.password);
+          supervisorData = {
+            id: supervisor._id,
+            supervisorName: supervisor.supervisorName,
+            address: supervisor.address,
+            phone_no: supervisor.phone_no,
+            email: supervisor.email,
+            deviceId: supervisor.deviceId,
+            password: decryptedPassword,
+            registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)),
+            schoolName: schoolName
           };
+        } catch (decryptError) {
+          console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
         }
-
-        return {
-          ...child,
-          ...parentData,
-          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-          schoolName: child.schoolId ? child.schoolId.schoolName : null // Assuming schoolId is populated
-        };
-      })
-    );
-
-    // Combine results into desired structure
-    const responseData = {
-      deviceId: deviceId,
-      data: {
-        childData: transformedChildren,
-        driverData: driverData,
-        supervisorData: supervisorData
       }
-    };
 
-    res.status(200).json(responseData);
+      // Fetch Driver data for the school
+      const driver = await DriverCollection.findOne({ deviceId, schoolId: school._id }).lean();
+      let driverData = {};
+      if (driver) {
+        try {
+          console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
+          const decryptedPassword = decrypt(driver.password);
+          driverData = {
+            id: driver._id,
+            driverName: driver.driverName,
+            address: driver.address,
+            phone_no: driver.phone_no,
+            email: driver.email,
+            deviceId: driver.deviceId,
+            password: decryptedPassword,
+            registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
+            schoolName: schoolName
+          };
+        } catch (decryptError) {
+          console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
+        }
+      }
+
+      // Fetch Child data for the school
+      const children = await Child.find({ deviceId, schoolId: school._id }).lean();
+      const transformedChildren = await Promise.all(
+        children.map(async (child) => {
+          let parentData = {};
+          if (child.parentId) {
+            const parent = await Parent.findById(child.parentId).lean();
+            parentData = {
+              parentName: parent ? parent.parentName : null,
+              email: parent ? parent.email : null,
+              phone: parent ? parent.phone : null,
+              parentId: parent ? parent._id : null,
+            };
+          }
+
+          return {
+            ...child,
+            ...parentData,
+            formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+            schoolName: schoolName
+          };
+        })
+      );
+
+      return {
+        schoolName: schoolName,
+        supervisors: [supervisorData],
+        drivers: [driverData],
+        children: transformedChildren
+      };
+    }));
+
+    // Send the formatted data by school
+    res.status(200).json(dataBySchool);
 
   } catch (error) {
     console.error('Error fetching data by deviceId:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 // Route to get attendance data for admin dashboard
 const convertDate = (dateStr) => {
   const dateParts = dateStr.split('-');
@@ -577,89 +611,124 @@ const convertDate = (dateStr) => {
 // Pickup and drop status
 router.get("/pickup-drop-status", superadminMiddleware, async (req, res) => {
   try {
-    // Fetch attendance records across all schools if superadmin
-    const attendanceRecords = await Attendance.find({})
-      .populate({
-        path: "childId",
-        populate: {
-          path: "parentId"
-        }
-      })
-      .lean();
+    // Fetch all schools
+    const schools = await School.find({}).lean();
 
-    // Filter and map the data for the response
-    const childrenData = attendanceRecords
-      .filter(record => record.childId && record.childId.parentId)
-      .map(record => {
-        const { date, originalDate } = convertDate(record.date);
+    // Fetch attendance records by school
+    const dataBySchool = await Promise.all(schools.map(async (school) => {
+      const schoolName = school.schoolName;
 
-        return {
-          _id: record.childId._id,
-          childName: record.childId.childName,
-          class: record.childId.class,
-          rollno: record.childId.rollno,
-          section: record.childId.section,
-          parentId: record.childId.parentId._id,
-          phone: record.childId.parentId.phone,
-          pickupStatus: record.pickup,
-          pickupTime: record.pickupTime,
-          deviceId: record.childId.deviceId,
-          pickupPoint: record.childId.pickupPoint,
-          dropStatus: record.drop,
-          dropTime: record.dropTime,
-          formattedDate: date,
-          date: originalDate
-        };
-      });
+      // Fetch attendance records for the current school
+      const attendanceRecords = await Attendance.find({ schoolId: school._id })
+        .populate({
+          path: "childId",
+          populate: {
+            path: "parentId"
+          }
+        })
+        .lean();
 
-    res.status(200).json({ children: childrenData });
+      // Filter and map the data for the response
+      const childrenData = attendanceRecords
+        .filter(record => record.childId && record.childId.parentId)
+        .map(record => {
+          const { date, originalDate } = convertDate(record.date);
+
+          return {
+            _id: record.childId._id,
+            childName: record.childId.childName,
+            class: record.childId.class,
+            rollno: record.childId.rollno,
+            section: record.childId.section,
+            parentId: record.childId.parentId._id,
+            phone: record.childId.parentId.phone,
+            pickupStatus: record.pickup,
+            pickupTime: record.pickupTime,
+            deviceId: record.childId.deviceId,
+            pickupPoint: record.childId.pickupPoint,
+            dropStatus: record.drop,
+            dropTime: record.dropTime,
+            formattedDate: date,
+            date: originalDate
+          };
+        });
+
+      return {
+        schoolName: schoolName,
+        children: childrenData
+      };
+    }));
+
+    // Send the formatted data by school
+    res.status(200).json(dataBySchool);
+
   } catch (error) {
     console.error("Error fetching attendance data:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 // Route to get present children for a superadmin
 router.get("/present-children", superadminMiddleware, async (req, res) => {
   try {
-    // Fetch attendance records for children present at pickup across all schools
-    const attendanceRecords = await Attendance.find({ pickup: true })
-      .populate({
-        path: "childId",
-        populate: {
-          path: "parentId"
-        }
+    // Fetch all schools
+    const schools = await School.find({}).lean();
+
+    // Fetch attendance records for children present at pickup by school
+    const dataBySchool = await Promise.all(schools.map(async (school) => {
+      const schoolName = school.schoolName;
+
+      // Fetch attendance records for the current school where pickup is true
+      const attendanceRecords = await Attendance.find({ 
+        schoolId: school._id, 
+        pickup: true 
       })
-      .lean();
+        .populate({
+          path: "childId",
+          populate: {
+            path: "parentId"
+          }
+        })
+        .lean();
 
-    // Filter and map the data for the response
-    const childrenData = attendanceRecords
-      .filter(record => record.childId && record.childId.parentId)
-      .map(record => {
-        const { date, originalDate } = convertDate(record.date);
+      // Filter and map the data for the response
+      const childrenData = attendanceRecords
+        .filter(record => record.childId && record.childId.parentId)
+        .map(record => {
+          const { date, originalDate } = convertDate(record.date);
 
-        return {
-          _id: record.childId._id,
-          childName: record.childId.childName,
-          class: record.childId.class,
-          rollno: record.childId.rollno,
-          section: record.childId.section,
-          parentId: record.childId.parentId._id,
-          phone: record.childId.parentId.phone,
-          pickupStatus: record.pickup,
-          pickupTime: record.pickupTime,
-          deviceId: record.childId.deviceId,
-          pickupPoint: record.childId.pickupPoint,
-          formattedDate: date,
-          date: originalDate
-        };
-      });
+          return {
+            _id: record.childId._id,
+            childName: record.childId.childName,
+            class: record.childId.class,
+            rollno: record.childId.rollno,
+            section: record.childId.section,
+            parentId: record.childId.parentId._id,
+            phone: record.childId.parentId.phone,
+            pickupStatus: record.pickup,
+            pickupTime: record.pickupTime,
+            deviceId: record.childId.deviceId,
+            pickupPoint: record.childId.pickupPoint,
+            formattedDate: date,
+            date: originalDate
+          };
+        });
 
-    res.status(200).json({ children: childrenData });
+      return {
+        schoolName: schoolName,
+        children: childrenData
+      };
+    }));
+
+    // Send the formatted data by school
+    res.status(200).json(dataBySchool);
+
   } catch (error) {
     console.error("Error fetching present pickup data:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 // Route to get absent children for a superadmin
 router.get("/absent-children", superadminMiddleware, async (req, res) => {
   try {
@@ -702,6 +771,8 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
 // Route to get child status for a superadmin
 router.get('/status/:childId', superadminMiddleware, async (req, res) => {
   try {
