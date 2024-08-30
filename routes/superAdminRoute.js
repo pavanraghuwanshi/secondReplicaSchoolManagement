@@ -45,17 +45,17 @@ router.post('/register', async (req, res) => {
 });
 
 router.post('/login',async (req, res) => {
-  const { email, password } = req.body;
+  const { username, password } = req.body;
   try {
-    const superadmin = await Superadmin.findOne({ email });
+    const superadmin = await Superadmin.findOne({ username });
     if (!superadmin) {
-      return res.status(400).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: "Invalid username or password" });
     }
     const isMatch = await superadmin.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: "Invalid username or password" });
     }
-    const token = generateToken({ id: superadmin._id, email: superadmin.email });
+    const token = generateToken({ id: superadmin._id, username: superadmin.username });
     res.status(200).json({ success: true, message: "Login successful", token ,role: 'superadmin'});
   } catch (err) {
     console.error("Error during login:", err);
