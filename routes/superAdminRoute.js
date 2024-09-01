@@ -103,7 +103,7 @@ router.get('/children-by-school', superadminMiddleware, async (req, res) => {
 
       // Fetch children with populated parent data
       const children = await Child.find({ schoolId: school._id })
-        .populate('parentId', 'parentName email phone password')
+        .populate('parentId', 'parentName email phone password statusOfRegister')
         .lean();
 
       return {
@@ -135,6 +135,7 @@ router.get('/children-by-school', superadminMiddleware, async (req, res) => {
             parentName: child.parentId.parentName,
             email: child.parentId.email,
             phone: child.parentId.phone,
+            statusOfRegister:child.parentId.statusOfRegister,
             password: decryptedPassword, // Include decrypted password
           };
         }),
@@ -245,156 +246,208 @@ router.get('/all-parents', superadminMiddleware, async (req, res) => {
 // Route to get all pending requests for all schools for the superadmin
 router.get('/all-pending-requests', superadminMiddleware, async (req, res) => {
   try {
-    // Fetch all pending requests across all schools
-    const requests = await Request.find({ statusOfRequest: "pending" })
-      .populate("parentId", "parentName email phone")
-      .populate("childId", "childName class")
-      .lean();
+    // Fetch all schools
+    const schools = await School.find({}).lean();
 
-    // Filter out requests where the parent or child does not exist
-    const validRequests = requests.filter(request => request.parentId && request.childId);
+    // Initialize an empty array to hold requests data by school
+    const requestsBySchool = [];
 
-    // Format the request data based on the request type
-    const formattedRequests = validRequests.map((request) => {
-      const formattedRequest = {
-        requestId: request._id,
-        reason: request.reason,
-        class: request.childId.class,
-        statusOfRequest: request.statusOfRequest,
-        parentId: request.parentId._id,
-        parentName: request.parentId.parentName,
-        phone: request.parentId.phone,
-        email: request.parentId.email,
-        childId: request.childId._id,
-        childName: request.childId.childName,
-        requestType: request.requestType,
-        requestDate: request.requestDate,
-        
-        formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
-      };
+    // Iterate over each school to fetch pending requests
+    await Promise.all(schools.map(async (school) => {
+      const schoolId = school._id;
+      const schoolName = school.schoolName;
 
-      // Add fields conditionally based on the request type
-      if (request.requestType === 'leave') {
-        formattedRequest.startDate = request.startDate || null;
-        formattedRequest.endDate = request.endDate || null;
-        formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
-      } else if (request.requestType === 'changeRoute') {
-        formattedRequest.newRoute = request.newRoute || null;
-        formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
-        formattedRequest.endDate = null;
-      } else {
-        formattedRequest.startDate = null;
-        formattedRequest.endDate = null;
-        formattedRequest.newRoute = null;
-      }
+      // Fetch pending requests for the current school
+      const requests = await Request.find({ statusOfRequest: "pending", schoolId })
+        .populate("parentId", "parentName email phone")
+        .populate("childId", "childName class")
+        .lean();
 
-      return formattedRequest;
-    });
+      // Filter out requests where the parent or child does not exist
+      const validRequests = requests.filter(request => request.parentId && request.childId);
 
-    // Send the formatted requests as a JSON response
-    res.status(200).json({
-      requests: formattedRequests,
-    });
+      // Format the request data based on the request type
+      const formattedRequests = validRequests.map((request) => {
+        const formattedRequest = {
+          requestId: request._id,
+          reason: request.reason,
+          class: request.childId.class,
+          statusOfRequest: request.statusOfRequest,
+          parentId: request.parentId._id,
+          parentName: request.parentId.parentName,
+          phone: request.parentId.phone,
+          email: request.parentId.email,
+          childId: request.childId._id,
+          childName: request.childId.childName,
+          requestType: request.requestType,
+          requestDate: request.requestDate,
+          
+          formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+        };
+
+        // Add fields conditionally based on the request type
+        if (request.requestType === 'leave') {
+          formattedRequest.startDate = request.startDate || null;
+          formattedRequest.endDate = request.endDate || null;
+          formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
+        } else if (request.requestType === 'changeRoute') {
+          formattedRequest.newRoute = request.newRoute || null;
+          formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
+          formattedRequest.endDate = null;
+        } else {
+          formattedRequest.startDate = null;
+          formattedRequest.endDate = null;
+          formattedRequest.newRoute = null;
+        }
+
+        return formattedRequest;
+      });
+
+      // Add the requests data to the requestsBySchool array
+      requestsBySchool.push({
+        schoolName: schoolName,
+        requests: formattedRequests
+      });
+    }));
+
+    // Send the response
+    res.status(200).json(requestsBySchool);
   } catch (error) {
-    console.error("Error fetching requests:", error);
+    console.error("Error fetching pending requests:", error);
     res.status(500).json({
       error: "Internal server error",
     });
   }
 });
-
 // Route to get all approved requests for all schools for the superadmin
 router.get('/all-approved-requests', superadminMiddleware, async (req, res) => {
   try {
-    // Fetch all approved requests across all schools
-    const requests = await Request.find({ statusOfRequest: "approved" })
-      .populate("parentId", "parentName email phone")
-      .populate("childId", "childName class")
-      .lean();
+    // Fetch all schools
+    const schools = await School.find({}).lean();
 
-    // Filter out requests where the parent or child does not exist
-    const validRequests = requests.filter(request => request.parentId && request.childId);
+    // Initialize an empty array to hold requests data by school
+    const approvedRequestsBySchool = [];
 
-    // Format the request data based on the request type
-    const formattedRequests = validRequests.map((request) => {
-      const formattedRequest = {
-        requestId: request._id,
-        reason: request.reason,
-        class: request.childId.class,
-        statusOfRequest: request.statusOfRequest,
-        parentId: request.parentId._id,
-        parentName: request.parentId.parentName,
-        phone: request.parentId.phone,
-        email: request.parentId.email,
-        childId: request.childId._id,
-        childName: request.childId.childName,
-        requestType: request.requestType,
-        requestDate: request.requestDate,
-        
-        formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
-      };
+    // Iterate over each school to fetch approved requests
+    await Promise.all(schools.map(async (school) => {
+      const schoolId = school._id;
+      const schoolName = school.schoolName;
 
-      // Add fields conditionally based on the request type
-      if (request.requestType === 'leave') {
-        formattedRequest.startDate = request.startDate || null;
-        formattedRequest.endDate = request.endDate || null;
-        formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
-      } else if (request.requestType === 'changeRoute') {
-        formattedRequest.newRoute = request.newRoute || null;
-        formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
-        formattedRequest.endDate = null;
-      } else {
-        formattedRequest.startDate = null;
-        formattedRequest.endDate = null;
-        formattedRequest.newRoute = null;
-      }
+      // Fetch approved requests for the current school
+      const requests = await Request.find({ statusOfRequest: "approved", schoolId })
+        .populate("parentId", "parentName email phone")
+        .populate("childId", "childName class")
+        .lean();
 
-      return formattedRequest;
-    });
+      // Filter out requests where the parent or child does not exist
+      const validRequests = requests.filter(request => request.parentId && request.childId);
 
-    // Send the formatted requests as a JSON response
-    res.status(200).json({
-      requests: formattedRequests,
-    });
+      // Format the request data based on the request type
+      const formattedRequests = validRequests.map((request) => {
+        const formattedRequest = {
+          requestId: request._id,
+          reason: request.reason,
+          class: request.childId.class,
+          statusOfRequest: request.statusOfRequest,
+          parentId: request.parentId._id,
+          parentName: request.parentId.parentName,
+          phone: request.parentId.phone,
+          email: request.parentId.email,
+          childId: request.childId._id,
+          childName: request.childId.childName,
+          requestType: request.requestType,
+          requestDate: request.requestDate,
+          
+          formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+        };
+
+        // Add fields conditionally based on the request type
+        if (request.requestType === 'leave') {
+          formattedRequest.startDate = request.startDate || null;
+          formattedRequest.endDate = request.endDate || null;
+          formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
+        } else if (request.requestType === 'changeRoute') {
+          formattedRequest.newRoute = request.newRoute || null;
+          formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
+          formattedRequest.endDate = null;
+        } else {
+          formattedRequest.startDate = null;
+          formattedRequest.endDate = null;
+          formattedRequest.newRoute = null;
+        }
+
+        return formattedRequest;
+      });
+
+      // Add the requests data to the approvedRequestsBySchool array
+      approvedRequestsBySchool.push({
+        schoolName: schoolName,
+        requests: formattedRequests
+      });
+    }));
+
+    // Send the response
+    res.status(200).json(approvedRequestsBySchool);
   } catch (error) {
-    console.error("Error fetching requests:", error);
+    console.error("Error fetching approved requests:", error);
     res.status(500).json({
       error: "Internal server error",
     });
   }
 });
+
 // Route to get all denied requests for all schools for the superadmin
 router.get('/all-denied-requests', superadminMiddleware, async (req, res) => {
   try {
-    // Fetch all denied requests across all schools
-    const deniedRequests = await Request.find({ statusOfRequest: 'denied' })
-      .populate("parentId", "parentName email phone")
-      .populate('childId', 'childName deviceId class')
-      .lean();
+    // Fetch all schools
+    const schools = await School.find({}).lean();
 
-    // Filter out requests where parentId or childId is null or not populated
-    const validRequests = deniedRequests.filter(request => request.parentId && request.childId);
+    // Initialize an empty array to hold requests data by school
+    const deniedRequestsBySchool = [];
 
-    const formattedRequests = validRequests.map(request => ({
-      childId: request.childId._id,
-      childName: request.childId.childName,
-      deviceId: request.childId.deviceId,
-      class: request.childId.class,
-      statusOfRequest: request.statusOfRequest,
-      parentName: request.parentId.parentName,
-      email: request.parentId.email,
-      phone: request.parentId.phone,
-      requestDate: request.requestDate,
-      formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null // Formatted request date
+    // Iterate over each school to fetch denied requests
+    await Promise.all(schools.map(async (school) => {
+      const schoolId = school._id;
+      const schoolName = school.schoolName;
+
+      // Fetch denied requests for the current school
+      const deniedRequests = await Request.find({ statusOfRequest: 'denied', schoolId })
+        .populate("parentId", "parentName email phone")
+        .populate('childId', 'childName deviceId class')
+        .lean();
+
+      // Filter out requests where parentId or childId is null or not populated
+      const validRequests = deniedRequests.filter(request => request.parentId && request.childId);
+
+      // Format the request data
+      const formattedRequests = validRequests.map(request => ({
+        childId: request.childId._id,
+        childName: request.childId.childName,
+        deviceId: request.childId.deviceId,
+        class: request.childId.class,
+        statusOfRequest: request.statusOfRequest,
+        parentName: request.parentId.parentName,
+        email: request.parentId.email,
+        phone: request.parentId.phone,
+        requestDate: request.requestDate,
+        formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null // Formatted request date
+      }));
+
+      // Add the requests data to the deniedRequestsBySchool array
+      deniedRequestsBySchool.push({
+        schoolName: schoolName,
+        requests: formattedRequests
+      });
     }));
 
-    // Send the formatted requests as a JSON response
-    res.status(200).json({ requests: formattedRequests });
+    // Send the response
+    res.status(200).json(deniedRequestsBySchool);
   } catch (error) {
     console.error('Error fetching denied requests:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 // Route to get all drivers across all schools for the superadmin
 router.get('/drivers-by-school', superadminMiddleware, async (req, res) => {
   try {
@@ -1120,23 +1173,25 @@ router.put('/update-supervisor/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
 // DELETE METHOD
 // Delete child
 router.delete('/delete/child/:childId', superadminMiddleware, async (req, res) => {
   const { childId } = req.params;
-  const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
 
   try {
-    // Find the child by ID and check if they belong to the correct school
-    const child = await Child.findOne({ _id: childId, schoolId }).lean();
+    // Find the child by ID
+    const child = await Child.findById(childId).lean();
     if (!child) {
-      return res.status(404).json({ error: 'Child not found or does not belong to this school' });
+      return res.status(404).json({ error: 'Child not found' });
     }
 
     let parentData = {};
     if (child.parentId) {
-      // Find the parent and ensure they belong to the same school
-      const parent = await Parent.findOne({ _id: child.parentId, schoolId }).lean();
+      // Find the parent
+      const parent = await Parent.findById(child.parentId).lean();
       if (parent) {
         parentData = {
           parentName: parent.parentName,
@@ -1146,7 +1201,7 @@ router.delete('/delete/child/:childId', superadminMiddleware, async (req, res) =
         };
 
         // Check if the parent has any other children
-        const childCount = await Child.countDocuments({ parentId: child.parentId, schoolId });
+        const childCount = await Child.countDocuments({ parentId: child.parentId });
         if (childCount === 1) {
           await Parent.findByIdAndDelete(child.parentId);
         }
@@ -1171,20 +1226,20 @@ router.delete('/delete/child/:childId', superadminMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Delete parent
+
+// Delete parent and associated children
 router.delete('/delete-parent/:id', superadminMiddleware, async (req, res) => {
   const parentId = req.params.id;
-  const { schoolId } = req;
 
   try {
-    // Find the parent by ID and ensure they belong to the correct school
-    const parent = await Parent.findOne({ _id: parentId, schoolId }).lean();
+    // Find the parent by ID
+    const parent = await Parent.findById(parentId).lean();
     if (!parent) {
-      return res.status(404).json({ error: 'Parent not found or does not belong to this school' });
+      return res.status(404).json({ error: 'Parent not found' });
     }
 
-    // Delete all children associated with the parent and ensure they belong to the same school
-    await Child.deleteMany({ _id: { $in: parent.children }, schoolId });
+    // Delete all children associated with the parent
+    await Child.deleteMany({ parentId });
 
     // Delete the parent
     await Parent.findByIdAndDelete(parentId);
@@ -1195,18 +1250,17 @@ router.delete('/delete-parent/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// DELETE METHOD
+
 // Delete driver
 router.delete('/delete/driver/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id: driverId } = req.params;
-    const schoolId = req.schoolId; // Get the schoolId from the middleware
-    
-    // Find and delete the driver by ID and schoolId
-    const deletedDriver = await DriverCollection.findOneAndDelete({ _id: driverId, schoolId });
+
+    // Find and delete the driver by ID
+    const deletedDriver = await DriverCollection.findByIdAndDelete(driverId);
 
     if (!deletedDriver) {
-      return res.status(404).json({ error: 'Driver not found or does not belong to your school' });
+      return res.status(404).json({ error: 'Driver not found' });
     }
 
     console.log('Deleted driver data:', JSON.stringify(deletedDriver, null, 2));
@@ -1217,17 +1271,17 @@ router.delete('/delete/driver/:id', superadminMiddleware, async (req, res) => {
   }
 });
 
+
 // Delete supervisor
 router.delete('/delete/supervisor/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id: supervisorId } = req.params;
-    const schoolId = req.schoolId; // Get the schoolId from the middleware
-    
-    // Find and delete the supervisor by ID and schoolId
-    const deletedSupervisor = await Supervisor.findOneAndDelete({ _id: supervisorId, schoolId });
+
+    // Find and delete the supervisor by ID
+    const deletedSupervisor = await Supervisor.findByIdAndDelete(supervisorId);
 
     if (!deletedSupervisor) {
-      return res.status(404).json({ error: 'Supervisor not found or does not belong to your school' });
+      return res.status(404).json({ error: 'Supervisor not found' });
     }
 
     console.log('Deleted supervisor data:', JSON.stringify(deletedSupervisor, null, 2));
@@ -1237,6 +1291,7 @@ router.delete('/delete/supervisor/:id', superadminMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 
