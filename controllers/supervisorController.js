@@ -55,7 +55,7 @@ exports.registerSupervisor = async (req, res) => {
     const newSupervisor = new Supervisor({
       supervisorName,
       email,
-      password,  // No need to encrypt manually
+      password, 
       phone_no,
       address,
       busName,

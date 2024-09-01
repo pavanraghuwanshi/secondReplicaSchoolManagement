@@ -180,8 +180,6 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
   }
 });
 
-
-
 // Route to get all parents for all schools for the superadmin
 router.get('/all-parents', superadminMiddleware, async (req, res) => {
   try {
@@ -667,7 +665,6 @@ router.get("/pickup-drop-status", superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Route to get present children for a superadmin
 router.get("/present-children", superadminMiddleware, async (req, res) => {
   try {
@@ -728,63 +725,79 @@ router.get("/present-children", superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Route to get absent children for a superadmin
 router.get("/absent-children", superadminMiddleware, async (req, res) => {
   try {
-    // Fetch attendance records for children absent at pickup across all schools
-    const attendanceRecords = await Attendance.find({ pickup: false })
-      .populate({
-        path: "childId",
-        populate: {
-          path: "parentId"
-        }
+    // Fetch all schools
+    const schools = await School.find({}).lean();
+
+    // Fetch attendance records for children absent at pickup by school
+    const dataBySchool = await Promise.all(schools.map(async (school) => {
+      const schoolName = school.schoolName;
+
+      // Fetch attendance records for the current school where pickup is false
+      const attendanceRecords = await Attendance.find({ 
+        schoolId: school._id, 
+        pickup: false 
       })
-      .lean();
+        .populate({
+          path: "childId",
+          populate: {
+            path: "parentId"
+          }
+        })
+        .lean();
 
-    // Filter and map the data for the response
-    const childrenData = attendanceRecords
-      .filter(record => record.childId && record.childId.parentId)
-      .map(record => {
-        const { date, originalDate } = convertDate(record.date);
+      // Filter and map the data for the response
+      const childrenData = attendanceRecords
+        .filter(record => record.childId && record.childId.parentId)
+        .map(record => {
+          const { date, originalDate } = convertDate(record.date);
 
-        return {
-          _id: record.childId._id,
-          childName: record.childId.childName,
-          class: record.childId.class,
-          rollno: record.childId.rollno,
-          section: record.childId.section,
-          parentId: record.childId.parentId._id,
-          phone: record.childId.parentId.phone,
-          pickupStatus: record.pickup,
-          pickupTime: record.pickupTime,
-          deviceId: record.childId.deviceId,
-          pickupPoint: record.childId.pickupPoint,
-          formattedDate: date,
-          date: originalDate
-        };
-      });
+          return {
+            _id: record.childId._id,
+            childName: record.childId.childName,
+            class: record.childId.class,
+            rollno: record.childId.rollno,
+            section: record.childId.section,
+            parentId: record.childId.parentId._id,
+            phone: record.childId.parentId.phone,
+            pickupStatus: record.pickup,
+            pickupTime: record.pickupTime,
+            deviceId: record.childId.deviceId,
+            pickupPoint: record.childId.pickupPoint,
+            formattedDate: date,
+            date: originalDate
+          };
+        });
 
-    res.status(200).json({ children: childrenData });
+      return {
+        schoolName: schoolName,
+        children: childrenData
+      };
+    }));
+
+    // Send the formatted data by school
+    res.status(200).json(dataBySchool);
+
   } catch (error) {
     console.error("Error fetching absent children data:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
 // Route to get child status for a superadmin
 router.get('/status/:childId', superadminMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;
 
-    // Find the child across all schools
-    const child = await Child.findOne({ _id: childId }).populate('parentId');
+    // Find the child and populate related fields
+    const child = await Child.findOne({ _id: childId }).populate('parentId').populate('schoolId');
     if (!child) {
       return res.status(404).json({ message: 'Child not found' });
     }
 
     const parent = child.parentId;
+    const school = child.schoolId;
 
     // Fetch the most recent attendance record for the child
     const attendance = await Attendance.findOne({ childId })
@@ -802,25 +815,30 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
       supervisor = await Supervisor.findOne({ deviceId: child.deviceId });
     }
 
-    // Construct the response object
+    // Structure the data by school
     const response = {
-      childName: child.childName,
-      childClass: child.class,
-      parentName: parent.parentName,
-      parentNumber: parent.phone,
-      pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : null,
-      dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : null,
-      pickupTime: attendance ? attendance.pickupTime : null,
-      dropTime: attendance ? attendance.dropTime : null,
-      date: attendance ? attendance.date : null,
-      requestType: request ? request.requestType : null,
-      startDate: request ? request.startDate || null : null,
-      endDate: request ? request.endDate || null : null,
-      reason: request ? request.reason || null : null,
-      newRoute: request ? request.newRoute || null : null,
-      statusOfRequest: request ? request.statusOfRequest : null,
-      requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : null,
-      supervisorName: supervisor ? supervisor.supervisorName : null
+      schoolName: school ? school.schoolName : 'Unknown School',
+      students: [
+        {
+          childName: child.childName,
+          childClass: child.class,
+          parentName: parent ? parent.parentName : null,
+          parentNumber: parent ? parent.phone : null,
+          pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : null,
+          dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : null,
+          pickupTime: attendance ? attendance.pickupTime : null,
+          dropTime: attendance ? attendance.dropTime : null,
+          date: attendance ? attendance.date : null,
+          requestType: request ? request.requestType : null,
+          startDate: request ? request.startDate || null : null,
+          endDate: request ? request.endDate || null : null,
+          reason: request ? request.reason || null : null,
+          newRoute: request ? request.newRoute || null : null,
+          statusOfRequest: request ? request.statusOfRequest : null,
+          requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : null,
+          supervisorName: supervisor ? supervisor.supervisorName : null
+        }
+      ]
     };
 
     // Send the response
@@ -830,6 +848,7 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 router.post("/review-request/:requestId", superadminMiddleware, async (req, res) => {
   try {
     const { statusOfRequest } = req.body;
@@ -921,6 +940,8 @@ router.post('/registerStatus/:parentId/', superadminMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 router.put('/update-child/:childId', superadminMiddleware, async (req, res) => {
   const { childId } = req.params;
   const { deviceId, ...updateFields } = req.body;
