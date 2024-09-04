@@ -39,9 +39,15 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');
 });
-
-
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on PORT ${PORT}`);
+});
+
+// Root route to confirm backend setup
+app.get('/', (req, res) => {
+  res.json({
+    message: "Backend is set up in DevOps",
+    environment: process.env.NODE_ENV || 'development'
+  });
 });

@@ -34,7 +34,9 @@ router.post('/login', async (req, res) => {
     const token = generateToken({
       id: school._id,
       username: school.username,
-      role: 'school'
+      role: 'school',
+      schoolName : school.schoolName,
+      branchName : school.branchName
     });
 
     res.status(200).json({

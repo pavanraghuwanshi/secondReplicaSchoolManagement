@@ -64,26 +64,56 @@ router.post('/login',async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+// School Registration Route
+// router.post('/school-register', superadminMiddleware, async (req, res) => {
+//   try {  const { schoolName, username, password, email, mobileNo, branchName } = req.body;
 
-// School Registration Route
-// School Registration Route
+//     const existingSchool = await School.findOne({ $or: [{ username }, { email }] });
+//     if (existingSchool) {
+//       return res.status(400).json({ error: 'Username or email already exists' });
+//     }
+//     const newSchool = new School({
+//       schoolName,
+//       username,
+//       password,
+//       email,
+//       mobileNo,
+//       branchName
+//     });
+//     const savedSchool = await newSchool.save();
+
+//     const payload = { id: savedSchool._id, username: savedSchool.username };
+//     const token = generateToken(payload);
+
+//     res.status(201).json({ response: { ...savedSchool.toObject(), password: undefined }, token, role: "schooladmin" });
+//   } catch (error) {
+//     console.error('Error during registration:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
 router.post('/school-register', superadminMiddleware, async (req, res) => {
-  try {  const { schoolName, username, password, email, mobileNo, branchName } = req.body;
+  try {
+    const { schoolName, username, password, email, mobileNo, mainBranch } = req.body;
 
+    // Check if a school with the same username or email already exists
     const existingSchool = await School.findOne({ $or: [{ username }, { email }] });
     if (existingSchool) {
       return res.status(400).json({ error: 'Username or email already exists' });
     }
+
+    // Create the school with branchName directly included
     const newSchool = new School({
       schoolName,
       username,
       password,
       email,
       mobileNo,
-      branchName
+      mainBranch  // Directly store mainBranch the school document
     });
     const savedSchool = await newSchool.save();
 
+    // Generate a token and respond
     const payload = { id: savedSchool._id, username: savedSchool.username };
     const token = generateToken(payload);
 
@@ -96,16 +126,55 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
 
 
 // Add a branch route
+// router.post('/add-branch', superadminMiddleware, async (req, res) => {
+//   try {
+//     const {
+//       schoolId,
+//       branchName,
+//       email,
+//       mobileNo,
+//       username,  // Username for the branch
+//       password   // Password for the branch
+//     } = req.body;
+
+//     // Validate school existence
+//     const school = await School.findById(schoolId);
+//     if (!school) {
+//       return res.status(400).json({ error: 'School not found' });
+//     }
+
+//     // Check if the username is already taken
+//     const existingBranch = await Branch.findOne({ username });
+//     if (existingBranch) {
+//       return res.status(400).json({ error: 'Username already exists. Please choose a different one.' });
+//     }
+
+//     // Create a new branch
+//     const newBranch = new Branch({
+//       branchName,
+//       schoolId,
+//       email,
+//       mobileNo,
+//       username,  // Set the username for the branch
+//       password   // Save the password for the branch
+//     });
+
+//     const savedBranch = await newBranch.save();
+
+//     // Link the branch to the school
+//     await School.findByIdAndUpdate(schoolId, {
+//       $push: { branches: savedBranch._id }
+//     });
+
+//     res.status(201).json({ branch: savedBranch });
+//   } catch (error) {
+//     console.error('Error adding branch:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.post('/add-branch', superadminMiddleware, async (req, res) => {
   try {
-    const {
-      schoolId,
-      branchName,
-      email,
-      mobileNo,
-      username,  // Username for the branch
-      password   // Password for the branch
-    } = req.body;
+    const { schoolId, branchName, email, mobileNo, username, password } = req.body;
 
     // Validate school existence
     const school = await School.findById(schoolId);
@@ -125,8 +194,8 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
       schoolId,
       email,
       mobileNo,
-      username,  // Set the username for the branch
-      password   // Save the password for the branch
+      username,
+      password
     });
 
     const savedBranch = await newBranch.save();
@@ -142,6 +211,8 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 
 // // View a specific branch by its ID
 // router.get('/branch/:branchId', branchAuthMiddleware, async (req, res) => {
@@ -1085,9 +1156,6 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-
-
 
 router.post("/review-request/:requestId", superadminMiddleware, async (req, res) => {
   try {

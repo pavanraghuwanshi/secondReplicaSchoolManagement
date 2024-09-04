@@ -25,6 +25,7 @@ const schoolSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  mainBranch:{type:String},
   branches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }],
   defaultBranchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch'},
 });

@@ -11,97 +11,23 @@ const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
 
 
 // Fetch School List Route
-// exports.getSchools =  async (req, res) => {
-//   try {
-//     const schools = await School.find({}, 'schoolName');
-//     res.status(200).json({ schools });
-//   } catch (error) {
-//     console.error('Error fetching school list:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// }
-
 exports.getSchools =  async (req, res) => {
   try {
-    // Fetch schools and populate branches
-    const schools = await School.find({}, 'schoolName branches')
-      .populate({
-        path: 'branches',
-        select: 'branchName -_id' // Ensure 'branchName' is selected and '_id' is excluded
-      })
-      .lean(); // Use lean to get plain JavaScript objects
+    const schools = await School.find().populate('branches');
 
-    // Map the schools to only include the required fields
-    const formattedSchools = schools.map(school => ({
-      schoolName: school.schoolName,
-      branches: school.branches.map(branch => branch.branchName) // Ensure branchName is included
-    }));
+    const response = schools.map(school => {
+      return {
+        schoolName: school.schoolName,
+        mainBranch: school.mainBranch, // Main branch
+        branches: school.branches.map(branch => branch.branchName) // Additional branches
+      };
+    });
 
-    res.status(200).json({ schools: formattedSchools });
+    res.status(200).json({ schools: response });
   } catch (error) {
-    console.error('Error fetching school list:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 }
-
-// // Registration route
-// exports.registerSupervisor = async (req, res) => {
-//   try {
-//     const {
-//       supervisorName,
-//       email,
-//       password, 
-//       phone_no,
-//       address,
-//       busName,
-//       deviceId,
-//       schoolName
-//     } = req.body;
-
-//     console.log(`Registering supervisor with schoolName: "${schoolName.trim()}"`);
-
-//     // Check if supervisor email already exists
-//     const existingSupervisor = await Supervisor.findOne({ email });
-//     if (existingSupervisor) {
-//       console.log('Email already exists');
-//       return res.status(400).json({ error: 'Email already exists' });
-//     }
-
-//     // Find the school by name
-//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') });
-
-//     if (!school) {
-//       console.log('School not found:', schoolName.trim());
-//       return res.status(400).json({ error: 'School not found' });
-//     }
-
-//     // Create new supervisor with a pending status
-//     const newSupervisor = new Supervisor({
-//       supervisorName,
-//       email,
-//       password, 
-//       phone_no,
-//       address,
-//       busName,
-//       deviceId,
-//       schoolId: school._id, // Link to the school's ID
-//       statusOfRegister: 'pending'
-//     });
-//     const response = await newSupervisor.save();
-
-//     // Generate JWT token
-//     const payload = { id: response._id, email: response.email, schoolId: school._id };
-//     const token = generateToken(payload);
-//     console.log('Generated token:', token);
-
-//     res.status(201).json({ supervisor: response, token });
-//   } catch (error) {
-//     console.error('Error during supervisor registration:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// };
-
-
 exports.registerSupervisor = async (req, res) => {
   try {
     const {
@@ -169,6 +95,79 @@ exports.registerSupervisor = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
+// mainBranchCode of regusteration
+// exports.registerSupervisor = async (req, res) => {
+//   try {
+//     const {
+//       supervisorName,
+//       email,
+//       password, 
+//       phone_no,
+//       address,
+//       busName,
+//       deviceId,
+//       schoolName,
+//       branchName // Expect branch in the request
+//     } = req.body;
+
+//     console.log(`Registering supervisor with schoolName: "${schoolName.trim()}"`);
+
+//     // Check if supervisor email already exists
+//     const existingSupervisor = await Supervisor.findOne({ email });
+//     if (existingSupervisor) {
+//       console.log('Email already exists');
+//       return res.status(400).json({ error: 'Email already exists' });
+//     }
+
+//     // Find the school by name
+//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+
+//     if (!school) {
+//       console.log('School not found:', schoolName.trim());
+//       return res.status(400).json({ error: 'School not found' });
+//     }
+
+//     let branchToAssign;
+
+//     if (!branchName || branchName.trim() === school.mainBranch) {
+//       // If no branchName is provided or if the selected branch is the main branch
+//       branchToAssign = school._id; // Use schoolId as branchId for main branch
+//     } else {
+//       // Find the branch by name or use the default branch
+//       const selectedBranch = await Branch.findOne({ branchName: branchName.trim(), schoolId: school._id });
+//       branchToAssign = selectedBranch ? selectedBranch._id : school.defaultBranchId;
+//     }
+
+//     // Create new supervisor with a pending status
+//     const newSupervisor = new Supervisor({
+//       supervisorName,
+//       email,
+//       password, 
+//       phone_no,
+//       address,
+//       busName,
+//       deviceId,
+//       schoolId: school._id, // Link to the school's ID
+//       branchId: branchToAssign, // Link to the branch's ID
+//       statusOfRegister: 'pending'
+//     });
+
+//     const response = await newSupervisor.save();
+
+//     // Generate JWT token
+//     const payload = { id: response._id, email: response.email, schoolId: school._id, branchId: branchToAssign };
+//     const token = generateToken(payload);
+//     console.log('Generated token:', token);
+
+//     res.status(201).json({ supervisor: response, token });
+//   } catch (error) {
+//     console.error('Error during supervisor registration:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+
 
 // // login Route
 exports.loginSupervisor = async (req, res) => {

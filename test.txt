@@ -47,3 +47,4 @@ school-     delete-branch
 
 
 1.want the branchName in school registration but got an error that the branch want email,password-resolve after
+
