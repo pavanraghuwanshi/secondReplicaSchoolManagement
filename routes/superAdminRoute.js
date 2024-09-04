@@ -9,9 +9,12 @@ const Parent = require("../models/Parent");
 const { decrypt } = require('../models/cryptoUtils');
 const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 const Supervisor = require("../models/supervisor");
+const Branch = require('../models/branch');
 const Attendance = require("../models/attendence");
 const DriverCollection = require('../models/driver');
 const jwt = require("jsonwebtoken");
+
+
 
 
 router.post('/register', async (req, res) => {
@@ -65,8 +68,8 @@ router.post('/login',async (req, res) => {
 
 // School Registration Route
 router.post('/school-register', superadminMiddleware, async (req, res) => {
-  const { schoolName, username, password, email, mobileNo, branch } = req.body;
-  try {
+  try {  const { schoolName, username, password, email, mobileNo, branchName } = req.body;
+
     const existingSchool = await School.findOne({ $or: [{ username }, { email }] });
     if (existingSchool) {
       return res.status(400).json({ error: 'Username or email already exists' });
@@ -77,16 +80,143 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
       password,
       email,
       mobileNo,
-      branch
+      branchName
     });
     const savedSchool = await newSchool.save();
 
-    const payload = { id: savedSchool._id, email: savedSchool.email };
+    const payload = { id: savedSchool._id, username: savedSchool.username };
     const token = generateToken(payload);
 
     res.status(201).json({ response: { ...savedSchool.toObject(), password: undefined }, token, role: "schooladmin" });
   } catch (error) {
     console.error('Error during registration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// Add a branch route
+router.post('/add-branch', superadminMiddleware, async (req, res) => {
+  try {
+    const {
+      schoolId,
+      branchName,
+      email,
+      mobileNo,
+      username,  // Username for the branch
+      password   // Password for the branch
+    } = req.body;
+
+    // Validate school existence
+    const school = await School.findById(schoolId);
+    if (!school) {
+      return res.status(400).json({ error: 'School not found' });
+    }
+
+    // Check if the username is already taken
+    const existingBranch = await Branch.findOne({ username });
+    if (existingBranch) {
+      return res.status(400).json({ error: 'Username already exists. Please choose a different one.' });
+    }
+
+    // Create a new branch
+    const newBranch = new Branch({
+      branchName,
+      schoolId,
+      email,
+      mobileNo,
+      username,  // Set the username for the branch
+      password   // Save the password for the branch
+    });
+
+    const savedBranch = await newBranch.save();
+
+    // Link the branch to the school
+    await School.findByIdAndUpdate(schoolId, {
+      $push: { branches: savedBranch._id }
+    });
+
+    res.status(201).json({ branch: savedBranch });
+  } catch (error) {
+    console.error('Error adding branch:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// // View a specific branch by its ID
+// router.get('/branch/:branchId', branchAuthMiddleware, async (req, res) => {
+//   const { branchId } = req.params;
+
+//   try {
+//     // Fetch the branch details
+//     const branch = await Branch.findById(branchId);
+//     if (!branch) {
+//       return res.status(404).json({ error: 'Branch not found' });
+//     }
+
+//     res.status(200).json({ branch });
+//   } catch (error) {
+//     console.error('Error fetching branch details:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+router.put('/school-edit/:schoolId', superadminMiddleware, async (req, res) => {
+  const { schoolId } = req.params;
+  const { schoolName, username, email, mobileNo, branch } = req.body;
+
+  try {
+    const updatedSchool = await School.findByIdAndUpdate(
+      schoolId,
+      { schoolName, username, email, mobileNo, branch },
+      { new: true }
+    );
+    if (!updatedSchool) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    res.status(200).json({ message: 'School updated successfully', updatedSchool });
+  } catch (error) {
+    console.error('Error during school update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.delete('/school-delete/:schoolId', superadminMiddleware, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { schoolId } = req.params;
+
+    // Find the school by ID
+    const school = await School.findById(schoolId).session(session);
+    if (!school) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    // Delete all branches and related data
+    const branches = await Branch.find({ schoolId: school._id }).session(session);
+    
+    for (const branch of branches) {
+      const parents = await Parent.find({ schoolId: school._id }).session(session);
+
+      for (const parent of parents) {
+        await Child.deleteMany({ parentId: parent._id }).session(session);
+      }
+
+      await Parent.deleteMany({ schoolId: school._id }).session(session);
+      await Supervisor.deleteMany({ branchId: branch._id }).session(session);
+      await Driver.deleteMany({ branchId: branch._id }).session(session);
+    }
+
+    await Branch.deleteMany({ schoolId: school._id }).session(session);
+    await school.remove({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({ message: 'School, branches, and all related data deleted successfully' });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Error during school deletion:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -97,9 +227,16 @@ router.get('/children-by-school', superadminMiddleware, async (req, res) => {
     // Fetch all schools
     const schools = await School.find({}).lean();
 
-    // Initialize an empty array to hold children data by school
+    // Initialize an array to hold children data by school
     const childrenBySchool = await Promise.all(schools.map(async (school) => {
       const schoolName = school.schoolName;
+
+      // Fetch all branch data for this school
+      const branches = await Branch.find({ schoolId: school._id }).lean();
+      const branchMap = branches.reduce((map, branch) => {
+        map[branch._id.toString()] = branch.branchName;
+        return map;
+      }, {});
 
       // Fetch children with populated parent data
       const children = await Child.find({ schoolId: school._id })
@@ -123,6 +260,8 @@ router.get('/children-by-school', superadminMiddleware, async (req, res) => {
             rollno: child.rollno,
             section: child.section,
             schoolName: schoolName,
+            branchId: child.branchId, // Include branchId in the response
+            branchName: branchMap[child.branchId?.toString()] || "N/A", // Retrieve branchName from branchMap
             dateOfBirth: child.dateOfBirth,
             childAge: child.childAge,
             pickupPoint: child.pickupPoint,
@@ -135,8 +274,8 @@ router.get('/children-by-school', superadminMiddleware, async (req, res) => {
             parentName: child.parentId.parentName,
             email: child.parentId.email,
             phone: child.parentId.phone,
-            statusOfRegister:child.parentId.statusOfRegister,
-            password: decryptedPassword, // Include decrypted password
+            statusOfRegister: child.parentId.statusOfRegister,
+            password: decryptedPassword,
           };
         }),
       };
@@ -150,26 +289,54 @@ router.get('/children-by-school', superadminMiddleware, async (req, res) => {
   }
 });
 
+
+
+
+
+
+
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
-    // Fetch specific fields from the School collection
-    const schools = await School.find({}, 'schoolName username email mobileNo branch password').lean();
+    // Fetch schools with populated branches
+    const schools = await School.find({})
+      .populate({
+        path: 'branches',
+        select: 'branch mobileNo username email password', // Include fields to check
+      })
+      .lean();
 
-    // Decrypt the password for each school
+    // Decrypt school passwords and branch passwords
     const transformedSchools = await Promise.all(schools.map(async (school) => {
-      let decryptedPassword;
+      let decryptedSchoolPassword;
       try {
-        decryptedPassword = decrypt(school.password); // Decrypt the password
-        console.log(`Decrypted password for school ${school.schoolName}: ${decryptedPassword}`);
+        decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password'; // Decrypt the password if exists
       } catch (decryptError) {
         console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
-        decryptedPassword = "Error decrypting password"; // Handle decryption errors
+        decryptedSchoolPassword = 'Error decrypting password'; // Handle decryption errors
       }
 
-      // Return the school object with the decrypted password
+      // Ensure branches field exists before mapping
+      const transformedBranches = (school.branches || []).map(async (branch) => {
+        let decryptedBranchPassword;
+        try {
+          decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; // Decrypt the password if exists
+        } catch (decryptError) {
+          console.error(`Error decrypting password for branch ${branch.branch}`, decryptError);
+          decryptedBranchPassword = 'Error decrypting password'; // Handle decryption errors
+        }
+
+        // Return the branch object with the decrypted password
+        return {
+          ...branch,
+          password: decryptedBranchPassword,
+        };
+      });
+
+      // Return the school object with the decrypted password and branches
       return {
         ...school,
-        password: decryptedPassword
+        password: decryptedSchoolPassword,
+        branches: await Promise.all(transformedBranches), // Ensure all branches are processed
       };
     }));
 
@@ -180,6 +347,7 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // Route to get all parents for all schools for the superadmin
 router.get('/all-parents', superadminMiddleware, async (req, res) => {
@@ -258,13 +426,25 @@ router.get('/all-pending-requests', superadminMiddleware, async (req, res) => {
       const schoolName = school.schoolName;
 
       // Fetch pending requests for the current school
-      const requests = await Request.find({ statusOfRequest: "pending", schoolId })
+      const requests = await Request.find({
+        statusOfRequest: "pending",
+        schoolId,
+      })
+        .populate({
+          path: "childId",
+          populate: {
+            path: "branchId",
+            select: "branchName", // Only include the branchName
+          },
+          select: "childName class branchId deviceId", // Ensure we get the branchId and deviceId
+        })
         .populate("parentId", "parentName email phone")
-        .populate("childId", "childName class")
         .lean();
 
       // Filter out requests where the parent or child does not exist
-      const validRequests = requests.filter(request => request.parentId && request.childId);
+      const validRequests = requests.filter(
+        (request) => request.parentId && request.childId
+      );
 
       // Format the request data based on the request type
       const formattedRequests = validRequests.map((request) => {
@@ -279,18 +459,22 @@ router.get('/all-pending-requests', superadminMiddleware, async (req, res) => {
           email: request.parentId.email,
           childId: request.childId._id,
           childName: request.childId.childName,
+          branchName: request.childId.branchId?.branchName || null, // Include branchName
           requestType: request.requestType,
           requestDate: request.requestDate,
-          
-          formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+          deviceId: request.childId.deviceId,
+          formattedRequestDate: request.requestDate
+            ? formatDateToDDMMYYYY(new Date(request.requestDate))
+            : null,
+          schoolName: schoolName, // Include schoolName
         };
 
         // Add fields conditionally based on the request type
-        if (request.requestType === 'leave') {
+        if (request.requestType === "leave") {
           formattedRequest.startDate = request.startDate || null;
           formattedRequest.endDate = request.endDate || null;
           formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
-        } else if (request.requestType === 'changeRoute') {
+        } else if (request.requestType === "changeRoute") {
           formattedRequest.newRoute = request.newRoute || null;
           formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
           formattedRequest.endDate = null;
@@ -306,7 +490,7 @@ router.get('/all-pending-requests', superadminMiddleware, async (req, res) => {
       // Add the requests data to the requestsBySchool array
       requestsBySchool.push({
         schoolName: schoolName,
-        requests: formattedRequests
+        requests: formattedRequests,
       });
     }));
 
@@ -319,6 +503,7 @@ router.get('/all-pending-requests', superadminMiddleware, async (req, res) => {
     });
   }
 });
+
 // Route to get all approved requests for all schools for the superadmin
 router.get('/all-approved-requests', superadminMiddleware, async (req, res) => {
   try {
@@ -336,14 +521,18 @@ router.get('/all-approved-requests', superadminMiddleware, async (req, res) => {
       // Fetch approved requests for the current school
       const requests = await Request.find({ statusOfRequest: "approved", schoolId })
         .populate("parentId", "parentName email phone")
-        .populate("childId", "childName class")
+        .populate("childId", "childName class branchId") // Populate branchId to get branch details
         .lean();
 
       // Filter out requests where the parent or child does not exist
       const validRequests = requests.filter(request => request.parentId && request.childId);
 
       // Format the request data based on the request type
-      const formattedRequests = validRequests.map((request) => {
+      const formattedRequests = await Promise.all(validRequests.map(async (request) => {
+        // Fetch branch details using branchId
+        const branch = await Branch.findById(request.childId.branchId).lean();
+        const branchName = branch ? branch.branchName : null;
+
         const formattedRequest = {
           requestId: request._id,
           reason: request.reason,
@@ -355,9 +544,10 @@ router.get('/all-approved-requests', superadminMiddleware, async (req, res) => {
           email: request.parentId.email,
           childId: request.childId._id,
           childName: request.childId.childName,
+          schoolName: schoolName,
+          branchName: branchName, // Include branchName
           requestType: request.requestType,
           requestDate: request.requestDate,
-          
           formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
         };
 
@@ -377,7 +567,7 @@ router.get('/all-approved-requests', superadminMiddleware, async (req, res) => {
         }
 
         return formattedRequest;
-      });
+      }));
 
       // Add the requests data to the approvedRequestsBySchool array
       approvedRequestsBySchool.push({
@@ -395,7 +585,6 @@ router.get('/all-approved-requests', superadminMiddleware, async (req, res) => {
     });
   }
 });
-
 // Route to get all denied requests for all schools for the superadmin
 router.get('/all-denied-requests', superadminMiddleware, async (req, res) => {
   try {
@@ -413,24 +602,32 @@ router.get('/all-denied-requests', superadminMiddleware, async (req, res) => {
       // Fetch denied requests for the current school
       const deniedRequests = await Request.find({ statusOfRequest: 'denied', schoolId })
         .populate("parentId", "parentName email phone")
-        .populate('childId', 'childName deviceId class')
+        .populate('childId', 'childName deviceId class branchId') // Populate branchId to get branch details
         .lean();
 
       // Filter out requests where parentId or childId is null or not populated
       const validRequests = deniedRequests.filter(request => request.parentId && request.childId);
 
       // Format the request data
-      const formattedRequests = validRequests.map(request => ({
-        childId: request.childId._id,
-        childName: request.childId.childName,
-        deviceId: request.childId.deviceId,
-        class: request.childId.class,
-        statusOfRequest: request.statusOfRequest,
-        parentName: request.parentId.parentName,
-        email: request.parentId.email,
-        phone: request.parentId.phone,
-        requestDate: request.requestDate,
-        formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null // Formatted request date
+      const formattedRequests = await Promise.all(validRequests.map(async (request) => {
+        // Fetch branch details using branchId
+        const branch = await Branch.findById(request.childId.branchId).lean();
+        const branchName = branch ? branch.branchName : null;
+
+        return {
+          childId: request.childId._id,
+          childName: request.childId.childName,
+          deviceId: request.childId.deviceId,
+          class: request.childId.class,
+          statusOfRequest: request.statusOfRequest,
+          parentName: request.parentId.parentName,
+          email: request.parentId.email,
+          phone: request.parentId.phone,
+          schoolName: schoolName, // Include schoolName
+          branchName: branchName, // Include branchName
+          requestDate: request.requestDate,
+          formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null // Formatted request date
+        };
       }));
 
       // Add the requests data to the deniedRequestsBySchool array
@@ -458,8 +655,10 @@ router.get('/drivers-by-school', superadminMiddleware, async (req, res) => {
     const driversBySchool = await Promise.all(schools.map(async (school) => {
       const schoolName = school.schoolName;
 
-      // Fetch drivers associated with the current school
+      // Fetch drivers associated with the current school and populate the schoolId and branchId fields
       const drivers = await DriverCollection.find({ schoolId: school._id })
+        .populate('schoolId', 'schoolName') // Populate the schoolId field with schoolName
+        .populate('branchId', 'branchName') // Populate the branchId field with branchName
         .lean();
 
       return {
@@ -480,6 +679,8 @@ router.get('/drivers-by-school', superadminMiddleware, async (req, res) => {
             email: driver.email,
             busName: driver.busName,
             deviceId: driver.deviceId,
+            schoolName: driver.schoolId ? driver.schoolId.schoolName : 'N/A', // Access the populated schoolName
+            branchName: driver.branchId ? driver.branchId.branchName : 'Branch not found', // Include branchName
             registrationDate: driver.registrationDate,
             formattedRegistrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
             password: decryptedPassword, // Include decrypted password
@@ -495,6 +696,8 @@ router.get('/drivers-by-school', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 // Route to get all supervisors across all schools for the superadmin
 router.get('/supervisors-by-school', superadminMiddleware, async (req, res) => {
   try {
@@ -505,8 +708,10 @@ router.get('/supervisors-by-school', superadminMiddleware, async (req, res) => {
     const supervisorsBySchool = await Promise.all(schools.map(async (school) => {
       const schoolName = school.schoolName;
 
-      // Fetch supervisors with populated school data
+      // Fetch supervisors with populated school and branch data
       const supervisors = await Supervisor.find({ schoolId: school._id })
+        .populate('schoolId', 'schoolName') // Populate the schoolId field with schoolName
+        .populate('branchId', 'branchName') // Populate the branchId field with branchName
         .lean();
 
       // Format supervisor data
@@ -519,13 +724,18 @@ router.get('/supervisors-by-school', superadminMiddleware, async (req, res) => {
           decryptedPassword = "Error decrypting password";
         }
 
+        // Access branchName correctly
+        const branchName = supervisor.branchId ? supervisor.branchId.branchName : 'Branch not found';
+
         return {
           supervisorId: supervisor._id,
           supervisorName: supervisor.supervisorName,
           address: supervisor.address,
           phone_no: supervisor.phone_no,
           email: supervisor.email,
+          branchName: branchName, // Include branchName
           deviceId: supervisor.deviceId,
+          schoolName: supervisor.schoolId.schoolName, // Access the populated schoolName
           password: decryptedPassword, // Include decrypted password
           registrationDate: supervisor.registrationDate,
           formattedRegistrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)), // Format registration date
@@ -546,6 +756,7 @@ router.get('/supervisors-by-school', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // Route to get data by deviceId for a superadmin
 router.get('/read/data-by-deviceId', superadminMiddleware, async (req, res) => {
@@ -673,11 +884,14 @@ router.get("/pickup-drop-status", superadminMiddleware, async (req, res) => {
       const attendanceRecords = await Attendance.find({ schoolId: school._id })
         .populate({
           path: "childId",
-          populate: {
-            path: "parentId"
-          }
+          match: { schoolId: school._id },
+          populate: [
+            { path: "parentId", select: "phone" }, // Populate parentId to get the parent's phone
+            { path: "branchId", select: "branchName" }, // Populate branchId to get the branch name
+            { path: "schoolId", select: "schoolName" } // Populate schoolId to get the school name
+          ]
         })
-        .lean();
+        .lean(); // Use lean() to get plain JavaScript objects
 
       // Filter and map the data for the response
       const childrenData = attendanceRecords
@@ -693,6 +907,8 @@ router.get("/pickup-drop-status", superadminMiddleware, async (req, res) => {
             section: record.childId.section,
             parentId: record.childId.parentId._id,
             phone: record.childId.parentId.phone,
+            branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found", // Include branch name
+            schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found", // Include school name
             pickupStatus: record.pickup,
             pickupTime: record.pickupTime,
             deviceId: record.childId.deviceId,
@@ -735,11 +951,14 @@ router.get("/present-children", superadminMiddleware, async (req, res) => {
       })
         .populate({
           path: "childId",
-          populate: {
-            path: "parentId"
-          }
+          match: { schoolId: school._id }, // Ensure that we only get children from the current school
+          populate: [
+            { path: "parentId", select: "phone" }, // Populate parentId to get parent's phone
+            { path: "branchId", select: "branchName" }, // Populate branchId to get the branch name
+            { path: "schoolId", select: "schoolName" } // Populate schoolId to get the school name
+          ]
         })
-        .lean();
+        .lean(); // Use lean() to get plain JavaScript objects
 
       // Filter and map the data for the response
       const childrenData = attendanceRecords
@@ -755,6 +974,8 @@ router.get("/present-children", superadminMiddleware, async (req, res) => {
             section: record.childId.section,
             parentId: record.childId.parentId._id,
             phone: record.childId.parentId.phone,
+            branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found", // Include branch name
+            schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found", // Include school name
             pickupStatus: record.pickup,
             pickupTime: record.pickupTime,
             deviceId: record.childId.deviceId,
@@ -795,11 +1016,14 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
       })
         .populate({
           path: "childId",
-          populate: {
-            path: "parentId"
-          }
+          match: { schoolId: school._id }, // Ensure that we only get children from the current school
+          populate: [
+            { path: "parentId", select: "phone" }, // Populate parentId to get parent's phone
+            { path: "branchId", select: "branchName" }, // Populate branchId to get the branch name
+            { path: "schoolId", select: "schoolName" } // Populate schoolId to get the school name
+          ]
         })
-        .lean();
+        .lean(); // Use lean() to get plain JavaScript objects
 
       // Filter and map the data for the response
       const childrenData = attendanceRecords
@@ -815,6 +1039,8 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
             section: record.childId.section,
             parentId: record.childId.parentId._id,
             phone: record.childId.parentId.phone,
+            branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found", // Include branch name
+            schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found", // Include school name
             pickupStatus: record.pickup,
             pickupTime: record.pickupTime,
             deviceId: record.childId.deviceId,
@@ -838,13 +1064,22 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// Route to get child status for a superadmin
+
+// Route to get child status for a superadmin  -- pending want the data schoowise
 router.get('/status/:childId', superadminMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;
 
     // Find the child and populate related fields
-    const child = await Child.findOne({ _id: childId }).populate('parentId').populate('schoolId');
+    const child = await Child.findOne({ _id: childId })
+      .populate('parentId') // Populate parent details
+      .populate('schoolId') // Populate school details
+      .populate({
+        path: 'branchId', // Populate branch details
+        select: 'branchName'
+      })
+      .lean(); // Convert to plain JavaScript object for easier manipulation
+
     if (!child) {
       return res.status(404).json({ message: 'Child not found' });
     }
@@ -868,7 +1103,7 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
       supervisor = await Supervisor.findOne({ deviceId: child.deviceId });
     }
 
-    // Structure the data by school
+    // Structure the data by including schoolName and branchName in each student
     const response = {
       schoolName: school ? school.schoolName : 'Unknown School',
       students: [
@@ -877,6 +1112,8 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
           childClass: child.class,
           parentName: parent ? parent.parentName : null,
           parentNumber: parent ? parent.phone : null,
+          schoolName: school ? school.schoolName : 'Unknown School', // Include schoolName in each student
+          branchName: child.branchId ? child.branchId.branchName : 'Unknown Branch', // Include branchName in each student
           pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : null,
           dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : null,
           pickupTime: attendance ? attendance.pickupTime : null,
@@ -887,7 +1124,7 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
           endDate: request ? request.endDate || null : null,
           reason: request ? request.reason || null : null,
           newRoute: request ? request.newRoute || null : null,
-          statusOfRequest: request ? request.statusOfRequest : null,
+          statusOfRequest: request ? request.statusOfRequest || null : null,
           requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : null,
           supervisorName: supervisor ? supervisor.supervisorName : null
         }
@@ -901,6 +1138,9 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+
+
 
 router.post("/review-request/:requestId", superadminMiddleware, async (req, res) => {
   try {
@@ -1291,8 +1531,6 @@ router.delete('/delete/supervisor/:id', superadminMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 
 
 module.exports = router;

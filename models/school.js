@@ -25,10 +25,8 @@ const schoolSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  branch :{
-    type: String,
-    required: true
-  }
+  branches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }],
+  defaultBranchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch'},
 });
 
 schoolSchema.pre('save', async function(next) {

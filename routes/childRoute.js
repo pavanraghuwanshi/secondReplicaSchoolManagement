@@ -7,6 +7,8 @@ require('dotenv').config();
 const Attendance = require('../models/attendence')
 const Request = require("../models/request");
 const School = require("../models/school");
+const Branch = require('../models/branch');
+
 
 // Parent Registration Route
 router.post('/register', async (req, res) => {
@@ -21,15 +23,20 @@ router.post('/register', async (req, res) => {
       rollno,
       section,
       schoolName,
+      branchName,
       dateOfBirth,
       childAge,
       gender,
       fcmToken,
       pickupPoint,
-      busName,deviceId
+      busName,
+      deviceId
     } = req.body;
 
-    console.log(`Registering parent with schoolName: "${schoolName.trim()}"`);
+    // Validate that required fields are present
+    if (!schoolName) {
+      return res.status(400).json({ error: 'School name is required' });
+    }
 
     // Check if parent email already exists
     const existingParent = await Parent.findOne({ email });
@@ -38,11 +45,19 @@ router.post('/register', async (req, res) => {
     }
 
     // Find the school by name
-    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') });
-
+    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
     if (!school) {
-      console.log('School not found:', schoolName.trim());
       return res.status(400).json({ error: 'School not found' });
+    }
+
+    let branchToAssign;
+    if (school.branches.length === 0) {
+      // No branches, use the default main branch
+      branchToAssign = school.defaultBranchId;
+    } else {
+      // Find the branch by name or use the default branch
+      const selectedBranch = await Branch.findOne({ branchName: branchName.trim(), schoolId: school._id });
+      branchToAssign = selectedBranch ? selectedBranch._id : school.defaultBranchId;
     }
 
     // Create new parent with a pending status
@@ -52,21 +67,21 @@ router.post('/register', async (req, res) => {
       password, // No need to hash here, it will be done in the schema
       phone,
       fcmToken,
-      schoolId: school._id ,
+      schoolId: school._id,
+      branchId: branchToAssign,
       statusOfRegister: 'pending'
     });
     await newParent.save();
 
-    // Create new child linked to the school and parent
+    // Create new child linked to the school, branch, and parent
     const newChild = new Child({
       childName,
-      parentName,
-      email,
       class: childClass,
       rollno,
       section,
       schoolName,
-      schoolId: school._id, // Link to the school's ID
+      schoolId: school._id,
+      branchId: branchToAssign, // Ensure branchId is set
       dateOfBirth,
       childAge,
       gender,
@@ -82,7 +97,7 @@ router.post('/register', async (req, res) => {
     await newParent.save();
 
     // Generate JWT token
-    const payload = { id: newParent._id, email: newParent.email, schoolId: school._id };
+    const payload = { id: newParent._id, email: newParent.email, schoolId: school._id, branchId: branchToAssign };
     const token = generateToken(payload);
 
     res.status(201).json({ parent: newParent, child: newChild, token });
@@ -91,16 +106,32 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Fetch School List Route
+
+
 router.get('/getschools', async (req, res) => {
   try {
-    const schools = await School.find({}, 'schoolName');
-    res.status(200).json({ schools });
+    // Fetch schools and populate branches
+    const schools = await School.find({}, 'schoolName branches')
+      .populate({
+        path: 'branches',
+        select: 'branchName -_id' // Ensure 'branchName' is selected and '_id' is excluded
+      })
+      .lean(); // Use lean to get plain JavaScript objects
+
+    // Map the schools to only include the required fields
+    const formattedSchools = schools.map(school => ({
+      schoolName: school.schoolName,
+      branches: school.branches.map(branch => branch.branchName) // Ensure branchName is included
+    }));
+
+    res.status(200).json({ schools: formattedSchools });
   } catch (error) {
     console.error('Error fetching school list:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 
 // Parent Login Route
 router.post('/login', async (req, res) => {
@@ -184,20 +215,31 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
       pickupPoint,
       busName,
       deviceId,
-      schoolName // Make sure to extract schoolName from the request body
+      schoolName, // Extract schoolName from the request body
+      branchName// Add branch to the request body
     } = req.body;
 
     // Extract parentId from the JWT token payload
     const parentId = req.user.id;
 
     // Find the school by name
-    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') });
+    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
 
     if (!school) {
       return res.status(400).json({ error: 'School not found' });
     }
 
-    // Create new child with the parentId and schoolId
+    let branchToAssign;
+    if (school.branches.length === 0) {
+      // No branches, use the default main branch
+      branchToAssign = school.defaultBranchId;
+    } else {
+      // Find the branch by name or use the default branch
+      const selectedBranch = await Branch.findOne({ branchName: branchName.trim(), schoolId: school._id });
+      branchToAssign = selectedBranch ? selectedBranch._id : school.defaultBranchId;
+    }
+
+    // Create new child with the parentId, schoolId, and branchId
     const newChild = new Child({
       childName,
       class: childClass,
@@ -210,7 +252,8 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
       busName,
       deviceId,
       parentId,
-      schoolId: school._id, // Add the found schoolId to the child record
+      schoolId: school._id, // Link to the school's ID
+      branchId: branchToAssign, // Link to the branch's ID
       schoolName: school.schoolName // Ensure the correct schoolName is associated
     });
 
@@ -227,33 +270,66 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
 });
 
 
-
 // Get Children List Route
 router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
     const schoolId = req.user.schoolId; // Assuming schoolId is in the JWT payload
-    
+
     // Fetch the parent data and populate children that match the schoolId
     const parent = await Parent.findById(parentId).populate({
       path: 'children',
-      match: { schoolId: schoolId } // Filter children by schoolId
-    });
-    
+      match: { schoolId: schoolId }, // Filter children by schoolId
+      populate: {
+        path: 'branchId', // Populate branchId to get branch details
+        select: 'branchName', // Include the branchName field in the branch document
+      }
+    }).exec(); // Ensure .exec() is used to execute the query
+
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found' });
     }
 
-    // Convert children documents to plain objects
-    const childrenData = parent.children.map(child => child.toObject());
+    // Log parent and children to debug
+    console.log('Parent Data:', parent);
+    parent.children.forEach(child => {
+      console.log('Child Data:', {
+        _id: child._id,
+        branchId: child.branchId, // Log branchId to verify its presence
+      });
+    });
 
-    // Respond with children data
+    // Convert children documents to plain objects and include branch details
+    const childrenData = parent.children.map(child => ({
+      _id: child._id,
+      childName: child.childName,
+      class: child.class,
+      rollno: child.rollno,
+      section: child.section,
+      schoolName: child.schoolName,
+      dateOfBirth: child.dateOfBirth,
+      childAge: child.childAge,
+      pickupPoint: child.pickupPoint,
+      schoolId: child.schoolId,
+      branchName: child.branchId?.branchName || "N/A", // Directly include branchName
+      busName: child.busName,
+      gender: child.gender,
+      parentId: child.parentId,
+      deviceId: child.deviceId,
+      registrationDate: child.registrationDate,
+    }));
+
+    // Respond with children data including branch information
     res.status(200).json({ children: childrenData });
   } catch (error) {
     console.error('Error fetching child data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
+
 
 // Get Parent Data 
 router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {

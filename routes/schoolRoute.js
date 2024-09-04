@@ -6,102 +6,181 @@ const Request = require("../models/request");
 const Parent = require("../models/Parent");
 const Supervisor = require("../models/supervisor");
 const Attendance = require("../models/attendence");
-const { schoolAuthMiddleware } = require("../jwt");
+const { schoolAuthMiddleware,generateToken } = require("../jwt");
 const { decrypt } = require('../models/cryptoUtils');
 const DriverCollection = require('../models/driver');
 const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 const jwt = require("jsonwebtoken");
+const Branch = require('../models/branch');
 
-
-router.post("/login", async (req, res) => {
+// Login route for schools
+router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
+    // Find the school by username
     const school = await School.findOne({ username });
     if (!school) {
-      return res.status(400).json({ error: "Invalid username or password" });
+      return res.status(400).json({ error: 'Invalid username or password' });
     }
 
-    // Compare password using the schema method
+    // Compare the provided password with the stored hashed password
     const isMatch = await school.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ error: "Invalid username or password" });
+      return res.status(400).json({ error: 'Invalid username or password' });
     }
 
-    // Sign the token without expiration
-    const token = jwt.sign(
-      { id: school._id, username: school.username, role: 'school' },
-      process.env.JWT_SECRET
-    );
-    
+    // Generate the token using the existing function
+    const token = generateToken({
+      id: school._id,
+      username: school.username,
+      role: 'school'
+    });
+
     res.status(200).json({
       success: true,
-      message: "Login successful",
-      token: token,
-      role:"schooladmin"
+      message: 'Login successful',
+      token,
+      role: 'schooladmin'
     });
   } catch (error) {
-    console.error("Error during login:", error);
-    res.status(500).json({ error: "Server error" });
+    console.error('Error during login:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
+// Add a branch to a school (superadmin)
+router.post('/add-branch', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const {
+      schoolId,
+      branch,
+      address,
+      city,
+      mobileNo,
+      username,  // Username for the branch
+      password   // Password for the branch
+    } = req.body;
+
+    // Validate school existence
+    const school = await School.findById(schoolId);
+    if (!school) {
+      return res.status(400).json({ error: 'School not found' });
+    }
+
+    // Create a new branch
+    const newBranch = new Branch({
+      branch,
+      schoolId,
+      address,
+      city,
+      mobileNo,
+      username,  // Set the username for the branch
+      password   // Save the password for the branch
+    });
+
+    const savedBranch = await newBranch.save();
+
+    // Link the branch to the school
+    await School.findByIdAndUpdate(schoolId, {
+      $push: { branches: savedBranch._id }
+    });
+
+    res.status(201).json({ branch: savedBranch });
+  } catch (error) {
+    console.error('Error adding branch:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+router.get('/branches/:schoolId', schoolAuthMiddleware, async (req, res) => {
+  const { schoolId } = req.params;
+
+  try {
+    // Validate school existence
+    const school = await School.findById(schoolId);
+    if (!school) {
+      return res.status(400).json({ error: 'School not found' });
+    }
+
+    // Fetch branches for the specified school
+    const branches = await Branch.find({ schoolId });
+    res.status(200).json({ branches });
+  } catch (error) {
+    console.error('Error fetching branches:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // GET METHOD 
 // Get children 
 router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
   try {
-      // Assuming schoolAuthMiddleware attaches schoolId to req
+    // Assuming schoolAuthMiddleware attaches schoolId to req
     const { schoolId } = req;
-    const children = await Child.find({schoolId}).lean();
-    console.log("Raw children data:", JSON.stringify(children, null, 2));
 
-    const transformedChildren = await Promise.all(
-      children.map(async (child) => {
-        if (!child.parentId) {
-          return null;
-        }
-
-        const parent = await Parent.findById(child.parentId).lean();
-        if (!parent || parent.statusOfRegister === "rejected") {
-          return null;
-        }
-
-        console.log("Parent data before decryption:", JSON.stringify(parent, null, 2));
-
-        let decryptedPassword;
-        try {
-          decryptedPassword = decrypt(parent.password);
-          console.log(`Decrypted password for parent ${parent.parentName}: ${decryptedPassword}`);
-        } catch (decryptError) {
-          console.error(`Error decrypting password for parent ${parent.parentName}`, decryptError);
-          // Return null or handle the error as needed
-          return null;
-        }
-
-        const parentData = {
-          parentName: parent.parentName,
-          email: parent.email,
-          phone: parent.phone,
-          parentId: parent._id,
-          password: decryptedPassword // Include decrypted password
-        };
-
-        return {
-          ...child,
-          ...parentData,
-          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-        };
+    // Fetch children with populated branch data, but only select the branchName field
+    const children = await Child.find({ schoolId })
+      .populate({
+        path: 'branchId', // Populate branch reference
+        select: 'branchName' // Include only the branchName field from the Branch schema
       })
-    );
+      .populate({
+        path: 'parentId', // Populate parent reference
+        select: 'parentName email phone password statusOfRegister' // Select necessary fields from Parent schema
+      })
+      .lean();
 
-    const filteredChildren = transformedChildren.filter(child => child !== null);
+    // Group children by branchName
+    const branchWiseChildren = children.reduce((acc, child) => {
+      const branchName = child.branchId ? child.branchId.branchName : 'No branch';
+      
+      if (!acc[branchName]) {
+        acc[branchName] = [];
+      }
+
+      let decryptedPassword;
+      try {
+        decryptedPassword = decrypt(child.parentId.password);
+      } catch (decryptError) {
+        console.error(`Error decrypting password for parent ${child.parentId.parentName}`, decryptError);
+        decryptedPassword = "Error decrypting password";
+      }
+
+      acc[branchName].push({
+        childId: child._id,
+        childName: child.childName,
+        class: child.class,
+        rollno: child.rollno,
+        section: child.section,
+        schoolName: child.schoolName,
+        branchName: branchName, // Include branchName
+        dateOfBirth: child.dateOfBirth,
+        childAge: child.childAge,
+        pickupPoint: child.pickupPoint,
+        busName: child.busName,
+        gender: child.gender,
+        parentId: child.parentId._id,
+        deviceId: child.deviceId,
+        registrationDate: child.registrationDate,
+        formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+        parentName: child.parentId.parentName,
+        email: child.parentId.email,
+        phone: child.parentId.phone,
+        statusOfRegister: child.parentId.statusOfRegister,
+        password: decryptedPassword // Include decrypted password
+      });
+
+      return acc;
+    }, {});
 
     console.log(
-      "Transformed children data:",
-      JSON.stringify(filteredChildren, null, 2)
+      "Branch-wise children data:",
+      JSON.stringify(branchWiseChildren, null, 2)
     );
-    res.status(200).json({ children: filteredChildren });
+
+    res.status(200).json(branchWiseChildren);
   } catch (error) {
     console.error("Error fetching children:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -154,19 +233,30 @@ router.get('/parents', schoolAuthMiddleware, async (req, res) => {
 });
 
 // Get all pending requests
-
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req;
 
     // Fetch all pending requests for the specific school
-    const requests = await Request.find({ statusOfRequest: "pending", schoolId })
+    const requests = await Request.find({
+      statusOfRequest: "pending",
+      schoolId,
+    })
+      .populate({
+        path: "childId",
+        populate: {
+          path: "schoolId branchId",
+          select: "schoolName branchName", // Only include the names
+        },
+        select: "childName class schoolId branchId", // Ensure we get the schoolId and branchId
+      })
       .populate("parentId", "parentName email phone")
-      .populate("childId", "childName class")
       .lean();
 
     // Filter out requests where the parent or child does not exist
-    const validRequests = requests.filter(request => request.parentId && request.childId);
+    const validRequests = requests.filter(
+      (request) => request.parentId && request.childId
+    );
 
     // Format the request data based on the request type
     const formattedRequests = validRequests.map((request) => {
@@ -181,18 +271,21 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
         email: request.parentId.email,
         childId: request.childId._id,
         childName: request.childId.childName,
+        branchName: request.childId.branchId?.branchName || null, // Include branchName
+        schoolName: request.childId.schoolId?.schoolName || null, // Include schoolName
         requestType: request.requestType,
         requestDate: request.requestDate,
-        
-        formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+        formattedRequestDate: request.requestDate
+          ? formatDateToDDMMYYYY(new Date(request.requestDate))
+          : null,
       };
 
       // Add fields conditionally based on the request type
-      if (request.requestType === 'leave') {
+      if (request.requestType === "leave") {
         formattedRequest.startDate = request.startDate || null;
         formattedRequest.endDate = request.endDate || null;
         formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
-      } else if (request.requestType === 'changeRoute') {
+      } else if (request.requestType === "changeRoute") {
         formattedRequest.newRoute = request.newRoute || null;
         formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
         formattedRequest.endDate = null;
@@ -216,23 +309,30 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
-
 // Get all approved requests
 router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req;
 
+    // Fetch the school details
+    const school = await School.findById(schoolId).lean();
+    const schoolName = school ? school.schoolName : null;
+
     // Fetch all approved requests for the specific school
     const requests = await Request.find({ statusOfRequest: "approved", schoolId })
       .populate("parentId", "parentName email phone")
-      .populate("childId", "childName class")
+      .populate("childId", "childName class branchId") // Populate branchId to get branch details
       .lean();
 
     // Filter out requests where the parent or child does not exist
     const validRequests = requests.filter(request => request.parentId && request.childId);
 
     // Format the request data based on the request type
-    const formattedRequests = validRequests.map((request) => {
+    const formattedRequests = await Promise.all(validRequests.map(async (request) => {
+      // Fetch branch details using branchId
+      const branch = await Branch.findById(request.childId.branchId).lean();
+      const branchName = branch ? branch.branchName : null;
+
       const formattedRequest = {
         requestId: request._id,
         reason: request.reason,
@@ -246,7 +346,8 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
         childName: request.childId.childName,
         requestType: request.requestType,
         requestDate: request.requestDate,
-        
+        schoolName: schoolName, // Include schoolName
+        branchName: branchName, // Include branchName
         formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
       };
 
@@ -266,7 +367,7 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
       }
 
       return formattedRequest;
-    });
+    }));
 
     // Send the formatted requests as a JSON response
     res.status(200).json({
@@ -279,33 +380,45 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
-
 
 // Get all children with denied requests
 router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req;
 
+    // Fetch the school details
+    const school = await School.findById(schoolId).lean();
+    const schoolName = school ? school.schoolName : null;
+
     // Fetch all denied requests for the specific school
     const deniedRequests = await Request.find({ statusOfRequest: 'denied', schoolId })
       .populate("parentId", "parentName email phone")
-      .populate('childId', 'childName deviceId class')
+      .populate('childId', 'childName deviceId class branchId') // Populate branchId to get branch details
       .lean();
 
     // Filter out requests where parentId or childId is null or not populated
     const validRequests = deniedRequests.filter(request => request.parentId && request.childId);
 
-    const formattedRequests = validRequests.map(request => ({
-      childId: request.childId._id,
-      childName: request.childId.childName,
-      deviceId: request.childId.deviceId,
-      class: request.childId.class,
-      statusOfRequest: request.statusOfRequest,
-      parentName: request.parentId.parentName,
-      email: request.parentId.email,
-      phone: request.parentId.phone,
-      requestDate: request.requestDate,
-      formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null // Formatted request date
+    // Format the request data
+    const formattedRequests = await Promise.all(validRequests.map(async request => {
+      // Fetch branch details using branchId
+      const branch = await Branch.findById(request.childId.branchId).lean();
+      const branchName = branch ? branch.branchName : null;
+
+      return {
+        childId: request.childId._id,
+        childName: request.childId.childName,
+        deviceId: request.childId.deviceId,
+        class: request.childId.class,
+        statusOfRequest: request.statusOfRequest,
+        parentName: request.parentId.parentName,
+        email: request.parentId.email,
+        phone: request.parentId.phone,
+        requestDate: request.requestDate,
+        formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null, // Formatted request date
+        schoolName: schoolName, // Include schoolName
+        branchName: branchName, // Include branchName
+      };
     }));
 
     res.status(200).json({ requests: formattedRequests });
@@ -316,20 +429,22 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
 });
 
 
-
 // Get all drivers 
 router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req;
 
   try {
-    // Fetch drivers associated with the specific school and populate the school name
+    // Fetch drivers associated with the specific school and populate the school and branch names
     const drivers = await DriverCollection.find({ schoolId })
-      .populate('schoolId', 'schoolName') // Assuming 'schoolId' is the reference field in the Driver schema
+      .populate('schoolId', 'schoolName') // Populate schoolName from the School collection
+      .populate('branchId', 'branchName') // Populate branchName from the Branch collection
+      .lean(); // Use .lean() to get plain JavaScript objects
 
     const driverData = drivers.map(driver => {
       try {
         console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
         const decryptedPassword = decrypt(driver.password);
+
         return {
           id: driver._id,
           driverName: driver.driverName,
@@ -340,7 +455,8 @@ router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
           password: decryptedPassword,
           registrationDate: driver.registrationDate,
           formattedRegistrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
-          schoolName: driver.schoolId.schoolName, // Include the school name
+          schoolName: driver.schoolId ? driver.schoolId.schoolName : 'N/A', // Include the school name
+          branchName: driver.branchId ? driver.branchId.branchName : 'N/A' // Include the branch name
         };
       } catch (decryptError) {
         console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
@@ -355,19 +471,23 @@ router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
   }
 });
 
+
 // Get all supervisor
 router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req;
 
   try {
-    // Fetch supervisors associated with the specific school and populate the school name
+    // Fetch supervisors associated with the specific school and populate both school name and branch name
     const supervisors = await Supervisor.find({ schoolId })
-      .populate('schoolId', 'schoolName'); // Assuming 'schoolId' is the reference field in the Supervisor schema
+      .populate('schoolId', 'schoolName') // Populate the schoolId field with schoolName
+      .populate('branchId', 'branchName') // Populate the branchId field with branchName
+      .lean();
 
     const supervisorData = supervisors.map(supervisor => {
       try {
         console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
         const decryptedPassword = decrypt(supervisor.password);
+        
         return {
           id: supervisor._id,
           supervisorName: supervisor.supervisorName,
@@ -379,6 +499,7 @@ router.get('/read/allsupervisors', schoolAuthMiddleware, async (req, res) => {
           registrationDate: supervisor.registrationDate,
           formattedRegistrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)),
           schoolName: supervisor.schoolId.schoolName, // Include the school name
+          branchName: supervisor.branchId ? supervisor.branchId.branchName : 'Branch not found', // Include the branch name
         };
       } catch (decryptError) {
         console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
@@ -492,8 +613,6 @@ router.get('/read/data-by-deviceId', schoolAuthMiddleware, async (req, res) => {
   }
 });
 
-
-
 // Route to get attendance data for admin dashboard
 const convertDate = (dateStr) => {
   const dateParts = dateStr.split('-');
@@ -516,9 +635,11 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
       .populate({
         path: "childId",
         match: { schoolId }, // Filter children by schoolId
-        populate: {
-          path: "parentId"
-        }
+        populate: [
+          { path: "parentId", select: "phone" }, // Populate parentId to get the parent's phone
+          { path: "branchId", select: "branchName" }, // Populate branchId to get the branch name
+          { path: "schoolId", select: "schoolName" } // Populate schoolId to get the school name
+        ]
       })
       .lean();
 
@@ -536,6 +657,8 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
           section: record.childId.section,
           parentId: record.childId.parentId._id,
           phone: record.childId.parentId.phone,
+          branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found", // Include branch name
+          schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found", // Include school name
           pickupStatus: record.pickup,
           pickupTime: record.pickupTime,
           deviceId: record.childId.deviceId,
@@ -554,7 +677,6 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
   }
 });
 
-
 // present child during 
 router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -566,11 +688,13 @@ router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
       .populate({
         path: "childId",
         match: { schoolId }, // Filter children by schoolId
-        populate: {
-          path: "parentId"
-        }
+        populate: [
+          { path: "parentId", select: "phone" }, // Populate parentId to get the parent's phone
+          { path: "branchId", select: "branchName" }, // Populate branchId to get the branch name
+          { path: "schoolId", select: "schoolName" } // Populate schoolId to get the school name
+        ]
       })
-      .lean();
+      .lean(); // Use lean() to get plain JavaScript objects
 
     // Filter and map the data for the response
     const childrenData = attendanceRecords
@@ -586,6 +710,8 @@ router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
           section: record.childId.section,
           parentId: record.childId.parentId._id,
           phone: record.childId.parentId.phone,
+          branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found", // Include branch name
+          schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found", // Include school name
           pickupStatus: record.pickup,
           pickupTime: record.pickupTime,
           deviceId: record.childId.deviceId,
@@ -602,7 +728,6 @@ router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
   }
 });
 
-
 router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
   try {
     // Extract the schoolId from the request (set by the schoolAuthMiddleware)
@@ -613,11 +738,13 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
       .populate({
         path: "childId",
         match: { schoolId }, // Filter children by schoolId
-        populate: {
-          path: "parentId"
-        }
+        populate: [
+          { path: "parentId", select: "phone" }, // Populate parentId to get the parent's phone
+          { path: "branchId", select: "branchName" }, // Populate branchId to get the branch name
+          { path: "schoolId", select: "schoolName" } // Populate schoolId to get the school name
+        ]
       })
-      .lean();
+      .lean(); // Use lean() to get plain JavaScript objects
 
     // Filter and map the data for the response
     const childrenData = attendanceRecords
@@ -633,6 +760,8 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
           section: record.childId.section,
           parentId: record.childId.parentId._id,
           phone: record.childId.parentId.phone,
+          branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found", // Include branch name
+          schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found", // Include school name
           pickupStatus: record.pickup,
           pickupTime: record.pickupTime,
           deviceId: record.childId.deviceId,
@@ -648,7 +777,6 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 
 // status
@@ -700,68 +828,79 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
 //   }
 // });
 
-
 router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
   try {
-      const { childId } = req.params;
-      const schoolId = req.schoolId;
+    const { childId } = req.params;
+    const schoolId = req.schoolId;
 
-      // Find the child within the specified school
-      const child = await Child.findOne({ _id: childId, schoolId }).populate('parentId');
-      if (!child) {
-          return res.status(404).json({ message: 'Child not found' });
-      }
+    // Find the child within the specified school and populate branch and parent details
+    const child = await Child.findOne({ _id: childId, schoolId })
+      .populate({
+        path: 'parentId',
+        select: 'parentName phone'
+      })
+      .populate({
+        path: 'branchId', // Populate branchId field
+        select: 'branchName'
+      })
+      .populate({
+        path: 'schoolId', // Populate schoolId field
+        select: 'schoolName'
+      })
+      .lean(); // Convert to plain JavaScript object
 
-      const parent = child.parentId;
+    if (!child) {
+      return res.status(404).json({ message: 'Child not found' });
+    }
 
-      // Fetch the most recent attendance record for the child
-      const attendance = await Attendance.findOne({ childId })
-          .sort({ date: -1 })
-          .limit(1);
+    const parent = child.parentId;
 
-      // Fetch the most recent request for the child
-      const request = await Request.findOne({ childId })
-          .sort({ requestDate: -1 })
-          .limit(1);
+    // Fetch the most recent attendance record for the child
+    const attendance = await Attendance.findOne({ childId })
+      .sort({ date: -1 })
+      .limit(1);
 
-      // Fetch the supervisor based on deviceId and schoolId
-      let supervisor = null;
-      if (child.deviceId) {
-          supervisor = await Supervisor.findOne({ deviceId: child.deviceId, schoolId });
-      }
+    // Fetch the most recent request for the child
+    const request = await Request.findOne({ childId })
+      .sort({ requestDate: -1 })
+      .limit(1);
 
-      // Construct the response object
-      const response = {
-          childName: child.childName,
-          childClass: child.class,
-          parentName: parent.parentName,
-          parentNumber: parent.phone,
-          pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : null,
-          dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : null,
-          pickupTime: attendance ? attendance.pickupTime : null,
-          dropTime: attendance ? attendance.dropTime : null,
-          date: attendance ? attendance.date : null,
-          requestType: request ? request.requestType : null,
-          startDate: request ? request.startDate || null : null,
-          endDate: request ? request.endDate || null : null,
-          reason: request ? request.reason || null : null,
-          newRoute: request ? request.newRoute || null : null,
-          statusOfRequest: request ? request.statusOfRequest : null,
-          requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : null,
-          supervisorName: supervisor ? supervisor.supervisorName : null
-      };
+    // Fetch the supervisor based on deviceId and schoolId
+    let supervisor = null;
+    if (child.deviceId) {
+      supervisor = await Supervisor.findOne({ deviceId: child.deviceId, schoolId });
+    }
 
-      // Send the response
-      res.json(response);
+    // Construct the response object
+    const response = {
+      childName: child.childName,
+      childClass: child.class,
+      parentName: parent ? parent.parentName : 'Parent not found',
+      parentNumber: parent ? parent.phone : 'Parent not found',
+      branchName: child.branchId ? child.branchId.branchName : 'Branch not found',
+      schoolName: child.schoolId ? child.schoolId.schoolName : 'School not found',
+      pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : 'No record',
+      dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : 'No record',
+      pickupTime: attendance ? attendance.pickupTime : 'N/A',
+      dropTime: attendance ? attendance.dropTime : 'N/A',
+      date: attendance ? attendance.date : 'N/A',
+      requestType: request ? request.requestType : 'N/A',
+      startDate: request ? request.startDate || 'N/A' : 'N/A',
+      endDate: request ? request.endDate || 'N/A' : 'N/A',
+      reason: request ? request.reason || 'N/A' : 'N/A',
+      newRoute: request ? request.newRoute || 'N/A' : 'N/A',
+      statusOfRequest: request ? request.statusOfRequest || 'N/A' : 'N/A',
+      requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : 'N/A',
+      supervisorName: supervisor ? supervisor.supervisorName : 'Supervisor not found'
+    };
+
+    // Send the response
+    res.json(response);
   } catch (error) {
-      console.error('Error fetching child status:', error);
-      res.status(500).json({ message: 'Server error' });
+    console.error('Error fetching child status:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
-
-
-
-
 
 // POST METHOD
 //review request
@@ -859,10 +998,6 @@ router.post('/registerStatus/:parentId/', schoolAuthMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
-
 
 //PUT METHOD
 // Update child information

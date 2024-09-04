@@ -46,7 +46,8 @@ const driverSchema = new mongoose.Schema({
   registrationDate: { 
     type: Date, 
     default: Date.now 
-  }
+  },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }
 });
 
 driverSchema.pre('save', async function(next) {

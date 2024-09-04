@@ -8,3 +8,5 @@ node_modules/
 
 # Firebase service account key (sensitive file)
 firebaseServiceAccountKey.json
+
+/test.txt

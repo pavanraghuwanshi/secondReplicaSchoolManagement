@@ -22,15 +22,24 @@ const requestRoutes = require('./routes/requestRoute');
 const schoolRoutes = require('./routes/schoolRoute');
 const geofence = require('./routes/geofenceRoute');
 const superAdminRoutes = require('./routes/superAdminRoute')
+const branchRoute = require('./routes/branchRoute');
 
 // Use routes
 app.use("/parent", childRoutes);
 app.use("/driver", driverRoutes);
 app.use("/supervisor", supervisorRoutes);
 app.use('/request',requestRoutes);
-app.use('/school',schoolRoutes);
 app.use('/geofence',geofence);
+app.use('/school',schoolRoutes);
 app.use("/superadmin",superAdminRoutes);
+app.use("/branch",branchRoute);
+
+// Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+
 
 // Start the server
 app.listen(PORT, () => {

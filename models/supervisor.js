@@ -41,7 +41,8 @@ const supervisorSchema = new mongoose.Schema({
     type: String
   },
   registrationDate: { type: Date, default: Date.now },
-  schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true }
+  schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }
 });
 
 supervisorSchema.pre('save', async function(next) {

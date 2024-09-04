@@ -10,11 +10,13 @@ const childSchema = new mongoose.Schema({
   childAge: { type: Number, required: true },
   pickupPoint:{type: String},
   schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true }, 
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   busName:{type:String},
   gender: { type: String, enum: ['female', 'male'], required: true },
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', required: true },
   deviceId: { type: String, default: null },
-  registrationDate: { type: Date, default: Date.now }
+  registrationDate: { type: Date, default: Date.now },
+  // statusOfRegister: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
 });
 
 module.exports = mongoose.model('Child', childSchema);

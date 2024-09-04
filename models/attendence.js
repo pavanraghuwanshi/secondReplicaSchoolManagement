@@ -27,7 +27,8 @@ const attendanceSchema = new mongoose.Schema({
   schoolId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'School'
-  }
+  },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }
 });
 
 const Attendance = mongoose.model('Attendance', attendanceSchema);
