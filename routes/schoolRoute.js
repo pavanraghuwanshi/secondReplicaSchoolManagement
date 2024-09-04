@@ -48,7 +48,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
 // Add a branch to a school (superadmin)
 router.post('/add-branch', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -92,8 +91,6 @@ router.post('/add-branch', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 router.get('/branches/:schoolId', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req.params;
 
@@ -186,7 +183,6 @@ router.get("/read/all-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // get parents
 router.get('/parents', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -231,7 +227,6 @@ router.get('/parents', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Get all pending requests
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -380,7 +375,6 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
-
 // Get all children with denied requests
 router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -427,8 +421,6 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 // Get all drivers 
 router.get('/read/alldrivers', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req;
@@ -622,8 +614,6 @@ const convertDate = (dateStr) => {
     originalDate: jsDate
   };
 }
-
-
 // pickupdrop 
 router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -676,7 +666,6 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // present child during 
 router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -727,7 +716,6 @@ router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
   try {
     // Extract the schoolId from the request (set by the schoolAuthMiddleware)
@@ -1054,8 +1042,6 @@ router.put('/update-child/:childId', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 //update the parents
 router.put('/update-parent/:id', schoolAuthMiddleware, async (req, res) => {
   const parentId = req.params.id;
@@ -1090,9 +1076,6 @@ router.put('/update-parent/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
 // update driver
 router.put('/update-driver/:id', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -1142,7 +1125,6 @@ router.put('/update-driver/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // update the supervsior
 router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -1246,8 +1228,6 @@ router.delete('/delete/child/:childId', schoolAuthMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 // delete parents
 router.delete('/delete-parent/:id', schoolAuthMiddleware, async (req, res) => {
   const parentId = req.params.id;
@@ -1272,10 +1252,6 @@ router.delete('/delete-parent/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
-
 // delete driver
 router.delete('/delete/driver/:id', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -1296,7 +1272,6 @@ router.delete('/delete/driver/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // delete supervisor
 router.delete('/delete/supervisor/:id', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -1317,9 +1292,46 @@ router.delete('/delete/supervisor/:id', schoolAuthMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// delete branch
+router.delete('/branch-delete/:branchId',schoolAuthMiddleware, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { branchId } = req.params;
 
+    // Find the branch by ID
+    const branch = await Branch.findById(branchId).session(session);
+    if (!branch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
 
+    // Delete all related data
+    const parents = await Parent.find({ branchId: branch._id }).session(session);
 
+    for (const parent of parents) {
+      // Delete children associated with each parent
+      await Child.deleteMany({ parentId: parent._id }).session(session);
+    }
 
+    // Delete parents associated with the branch
+    await Parent.deleteMany({ branchId: branch._id }).session(session);
+
+    // Delete supervisors and drivers associated with the branch
+    await Supervisor.deleteMany({ branchId: branch._id }).session(session);
+    await Driver.deleteMany({ branchId: branch._id }).session(session);
+
+    // Finally, delete the branch itself
+    await branch.remove({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+    res.status(200).json({ message: 'Branch and all related data deleted successfully' });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Error during branch deletion:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 module.exports = router;

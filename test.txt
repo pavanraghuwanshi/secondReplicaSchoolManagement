@@ -39,3 +39,11 @@ in app the get data  is remaining of supervisor
 status
 get , 
 branch done, school done, superadmin done
+
+
+superadmin- delete-school-branch-automatically deleted
+school-     delete-branch
+
+
+
+1.want the branchName in school registration but got an error that the branch want email,password-resolve after

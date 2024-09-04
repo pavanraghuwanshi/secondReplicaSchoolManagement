@@ -46,7 +46,6 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 router.post('/login',async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -66,6 +65,7 @@ router.post('/login',async (req, res) => {
   }
 });
 
+// School Registration Route
 // School Registration Route
 router.post('/school-register', superadminMiddleware, async (req, res) => {
   try {  const { schoolName, username, password, email, mobileNo, branchName } = req.body;
@@ -93,6 +93,8 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 // Add a branch route
 router.post('/add-branch', superadminMiddleware, async (req, res) => {
   try {
@@ -178,49 +180,6 @@ router.put('/school-edit/:schoolId', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.delete('/school-delete/:schoolId', superadminMiddleware, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const { schoolId } = req.params;
-
-    // Find the school by ID
-    const school = await School.findById(schoolId).session(session);
-    if (!school) {
-      return res.status(404).json({ error: 'School not found' });
-    }
-
-    // Delete all branches and related data
-    const branches = await Branch.find({ schoolId: school._id }).session(session);
-    
-    for (const branch of branches) {
-      const parents = await Parent.find({ schoolId: school._id }).session(session);
-
-      for (const parent of parents) {
-        await Child.deleteMany({ parentId: parent._id }).session(session);
-      }
-
-      await Parent.deleteMany({ schoolId: school._id }).session(session);
-      await Supervisor.deleteMany({ branchId: branch._id }).session(session);
-      await Driver.deleteMany({ branchId: branch._id }).session(session);
-    }
-
-    await Branch.deleteMany({ schoolId: school._id }).session(session);
-    await school.remove({ session });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    res.status(200).json({ message: 'School, branches, and all related data deleted successfully' });
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error('Error during school deletion:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Route to get all children grouped by school for the superadmin
 router.get('/children-by-school', superadminMiddleware, async (req, res) => {
   try {
@@ -290,18 +249,13 @@ router.get('/children-by-school', superadminMiddleware, async (req, res) => {
 });
 
 
-
-
-
-
-
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
-    // Fetch schools with populated branches
+    // Fetch schools with populated branches, including branchName
     const schools = await School.find({})
       .populate({
         path: 'branches',
-        select: 'branch mobileNo username email password', // Include fields to check
+        select: 'branchName mobileNo username email password', // Include branchName and other fields
       })
       .lean();
 
@@ -321,7 +275,7 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
         try {
           decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; // Decrypt the password if exists
         } catch (decryptError) {
-          console.error(`Error decrypting password for branch ${branch.branch}`, decryptError);
+          console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
           decryptedBranchPassword = 'Error decrypting password'; // Handle decryption errors
         }
 
@@ -347,7 +301,6 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 // Route to get all parents for all schools for the superadmin
 router.get('/all-parents', superadminMiddleware, async (req, res) => {
@@ -696,8 +649,6 @@ router.get('/drivers-by-school', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 // Route to get all supervisors across all schools for the superadmin
 router.get('/supervisors-by-school', superadminMiddleware, async (req, res) => {
   try {
@@ -756,8 +707,6 @@ router.get('/supervisors-by-school', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 // Route to get data by deviceId for a superadmin
 router.get('/read/data-by-deviceId', superadminMiddleware, async (req, res) => {
   const { deviceId } = req.query;
@@ -860,7 +809,6 @@ router.get('/read/data-by-deviceId', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Route to get attendance data for admin dashboard
 const convertDate = (dateStr) => {
   const dateParts = dateStr.split('-');
@@ -1064,7 +1012,6 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Route to get child status for a superadmin  -- pending want the data schoowise
 router.get('/status/:childId', superadminMiddleware, async (req, res) => {
   try {
@@ -1466,7 +1413,6 @@ router.delete('/delete/child/:childId', superadminMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Delete parent and associated children
 router.delete('/delete-parent/:id', superadminMiddleware, async (req, res) => {
   const parentId = req.params.id;
@@ -1490,7 +1436,6 @@ router.delete('/delete-parent/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Delete driver
 router.delete('/delete/driver/:id', superadminMiddleware, async (req, res) => {
   try {
@@ -1510,8 +1455,6 @@ router.delete('/delete/driver/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 // Delete supervisor
 router.delete('/delete/supervisor/:id', superadminMiddleware, async (req, res) => {
   try {
@@ -1528,6 +1471,81 @@ router.delete('/delete/supervisor/:id', superadminMiddleware, async (req, res) =
     res.status(200).json({ message: 'Supervisor deleted successfully' });
   } catch (error) {
     console.error('Error deleting supervisor:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+// school delete
+router.delete('/school-delete/:schoolId', superadminMiddleware, async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+
+    // Find the school by ID
+    const school = await School.findById(schoolId);
+    if (!school) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    // Delete all branches and related data
+    const branches = await Branch.find({ schoolId: school._id });
+
+    for (const branch of branches) {
+      const parents = await Parent.find({ schoolId: school._id });
+
+      for (const parent of parents) {
+        await Child.deleteMany({ parentId: parent._id });
+      }
+      await Parent.deleteMany({ schoolId: school._id });
+      await Supervisor.deleteMany({ branchId: branch._id });
+      await Driver.deleteMany({ branchId: branch._id });
+    }
+
+    // Delete all branches
+    await Branch.deleteMany({ schoolId: school._id });
+    
+    // Delete the school
+    await school.remove();
+
+    res.status(200).json({ message: 'School, branches, and all related data deleted successfully' });
+  } catch (error) {
+    console.error('Error during school deletion:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+//branch delete
+router.delete('/branch-delete/:branchId', superadminMiddleware, async (req, res) => {
+  try {
+    const { branchId } = req.params;
+
+    // Find the branch by ID
+    const branch = await Branch.findById(branchId);
+    if (!branch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    // Delete all related data
+    const parents = await Parent.find({ branchId: branch._id });
+
+    for (const parent of parents) {
+      // Delete children associated with each parent
+      await Child.deleteMany({ parentId: parent._id });
+    }
+
+    // Delete parents associated with the branch
+    await Parent.deleteMany({ branchId: branch._id });
+
+    // Delete supervisors and drivers associated with the branch
+    await Supervisor.deleteMany({ branchId: branch._id });
+    await Driver.deleteMany({ branchId: branch._id });
+
+    // Finally, delete the branch itself
+    await branch.remove();
+
+    res.status(200).json({ message: 'Branch and all related data deleted successfully' });
+  } catch (error) {
+    console.error('Error during branch deletion:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

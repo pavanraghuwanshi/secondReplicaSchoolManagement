@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { encrypt, decrypt } = require('./cryptoUtils'); 
 
 const branchSchema = new mongoose.Schema({
-  branch: {
+  branchName: {
     type: String,
     required: true
   },
