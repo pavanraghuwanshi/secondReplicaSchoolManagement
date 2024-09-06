@@ -11,7 +11,10 @@ const Request = require("../models/request");
 const { decrypt } = require('../models/cryptoUtils');
 const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 const School = require("../models/school");
+<<<<<<< HEAD
 const Geofencing = require("../models/geofence");
+=======
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 
 // Login route for branches
 router.post("/login", async (req, res) => {
@@ -51,6 +54,7 @@ router.post("/login", async (req, res) => {
 
 
 // Get all children for a specific branch (Authenticated branch user)
+<<<<<<< HEAD
 router.get("/read-children", branchAuthMiddleware, async (req, res) => {
   try {
     const { branchId } = req; // Extract branchId from request
@@ -86,17 +90,77 @@ router.get("/read-children", branchAuthMiddleware, async (req, res) => {
         }
 
         // Construct child data with parent details and branch/school names
+=======
+router.get("/read/all-children", branchAuthMiddleware, async (req, res) => {
+  try {
+    const { branchId } = req;
+
+    // Fetch branch details to get the branchName
+    const branch = await Branch.findById(branchId).lean();
+    if (!branch) {
+      return res.status(404).json({ error: "Branch not found" });
+    }
+    const branchName = branch.branchName; // Ensure branchName is correctly retrieved
+    console.log("Branch data:", JSON.stringify(branch, null, 2)); // Log branch data
+
+    // Fetch children for the specified branch
+    const children = await Child.find({ branchId }).lean();
+    console.log("Raw children data:", JSON.stringify(children, null, 2));
+
+    const transformedChildren = await Promise.all(
+      children.map(async (child) => {
+        // Always retrieve parent data even if registration status is rejected
+        const parent = await Parent.findById(child.parentId).lean();
+        if (!parent) {
+          return null;
+        }
+
+        console.log(
+          "Parent data before decryption:",
+          JSON.stringify(parent, null, 2)
+        );
+
+        let decryptedPassword;
+        try {
+          decryptedPassword = decrypt(parent.password);
+          console.log(
+            `Decrypted password for parent ${parent.parentName}: ${decryptedPassword}`
+          );
+        } catch (decryptError) {
+          console.error(
+            `Error decrypting password for parent ${parent.parentName}`,
+            decryptError
+          );
+          return null;
+        }
+
+        const parentData = {
+          parentName: parent.parentName,
+          email: parent.email,
+          phone: parent.phone,
+          parentId: parent._id,
+          password: decryptedPassword, // Include decrypted password
+          statusOfRegister: parent.statusOfRegister // Include the registration status
+        };
+
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
         return {
           childId: child._id,
           childName: child.childName,
           class: child.class,
           rollno: child.rollno,
           section: child.section,
+<<<<<<< HEAD
+=======
+          schoolName: child.schoolName,
+          branchName,
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
           dateOfBirth: child.dateOfBirth,
           childAge: child.childAge,
           pickupPoint: child.pickupPoint,
           busName: child.busName,
           gender: child.gender,
+<<<<<<< HEAD
           deviceId: child.deviceId,
           registrationDate: child.registrationDate,
           formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
@@ -108,10 +172,18 @@ router.get("/read-children", branchAuthMiddleware, async (req, res) => {
           password: decryptedPassword,
           schoolName: school.schoolName, // Include schoolName in each child object
           branchName: branch.branchName  // Include branchName in each child object
+=======
+          parentId: child.parentId,
+          deviceId: child.deviceId,
+          registrationDate: child.registrationDate,
+          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+          ...parentData
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
         };
       })
     );
 
+<<<<<<< HEAD
     // Filter out any null entries (if a child was skipped due to missing parent data)
     const filteredChildren = transformedChildren.filter(child => child !== null);
 
@@ -126,6 +198,26 @@ router.get("/read-children", branchAuthMiddleware, async (req, res) => {
 });
 // Get parents for a specific branch
 router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
+=======
+    const filteredChildren = transformedChildren.filter(
+      (child) => child !== null
+    );
+
+    console.log("Transformed children data:", JSON.stringify(filteredChildren, null, 2));
+
+    res.status(200).json({ branchName, children: filteredChildren });
+  } catch (error) {
+    console.error("Error fetching children:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+
+// Get parents for a specific branch
+router.get("/parents", branchAuthMiddleware, async (req, res) => {
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
   try {
     const { branchId } = req;
 
@@ -192,6 +284,11 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 // Fetch pending requests for a specific branch
 router.get("/pending-requests", branchAuthMiddleware, async (req, res) => {
   try {
@@ -274,6 +371,10 @@ router.get("/pending-requests", branchAuthMiddleware, async (req, res) => {
     });
   }
 });
+<<<<<<< HEAD
+=======
+
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 // Get all approved requests for a branch
 router.get("/approved-requests", branchAuthMiddleware, async (req, res) => {
   try {
@@ -403,8 +504,15 @@ router.get("/denied-requests", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+<<<<<<< HEAD
 // Get all drivers for a branch
 router.get("/read-drivers", branchAuthMiddleware, async (req, res) => {
+=======
+
+
+// Get all drivers for a branch
+router.get("/read/alldrivers", branchAuthMiddleware, async (req, res) => {
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
   const { branchId } = req;
 
   try {
@@ -458,8 +566,15 @@ router.get("/read-drivers", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+<<<<<<< HEAD
 // Get all supervisors for a specific branch within a school
 router.get("/read-supervisors", branchAuthMiddleware, async (req, res) => {
+=======
+
+
+// Get all supervisors for a specific branch within a school
+router.get("/read/allsupervisors", branchAuthMiddleware, async (req, res) => {
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
   const { branchId } = req;
 
   try {
@@ -506,8 +621,13 @@ router.get("/read-supervisors", branchAuthMiddleware, async (req, res) => {
   }
 });
 // Get data by deviceId
+<<<<<<< HEAD
 router.get("/data-by-deviceId", branchAuthMiddleware, async (req, res) => {
   const { deviceId } = req.body;
+=======
+router.get("/read/data-by-deviceId", branchAuthMiddleware, async (req, res) => {
+  const { deviceId } = req.query;
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
   const { branchId } = req; // Get the branchId from the authenticated request
 
   if (!deviceId) {
@@ -786,12 +906,24 @@ router.get("/absent-children", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+<<<<<<< HEAD
 router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
   try {
     const branchId = req.branchId; // Extract the branchId from the request
 
     // Find all children within the specified branch and populate related fields
     const children = await Child.find({ branchId })
+=======
+
+
+router.get("/status/:childId", branchAuthMiddleware, async (req, res) => {
+  try {
+    const { childId } = req.params;
+    const branchId = req.branchId; // Extract the branchId from the request
+
+    // Find the child within the specified branch and populate related fields
+    const child = await Child.findOne({ _id: childId, branchId })
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
       .populate('parentId') // Populate parent details
       .populate('schoolId') // Populate school details
       .populate({
@@ -800,6 +932,7 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
       })
       .lean(); // Convert to plain JavaScript object for easier manipulation
 
+<<<<<<< HEAD
     if (!children.length) {
       return res.status(404).json({ message: "No children found in this branch" });
     }
@@ -834,6 +967,39 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
       const branch = child.branchId;
 
       return {
+=======
+    if (!child) {
+      return res.status(404).json({ message: "Child not found" });
+    }
+
+    const parent = child.parentId;
+    const school = child.schoolId;
+    const branch = child.branchId;
+
+    // Fetch the most recent attendance record for the child
+    const attendance = await Attendance.findOne({ childId })
+      .sort({ date: -1 })
+      .limit(1);
+
+    // Fetch the most recent request for the child
+    const request = await Request.findOne({ childId })
+      .sort({ requestDate: -1 })
+      .limit(1);
+
+    // Fetch the supervisor based on deviceId and branchId
+    let supervisor = null;
+    if (child.deviceId) {
+      supervisor = await Supervisor.findOne({
+        deviceId: child.deviceId,
+        branchId,
+      });
+    }
+
+    // Construct the response object
+    const response = {
+      schoolName: school ? school.schoolName : 'Unknown School',
+      students: [{
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
         childName: child.childName,
         childClass: child.class,
         parentName: parent ? parent.parentName : null,
@@ -854,15 +1020,24 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
         newRoute: request ? request.newRoute || null : null,
         statusOfRequest: request ? request.statusOfRequest : null,
         requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : null,
+<<<<<<< HEAD
         supervisorName: null, // Optional: You might need to add logic to find supervisors if needed
         branchName: branch ? branch.branchName : 'Unknown Branch',
         schoolName: school ? school.schoolName : 'Unknown School'
       };
     });
+=======
+        supervisorName: supervisor ? supervisor.supervisorName : null,
+        branchName: branch ? branch.branchName : 'Unknown Branch', // Include branchName inside the student array
+        schoolName: school ? school.schoolName : 'Unknown School' // Include schoolName inside the student array
+      }]
+    };
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 
     // Send the response
     res.json(response);
   } catch (error) {
+<<<<<<< HEAD
     console.error("Error fetching child statuses:", error);
     res.status(500).json({ message: "Server error" });
   }
@@ -901,6 +1076,17 @@ router.get('/geofence', async (req, res) => {
     res.status(500).json({ message: 'Error retrieving geofence', error });
   }
 });
+=======
+    console.error("Error fetching child status:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+
+
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 // POST METHOD
 // Review request
 router.post("/review-request/:requestId",branchAuthMiddleware,async (req, res) => {
@@ -1332,7 +1518,11 @@ router.delete("/delete-parent/:id", branchAuthMiddleware, async (req, res) => {
 });
 // DELETE METHOD
 // Delete driver
+<<<<<<< HEAD
 router.delete("/delete-driver/:id", branchAuthMiddleware, async (req, res) => {
+=======
+router.delete("/delete/driver/:id", branchAuthMiddleware, async (req, res) => {
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
   try {
     const { id: driverId } = req.params;
     const branchId = req.branchId; // Get the branchId from the middleware
@@ -1358,7 +1548,11 @@ router.delete("/delete-driver/:id", branchAuthMiddleware, async (req, res) => {
 });
 // DELETE METHOD
 // Delete supervisor
+<<<<<<< HEAD
 router.delete("/delete-supervisor/:id",branchAuthMiddleware,async (req, res) => {
+=======
+router.delete("/delete/supervisor/:id",branchAuthMiddleware,async (req, res) => {
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
     try {
       const { id: supervisorId } = req.params;
       const branchId = req.branchId; // Get the branchId from the middleware

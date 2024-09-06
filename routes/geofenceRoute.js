@@ -2,6 +2,10 @@ const express = require("express");
 const router = express.Router();
 const Geofencing = require("../models/geofence");
 require("dotenv").config();
+<<<<<<< HEAD
+=======
+const { formatDateToDDMMYYYY, formatTime } = require("../utils/dateUtils");
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 
 // GET route to retrieve geofencing data by deviceId
 router.get("/", async (req, res) => {
@@ -32,7 +36,10 @@ router.get("/", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 router.put("/isCrossed", async (req, res) => {
   try {
     const deviceId = req.query.deviceId;

@@ -33,7 +33,10 @@ const parentSchema = new mongoose.Schema({
   parentRegistrationDate: { type: Date, default: Date.now },
   schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School'},
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+<<<<<<< HEAD
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent' },
+=======
+>>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 });
 
 // parentSchema.pre('save', async function (next) {
