@@ -4,7 +4,6 @@ const School = require("../models/school");
 const Branch = require('../models/branch');
 
 
-<<<<<<< HEAD
 exports.registerDriver = async (req, res) => {
   try {
     const {
@@ -67,69 +66,6 @@ exports.registerDriver = async (req, res) => {
   }
 };
 //Fetch School List Route
-=======
-// exports.registerDriver = async (req, res) => {
-//   try {
-//     const data = {
-//       driverName: req.body.driverName,
-//       phone_no: req.body.phone_no,
-//       email: req.body.email,
-//       address: req.body.address,
-//       password: req.body.password,
-//       busName: req.body.busName,
-//       deviceId: req.body.deviceId
-//     };
-//     const { email } = data;
-//     console.log("Received registration data:", data);
-
-//     const existingDriver = await DriverCollection.findOne({ email });
-//     if (existingDriver) {
-//       console.log("Email already exists");
-//       return res.status(400).json({ error: "Email already exists" });
-//     }
-
-//     const newDriver = new DriverCollection(data);
-//     const response = await newDriver.save();
-//     console.log("Data saved:", response);
-
-//     const payload = { id: response.id, email: response.email };
-//     const token = generateToken(payload);
-
-//     res.status(201).json({ response: { ...response.toObject(), password: undefined }, token }); 
-//   } catch (error) {
-//     console.error("Error during registration:", error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// };
-
-
-// Fetch School List Route
-
-// exports.getSchools =  async (req, res) => {
-//   try {
-//     // Fetch schools and populate branches
-//     const schools = await School.find({}, 'schoolName branches')
-//       .populate({
-//         path: 'branches',
-//         select: 'branchName -_id' // Ensure 'branchName' is selected and '_id' is excluded
-//       })
-//       .lean(); // Use lean to get plain JavaScript objects
-
-//     // Map the schools to only include the required fields
-//     const formattedSchools = schools.map(school => ({
-//       schoolName: school.schoolName,
-//       branches: school.branches.map(branch => branch.branchName) // Ensure branchName is included
-//     }));
-
-//     res.status(200).json({ schools: formattedSchools });
-//   } catch (error) {
-//     console.error('Error fetching school list:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// }
-
-
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 exports.getSchools =  async (req, res) => {
   try {
     const schools = await School.find().populate('branches');
@@ -147,158 +83,9 @@ exports.getSchools =  async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 }
-<<<<<<< HEAD
 exports.loginDriver = async (req, res) => {
   const { email, password } = req.body;
   
-=======
-
-exports.registerDriver = async (req, res) => {
-  try {
-    const {
-      driverName,
-      email,
-      password,
-      schoolName,
-      branchName, // Expect branch in the request, but handle the default case
-      licenseNumber,
-      deviceId,
-      address,
-      phone_no,
-      fcmToken,
-      busName
-    } = req.body;
-
-    console.log(`Registering driver with schoolName: "${schoolName.trim()}"`);
-
-    // Check if driver email already exists
-    const existingDriver = await DriverCollection.findOne({ email });
-    if (existingDriver) {
-      return res.status(400).json({ error: 'Driver email already exists' });
-    }
-
-    // Find the school by name
-    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
-
-    if (!school) {
-      console.log('School not found:', schoolName.trim());
-      return res.status(400).json({ error: 'School not found' });
-    }
-
-    let branchToAssign;
-    if (school.branches.length === 0) {
-      // No branches, use the default main branch
-      branchToAssign = school.defaultBranchId;
-    } else {
-      // Find the branch by name or use the default branch
-      const selectedBranch = await Branch.findOne({ branchName: branchName.trim(), schoolId: school._id });
-      branchToAssign = selectedBranch ? selectedBranch._id : school.defaultBranchId;
-    }
-
-    // Create new driver with a pending status
-    const newDriver = new DriverCollection({
-      driverName,
-      email,
-      password, // No need to hash here, it will be done in the schema
-      phone_no,
-      licenseNumber,
-      deviceId,
-      fcmToken,
-      address,
-      busName,
-      schoolId: school._id, // Link to the school's ID
-      branchId: branchToAssign, // Link to the branch's ID
-      statusOfRegister: 'pending'
-    });
-    await newDriver.save();
-
-    // Generate JWT token
-    const payload = { id: newDriver._id, email: newDriver.email, schoolId: school._id, branchId: branchToAssign };
-    const token = generateToken(payload);
-
-    res.status(201).json({ driver: newDriver, token });
-  } catch (error) {
-    console.error('Error during driver registration:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-// mainbranch wise registration
-// exports.registerDriver = async (req, res) => {
-//   try {
-//     const {
-//       driverName,
-//       email,
-//       password,
-//       schoolName,
-//       branchName, // Expect branch in the request, but handle the default case
-//       licenseNumber,
-//       deviceId,
-//       address,
-//       phone_no,
-//       fcmToken,
-//       busName
-//     } = req.body;
-
-//     console.log(`Registering driver with schoolName: "${schoolName.trim()}"`);
-
-//     // Check if driver email already exists
-//     const existingDriver = await DriverCollection.findOne({ email });
-//     if (existingDriver) {
-//       return res.status(400).json({ error: 'Driver email already exists' });
-//     }
-
-//     // Find the school by name
-//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
-
-//     if (!school) {
-//       console.log('School not found:', schoolName.trim());
-//       return res.status(400).json({ error: 'School not found' });
-//     }
-
-//     let branchToAssign;
-
-//     if (!branchName || branchName.trim() === school.mainBranch) {
-//       // If no branchName is provided or if the selected branch is the main branch
-//       branchToAssign = school._id; // Use schoolId as branchId for the main branch
-//     } else {
-//       // Find the branch by name or use the default branch
-//       const selectedBranch = await Branch.findOne({ branchName: branchName.trim(), schoolId: school._id });
-//       branchToAssign = selectedBranch ? selectedBranch._id : school.defaultBranchId;
-//     }
-
-//     // Create new driver with a pending status
-//     const newDriver = new DriverCollection({
-//       driverName,
-//       email,
-//       password, // No need to hash here, it will be done in the schema
-//       phone_no,
-//       licenseNumber,
-//       deviceId,
-//       fcmToken,
-//       address,
-//       busName,
-//       schoolId: school._id, // Link to the school's ID
-//       branchId: branchToAssign, // Link to the branch's ID
-//       statusOfRegister: 'pending'
-//     });
-
-//     await newDriver.save();
-
-//     // Generate JWT token
-//     const payload = { id: newDriver._id, email: newDriver.email, schoolId: school._id, branchId: branchToAssign };
-//     const token = generateToken(payload);
-
-//     res.status(201).json({ driver: newDriver, token });
-//   } catch (error) {
-//     console.error('Error during driver registration:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// };
-
-exports.loginDriver = async (req, res) => {
-  const { email, password } = req.body;
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
   try {
     // Find the driver by email
     const driver = await DriverCollection.findOne({ email });
@@ -307,16 +94,11 @@ exports.loginDriver = async (req, res) => {
     }
 
     // Check if the password matches
-<<<<<<< HEAD
     const isMatch = await driver.comparePassword(password); // Assuming you have a method to compare passwords
-=======
-    const isMatch = await driver.comparePassword(password);
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
 
-<<<<<<< HEAD
     // Generate a JWT token with driverId, email, and schoolId
     const token = generateToken({ 
       id: driver._id, 
@@ -330,23 +112,12 @@ exports.loginDriver = async (req, res) => {
       message: "Login successful",
       token
     });
-=======
-    // Generate token including schoolId if needed
-    const token = generateToken({ 
-      id: driver._id, 
-      email: driver.email, 
-      schoolId: driver.schoolId // Include schoolId in the token payload
-    });
-
-    res.status(200).json({ success: true, message: "Login successful", token });
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
   } catch (err) {
     console.error("Error during login:", err);
     res.status(500).json({ error: "Server error" });
   }
 };
 
-<<<<<<< HEAD
 exports.getDriverData = async (req, res) => {
   try {
     const driverId = req.user.id;
@@ -376,33 +147,12 @@ exports.getDriverData = async (req, res) => {
 
     // Return the simplified driver data
     res.status(200).json({ driver: response });
-=======
-
-exports.getDriverData = async (req, res) => {
-  try {
-    const driverId = req.user.id;
-    const schoolId = req.user.schoolId; // Assuming schoolId is part of the token payload or user info
-
-    // Find the driver by ID and ensure it matches the school context
-    const driver = await DriverCollection.findOne({ _id: driverId, schoolId });
-    if (!driver) {
-      return res.status(404).json({ error: 'Driver not found or does not belong to the school' });
-    }
-
-    // Return the driver data
-    res.status(200).json({ driver });
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
   } catch (error) {
     console.error('Error fetching driver data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
 
-<<<<<<< HEAD
-=======
-
-
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 exports.updateDriver = async (req, res) => {
   try {
     const { driverName, address, phone_no, email } = req.body;
@@ -426,11 +176,6 @@ exports.updateDriver = async (req, res) => {
     res.status(500).json({ error: "Error updating driver details" });
   }
 };
-<<<<<<< HEAD
-=======
-
-
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 exports.deleteDriver = async (req, res) => {
   try {
     const driverId = req.user.id;

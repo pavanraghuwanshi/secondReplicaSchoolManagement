@@ -12,38 +12,21 @@ const branchSchema = new mongoose.Schema({
     required: true
   },
  mobileNo:{
-<<<<<<< HEAD
     type: String,
    default: ''
   },
   username:{
     type: String,
    default: '',
-=======
-    type: Number,
-    required: true
-  },
-  username:{
-    type: String,
-    required: true,
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
     unique:true
   },
   password:{
     type: String,
-<<<<<<< HEAD
     default: ''
   },
   email:{
     type: String,
     default: ''
-=======
-    required: true
-  },
-  email:{
-    type: String,
-    required: true
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
   }
 });
 

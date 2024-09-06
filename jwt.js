@@ -38,36 +38,6 @@ const superadminMiddleware = authMiddleware(require('./models/superAdmin'), 'sup
 const branchAuthMiddleware = authMiddleware(require('./models/branch'), 'branchId', 'branch');
 
 // JWT authentication middleware (without model verification)
-<<<<<<< HEAD
-// const jwtAuthMiddleware = (req, res, next) => {
-//   const authorization = req.headers.authorization;
-
-//   if (!authorization) {
-//     return res.status(401).json({ error: 'Token Not Found' });
-//   }
-
-//   const token = authorization.split(' ')[1];
-
-//   if (!token) {
-//     return res.status(401).json({ error: 'Unauthorized' });
-//   }
-
-//   try {
-//     // Decode and verify the token
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-//     // Attach the user and schoolId to the request object
-//     req.user = decoded;
-//     req.schoolId = decoded.schoolId;
-
-//     next(); // Proceed to the next middleware or route handler
-//   } catch (err) {
-//     console.error('Token verification failed:', err);
-//     res.status(401).json({ error: 'Invalid token' });
-//   }
-// };
-=======
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 const jwtAuthMiddleware = (req, res, next) => {
   const authorization = req.headers.authorization;
 
@@ -85,16 +55,10 @@ const jwtAuthMiddleware = (req, res, next) => {
     // Decode and verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-<<<<<<< HEAD
     // Attach the user, schoolId, and branchId to the request object
     req.user = decoded;
     req.schoolId = decoded.schoolId; // Ensure the token includes schoolId
     req.branchId = decoded.branchId; // Ensure the token includes branchId
-=======
-    // Attach the user and schoolId to the request object
-    req.user = decoded;
-    req.schoolId = decoded.schoolId;
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 
     next(); // Proceed to the next middleware or route handler
   } catch (err) {
@@ -103,10 +67,6 @@ const jwtAuthMiddleware = (req, res, next) => {
   }
 };
 
-<<<<<<< HEAD
-
-=======
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 const generateToken = (Data) => {
   return jwt.sign(Data, process.env.JWT_SECRET);
 };

@@ -33,32 +33,9 @@ const parentSchema = new mongoose.Schema({
   parentRegistrationDate: { type: Date, default: Date.now },
   schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School'},
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
-<<<<<<< HEAD
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent' },
-=======
->>>>>>> b6536b20111e396bb1e323dd3a5cceff47e8aff1
 });
 
-// parentSchema.pre('save', async function (next) {
-//   const parent = this;
-//   if (!parent.isModified('password')) return next();
-//   try {
-//     const salt = await bcrypt.genSalt(10);
-//     const hashedPassword = await bcrypt.hash(parent.password, salt);
-//     parent.password = hashedPassword;
-//     next();
-//   } catch (err) {
-//     return next(err);
-//   }
-// });
-// parentSchema.methods.comparePassword = async function (password) {
-//   try {
-//     const isMatch = await bcrypt.compare(password, this.password);
-//     return isMatch;
-//   } catch (err) {
-//     throw err;
-//   }
-// };
 
 parentSchema.pre('save', async function(next) {
   if (this.isModified('password')) {
