@@ -344,7 +344,7 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
     const deviceIds = children.map(child => child.deviceId);
 
     // Query driver collection to get driver details for the deviceIds
-    const drivers = await Driver.find({ deviceId: { $in: deviceIds } }).select('deviceId driverMobile').exec();
+    const drivers = await DriverCollection.find({ deviceId: { $in: deviceIds } }).select('deviceId driverMobile').exec();
     const driverMap = new Map(drivers.map(driver => [driver.deviceId, driver.driverMobile]));
 
     // Convert children documents to plain objects and include branch and driver details
