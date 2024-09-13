@@ -102,63 +102,6 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.get('/school-mobile',jwtAuthMiddleware, async (req, res) => {
-  try {
-    const { branchId } = req.user; // Assuming branchId is included in the JWT payload
-
-    // Validate that branchId is present
-    if (!branchId) {
-      return res.status(400).json({ error: 'Branch ID not found in token' });
-    }
-
-    // Find the branch by ID
-    const branch = await Branch.findById(branchId);
-    if (!branch) {
-      return res.status(404).json({ error: 'Branch not found' });
-    }
-
-    // Return the mobile number
-    res.status(200).json({ mobileNo: branch.mobileNo });
-  } catch (error) {
-    console.error('Error fetching branch mobile number:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-router.get('/driver-mobile', jwtAuthMiddleware, async (req, res) => {
-  try {
-    // Extract parentId from the JWT token payload
-    const parentId = req.user.id;
-
-    // Find the parent to get the schoolId and branchId
-    const parent = await Parent.findById(parentId);
-    if (!parent) {
-      return res.status(400).json({ error: 'Parent not found' });
-    }
-
-    const { schoolId, branchId } = parent;
-
-    // Find the child related to the parent and extract the deviceId
-    const child = await Child.findOne({ parentId, schoolId, branchId });
-    if (!child) {
-      return res.status(404).json({ error: 'Child not found for the given parent and school/branch' });
-    }
-
-    const { deviceId } = child;
-
-    // Find the driver with the same deviceId, schoolId, and branchId
-    const driver = await DriverCollection.findOne({ deviceId, schoolId, branchId });
-    if (!driver) {
-      return res.status(404).json({ error: 'Driver not found with the same device ID, school, and branch' });
-    }
-
-    // Return the driver's mobile number
-    res.status(200).json({ mobileNo: driver.phone_no });
-  } catch (error) {
-    console.error('Error fetching driver mobile number:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 
 // get schools
 router.get('/getschools', async (req, res) => {

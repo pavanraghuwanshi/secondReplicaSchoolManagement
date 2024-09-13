@@ -127,10 +127,76 @@ router.get('/branches', schoolAuthMiddleware, async (req, res) => {
   }
 });
 
-
-
 // GET METHOD 
 // read chilren
+// router.get('/read-children', schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const { schoolId } = req; // Extract schoolId from token
+
+//     // Fetch the school along with its branches based on schoolId
+//     const school = await School.findById(schoolId)
+//       .populate({
+//         path: 'branches',
+//         select: 'branchName',
+//       })
+//       .lean();
+
+//     if (!school) {
+//       return res.status(404).json({ error: 'School not found' });
+//     }
+
+//     const result = {
+//       schoolId: school._id,
+//       schoolName: school.schoolName,
+//       branches: [],
+//     };
+
+//     const branchPromises = school.branches.map(async (branch) => {
+//       const children = await Child.find({ branchId: branch._id })
+//         .populate({
+//           path: 'parentId',
+//           select: 'parentName email phone',
+//         })
+//         .lean();
+
+//       const formattedChildren = children.map((child) => ({
+//         schoolName: school.schoolName, // Add schoolName
+//         branchName: branch.branchName,  // Add branchName
+//         childId: child._id,
+//         childName: child.childName,
+//         class: child.class,
+//         rollno: child.rollno,
+//         section: child.section,
+//         dateOfBirth: child.dateOfBirth,
+//         childAge: child.childAge,
+//         pickupPoint: child.pickupPoint,
+//         busName: child.busName,
+//         gender: child.gender,
+//         parentId: child.parentId._id,
+//         parentName: child.parentId.parentName,
+//         email: child.parentId.email,
+//         phone: child.parentId.phone,
+//         statusOfRegister: child.statusOfRegister,
+//         deviceId: child.deviceId,
+//         registrationDate: child.registrationDate,
+//         formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+//       }));
+
+//       result.branches.push({
+//         branchId: branch._id,
+//         branchName: branch.branchName,
+//         children: formattedChildren,
+//       });
+//     });
+
+//     await Promise.all(branchPromises);
+
+//     res.status(200).json(result);
+//   } catch (error) {
+//     console.error('Error fetching school data:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.get('/read-children', schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req; // Extract schoolId from token
@@ -157,31 +223,38 @@ router.get('/read-children', schoolAuthMiddleware, async (req, res) => {
       const children = await Child.find({ branchId: branch._id })
         .populate({
           path: 'parentId',
-          select: 'parentName email phone',
+          select: 'parentName email phone password',
         })
         .lean();
 
-      const formattedChildren = children.map((child) => ({
-        schoolName: school.schoolName, // Add schoolName
-        branchName: branch.branchName,  // Add branchName
-        childId: child._id,
-        childName: child.childName,
-        class: child.class,
-        rollno: child.rollno,
-        section: child.section,
-        dateOfBirth: child.dateOfBirth,
-        childAge: child.childAge,
-        pickupPoint: child.pickupPoint,
-        busName: child.busName,
-        gender: child.gender,
-        parentId: child.parentId._id,
-        parentName: child.parentId.parentName,
-        email: child.parentId.email,
-        phone: child.parentId.phone,
-        statusOfRegister: child.statusOfRegister,
-        deviceId: child.deviceId,
-        registrationDate: child.registrationDate,
-        formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+      const formattedChildren = await Promise.all(children.map(async (child) => {
+        // Decrypt the parent's password
+        const parent = await Parent.findById(child.parentId._id).lean();
+        const password = parent ? decrypt(parent.password) : '';
+
+        return {
+          schoolName: school.schoolName, // Add schoolName
+          branchName: branch.branchName,  // Add branchName
+          childId: child._id,
+          childName: child.childName,
+          class: child.class,
+          rollno: child.rollno,
+          section: child.section,
+          dateOfBirth: child.dateOfBirth,
+          childAge: child.childAge,
+          pickupPoint: child.pickupPoint,
+          busName: child.busName,
+          gender: child.gender,
+          parentId: child.parentId._id,
+          parentName: child.parentId.parentName,
+          email: child.parentId.email,
+          phone: child.parentId.phone,
+          password, // Include decrypted password here
+          statusOfRegister: child.statusOfRegister,
+          deviceId: child.deviceId,
+          registrationDate: child.registrationDate,
+          formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+        };
       }));
 
       result.branches.push({
@@ -817,29 +890,29 @@ router.get('/data-by-deviceId', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.get('/geofence', async (req, res) => {
-  const { deviceId } = req.query;
-  try {
-    const geofence = await Geofencing.findOne({ deviceId });
-    if (!geofence) {
-      return res.status(404).json({ message: 'Geofence not found' });
-    }
+// router.get('/geofence', async (req, res) => {
+//   const { deviceId } = req.query;
+//   try {
+//     const geofence = await Geofencing.findOne({ deviceId });
+//     if (!geofence) {
+//       return res.status(404).json({ message: 'Geofence not found' });
+//     }
     
-    // Structure the response data
-    const response = {
-      [geofence.deviceId]: {
-        _id: geofence._id,
-        name: geofence.name,
-        area: geofence.area,
-        isCrossed: geofence.isCrossed
-      }
-    };
+//     // Structure the response data
+//     const response = {
+//       [geofence.deviceId]: {
+//         _id: geofence._id,
+//         name: geofence.name,
+//         area: geofence.area,
+//         isCrossed: geofence.isCrossed
+//       }
+//     };
     
-    res.status(200).json(response);
-  } catch (error) {
-    res.status(500).json({ message: 'Error retrieving geofence', error });
-  }
-});
+//     res.status(200).json(response);
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error retrieving geofence', error });
+//   }
+// });
 
 
 // get data by device id
@@ -947,6 +1020,34 @@ router.get('/geofence', async (req, res) => {
 //   }
 // });
 // Route to get attendance data for admin dashboard
+router.get("/geofence", async (req, res) => {
+  try {
+    const deviceId = req.query.deviceId;
+    const geofencingData = await Geofencing.find({ deviceId });
+
+    if (!geofencingData || geofencingData.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No geofencing data found for this deviceId" });
+    }
+
+    // Restructure the response to have deviceId on top with nested geofencing data
+    const response = {
+      deviceId: deviceId,
+      geofences: geofencingData.map((data) => ({
+        _id: data._id,
+        name: data.name,
+        area: data.area,
+        isCrossed: data.isCrossed,
+      })),
+    };
+
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 const convertDate = (dateStr) => {
   const dateParts = dateStr.split('-');
   const jsDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);

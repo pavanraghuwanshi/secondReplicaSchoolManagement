@@ -208,6 +208,70 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
 
 // GET METHOD
 // Route to get all childrren
+// router.get('/read-children', superadminMiddleware, async (req, res) => {
+//   try {
+//     // Fetch all schools
+//     const schools = await School.find({}).lean();
+
+//     // Prepare an array to hold children data by school
+//     const childrenBySchool = await Promise.all(schools.map(async (school) => {
+//       // Fetch all branch data for this school
+//       const branches = await Branch.find({ schoolId: school._id }).lean();
+
+//       // Fetch children and populate parent data
+//       const children = await Child.find({ schoolId: school._id })
+//         .populate('parentId', 'parentName email phone password statusOfRegister')
+//         .lean();
+
+//       // Format children data by branch
+//       const childrenByBranch = branches.map((branch) => {
+//         const childrenInBranch = children
+//           .filter(child => child.branchId?.toString() === branch._id.toString())
+//           .map((child) => {
+//             return {
+//               childId: child._id,
+//               childName: child.childName,
+//               class: child.class,
+//               rollno: child.rollno,
+//               section: child.section,
+//               dateOfBirth: child.dateOfBirth,
+//               childAge: child.childAge,
+//               pickupPoint: child.pickupPoint,
+//               busName: child.busName,
+//               gender: child.gender,
+//               parentId: child.parentId._id,
+//               parentName: child.parentId.parentName,
+//               email: child.parentId.email,
+//               phone: child.parentId.phone,
+//               statusOfRegister: child.parentId.statusOfRegister,
+//               deviceId: child.deviceId,
+//               registrationDate: child.registrationDate,
+//               formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+//             };
+//           });
+
+//         return {
+//           branchId: branch._id,
+//           branchName: branch.branchName,
+//           children: childrenInBranch,
+//         };
+//       });
+
+//       return {
+//         schoolId: school._id,
+//         schoolName: school.schoolName,
+//         branches: childrenByBranch,
+//       };
+//     }));
+
+//     res.status(200).json({
+//       data: childrenBySchool,
+//     });
+//   } catch (error) {
+//     console.error('Error fetching children by school:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.get('/read-children', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -224,10 +288,14 @@ router.get('/read-children', superadminMiddleware, async (req, res) => {
         .lean();
 
       // Format children data by branch
-      const childrenByBranch = branches.map((branch) => {
-        const childrenInBranch = children
+      const childrenByBranch = await Promise.all(branches.map(async (branch) => {
+        const childrenInBranch = await Promise.all(children
           .filter(child => child.branchId?.toString() === branch._id.toString())
-          .map((child) => {
+          .map(async (child) => {
+            // Decrypt parent password
+            const parent = await Parent.findById(child.parentId._id).lean();
+            const password = parent ? decrypt(parent.password) : '';
+
             return {
               childId: child._id,
               childName: child.childName,
@@ -243,19 +311,21 @@ router.get('/read-children', superadminMiddleware, async (req, res) => {
               parentName: child.parentId.parentName,
               email: child.parentId.email,
               phone: child.parentId.phone,
+              password, // Include decrypted password here
               statusOfRegister: child.parentId.statusOfRegister,
               deviceId: child.deviceId,
               registrationDate: child.registrationDate,
               formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
             };
-          });
+          })
+        );
 
         return {
           branchId: branch._id,
           branchName: branch.branchName,
           children: childrenInBranch,
         };
-      });
+      }));
 
       return {
         schoolId: school._id,
@@ -273,6 +343,8 @@ router.get('/read-children', superadminMiddleware, async (req, res) => {
   }
 });
 // Route to get all parents for all schools for the superadmin
+
+
 router.get('/read-parents', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -1257,30 +1329,56 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
   }
 });
 
-router.get('/geofence', async (req, res) => {
-  const { deviceId } = req.query;
+// router.get('/geofence', async (req, res) => {
+//   const { deviceId } = req.query;
+//   try {
+//     const geofence = await Geofencing.findOne({ deviceId });
+//     if (!geofence) {
+//       return res.status(404).json({ message: 'Geofence not found' });
+//     }
+    
+//     // Structure the response data
+//     const response = {
+//       [geofence.deviceId]: {
+//         _id: geofence._id,
+//         name: geofence.name,
+//         area: geofence.area,
+//         isCrossed: geofence.isCrossed
+//       }
+//     };
+    
+//     res.status(200).json(response);
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error retrieving geofence', error });
+//   }
+// });
+router.get("/geofence", async (req, res) => {
   try {
-    const geofence = await Geofencing.findOne({ deviceId });
-    if (!geofence) {
-      return res.status(404).json({ message: 'Geofence not found' });
+    const deviceId = req.query.deviceId;
+    const geofencingData = await Geofencing.find({ deviceId });
+
+    if (!geofencingData || geofencingData.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No geofencing data found for this deviceId" });
     }
-    
-    // Structure the response data
+
+    // Restructure the response to have deviceId on top with nested geofencing data
     const response = {
-      [geofence.deviceId]: {
-        _id: geofence._id,
-        name: geofence.name,
-        area: geofence.area,
-        isCrossed: geofence.isCrossed
-      }
+      deviceId: deviceId,
+      geofences: geofencingData.map((data) => ({
+        _id: data._id,
+        name: data.name,
+        area: data.area,
+        isCrossed: data.isCrossed,
+      })),
     };
-    
-    res.status(200).json(response);
+
+    res.json(response);
   } catch (error) {
-    res.status(500).json({ message: 'Error retrieving geofence', error });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-
 router.post("/review-request/:requestId", superadminMiddleware, async (req, res) => {
   try {
     const { statusOfRequest } = req.body;

@@ -124,6 +124,8 @@ router.get("/read-children", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+
 // Get parents for a specific branch
 router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
   try {
@@ -878,27 +880,56 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
 // });
 // Get a specific geofence by deviceId
 
-router.get('/geofence', async (req, res) => {
-  const { deviceId } = req.query;
+// router.get('/geofence', async (req, res) => {
+//   const { deviceId } = req.query;
+//   try {
+//     const geofence = await Geofencing.findOne({ deviceId });
+//     if (!geofence) {
+//       return res.status(404).json({ message: 'Geofence not found' });
+//     }
+    
+//     // Structure the response data
+//     const response = {
+//       [geofence.deviceId]: {
+//         _id: geofence._id,
+//         name: geofence.name,
+//         area: geofence.area,
+//         isCrossed: geofence.isCrossed
+//       }
+//     };
+    
+//     res.status(200).json(response);
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error retrieving geofence', error });
+//   }
+// });
+
+
+router.get("/geofence", async (req, res) => {
   try {
-    const geofence = await Geofencing.findOne({ deviceId });
-    if (!geofence) {
-      return res.status(404).json({ message: 'Geofence not found' });
+    const deviceId = req.query.deviceId;
+    const geofencingData = await Geofencing.find({ deviceId });
+
+    if (!geofencingData || geofencingData.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No geofencing data found for this deviceId" });
     }
-    
-    // Structure the response data
+
+    // Restructure the response to have deviceId on top with nested geofencing data
     const response = {
-      [geofence.deviceId]: {
-        _id: geofence._id,
-        name: geofence.name,
-        area: geofence.area,
-        isCrossed: geofence.isCrossed
-      }
+      deviceId: deviceId,
+      geofences: geofencingData.map((data) => ({
+        _id: data._id,
+        name: data.name,
+        area: data.area,
+        isCrossed: data.isCrossed,
+      })),
     };
-    
-    res.status(200).json(response);
+
+    res.json(response);
   } catch (error) {
-    res.status(500).json({ message: 'Error retrieving geofence', error });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 // POST METHOD
