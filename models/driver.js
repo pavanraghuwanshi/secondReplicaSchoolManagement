@@ -10,7 +10,7 @@ const driverSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  phone_no: {
+  driverMobile: {
     type: String,
     required: true,
   },

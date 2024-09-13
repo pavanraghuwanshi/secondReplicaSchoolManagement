@@ -433,7 +433,7 @@ router.get("/read-drivers", branchAuthMiddleware, async (req, res) => {
             id: driver._id,
             driverName: driver.driverName,
             address: driver.address,
-            phone_no: driver.phone_no,
+            driverMobile: driver.driverMobile,
             email: driver.email,
             deviceId: driver.deviceId,
             password: decryptedPassword,
@@ -870,41 +870,15 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
   }
 });
 // Get all geofences
-// router.get('/geofences', async (req, res) => {
-//   try {
-//     const geofences = await Geofencing.find();
-//     res.status(200).json(geofences);
-//   } catch (error) {
-//     res.status(500).json({ message: 'Error retrieving geofences', error });
-//   }
-// });
+router.get('/geofences', async (req, res) => {
+  try {
+    const geofences = await Geofencing.find();
+    res.status(200).json(geofences);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving geofences', error });
+  }
+});
 // Get a specific geofence by deviceId
-
-// router.get('/geofence', async (req, res) => {
-//   const { deviceId } = req.query;
-//   try {
-//     const geofence = await Geofencing.findOne({ deviceId });
-//     if (!geofence) {
-//       return res.status(404).json({ message: 'Geofence not found' });
-//     }
-    
-//     // Structure the response data
-//     const response = {
-//       [geofence.deviceId]: {
-//         _id: geofence._id,
-//         name: geofence.name,
-//         area: geofence.area,
-//         isCrossed: geofence.isCrossed
-//       }
-//     };
-    
-//     res.status(200).json(response);
-//   } catch (error) {
-//     res.status(500).json({ message: 'Error retrieving geofence', error });
-//   }
-// });
-
-
 router.get("/geofence", async (req, res) => {
   try {
     const deviceId = req.query.deviceId;

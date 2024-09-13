@@ -11,7 +11,7 @@ const branchSchema = new mongoose.Schema({
     ref: 'School',
     required: true
   },
- mobileNo:{
+ schoolMobile:{
     type: String,
    default: ''
   },

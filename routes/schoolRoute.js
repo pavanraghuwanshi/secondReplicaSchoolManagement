@@ -55,7 +55,7 @@ router.post('/login', async (req, res) => {
 // Add a branch to a school (superadmin)
 router.post('/add-branch', schoolAuthMiddleware, async (req, res) => {
   try {
-    const { schoolId, branchName, email, mobileNo, username, password } = req.body;
+    const { schoolId, branchName, email, schoolMobile, username, password } = req.body;
 
     // Validate school existence
     const school = await School.findById(schoolId);
@@ -74,7 +74,7 @@ router.post('/add-branch', schoolAuthMiddleware, async (req, res) => {
       branchName,
       schoolId,
       email,
-      mobileNo,
+      schoolMobile,
       username,
       password
     });
@@ -655,7 +655,7 @@ router.get('/read-drivers', schoolAuthMiddleware, async (req, res) => {
           id: driver._id,
           driverName: driver.driverName,
           address: driver.address,
-          phone_no: driver.phone_no,
+          driverMobile: driver.driverMobile,
           email: driver.email,
           deviceId: driver.deviceId,
           password: decryptedPassword,
@@ -890,136 +890,15 @@ router.get('/data-by-deviceId', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.get('/geofence', async (req, res) => {
-//   const { deviceId } = req.query;
-//   try {
-//     const geofence = await Geofencing.findOne({ deviceId });
-//     if (!geofence) {
-//       return res.status(404).json({ message: 'Geofence not found' });
-//     }
-    
-//     // Structure the response data
-//     const response = {
-//       [geofence.deviceId]: {
-//         _id: geofence._id,
-//         name: geofence.name,
-//         area: geofence.area,
-//         isCrossed: geofence.isCrossed
-//       }
-//     };
-    
-//     res.status(200).json(response);
-//   } catch (error) {
-//     res.status(500).json({ message: 'Error retrieving geofence', error });
-//   }
-// });
-
-
-// get data by device id
-// router.get('/read/data-by-deviceId', schoolAuthMiddleware, async (req, res) => {
-//   const { deviceId } = req.query;
-//   const { schoolId } = req; // Get the schoolId from the authenticated request
-
-//   if (!deviceId) {
-//     return res.status(400).json({ error: 'Device ID is required' });
-//   }
-
-//   try {
-//     // Fetch Supervisor data associated with the schoolId
-//     const supervisor = await Supervisor.findOne({ deviceId, schoolId }).lean();
-//     let supervisorData = {};
-//     if (supervisor) {
-//       try {
-//         console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
-//         const decryptedPassword = decrypt(supervisor.password);
-//         supervisorData = {
-//           id: supervisor._id,
-//           supervisorName: supervisor.supervisorName,
-//           address: supervisor.address,
-//           phone_no: supervisor.phone_no,
-//           email: supervisor.email,
-//           deviceId: supervisor.deviceId,
-//           password: decryptedPassword,
-//           registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)),
-//           schoolName: supervisor.schoolId ? supervisor.schoolId.schoolName : null // Assuming schoolId is populated
-//         };
-//       } catch (decryptError) {
-//         console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
-//       }
-//     }
-
-//     // Fetch Driver data associated with the schoolId
-//     const driver = await DriverCollection.findOne({ deviceId, schoolId }).lean();
-//     let driverData = {};
-//     if (driver) {
-//       try {
-//         console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
-//         const decryptedPassword = decrypt(driver.password);
-//         driverData = {
-//           id: driver._id,
-//           driverName: driver.driverName,
-//           address: driver.address,
-//           phone_no: driver.phone_no,
-//           email: driver.email,
-//           deviceId: driver.deviceId,
-//           password: decryptedPassword,
-//           registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
-//           schoolName: driver.schoolId ? driver.schoolId.schoolName : null // Assuming schoolId is populated
-//         };
-//       } catch (decryptError) {
-//         console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
-//       }
-//     }
-
-//     // Fetch Branches and Requests associated with the schoolId
-//     const branches = await Branch.find({ schoolId }).lean();
-//     const branchWithRequests = await Promise.all(
-//       branches.map(async (branch) => {
-//         const requests = await Request.find({ branchId: branch._id }).lean();
-
-//         const formattedRequests = requests.map(request => ({
-//           requestId: request._id,
-//           reason: request.reason,
-//           class: request.class || 'N/A',
-//           statusOfRequest: request.statusOfRequest,
-//           parentId: request.parentId || null,
-//           parentName: request.parentId ? (await Parent.findById(request.parentId).lean()).parentName : null,
-//           phone: request.parentId ? (await Parent.findById(request.parentId).lean()).phone : null,
-//           email: request.parentId ? (await Parent.findById(request.parentId).lean()).email : null,
-//           childId: request.childId || null,
-//           childName: request.childId ? (await Child.findById(request.childId).lean()).childName : null,
-//           requestType: request.requestType,
-//           deviceId: request.deviceId || null,
-//           requestDate: request.requestDate,
-//           formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
-//           newRoute: request.newRoute || null,
-//           startDate: request.startDate || null,
-//           endDate: request.endDate || null
-//         }));
-
-//         return {
-//           branchId: branch._id,
-//           branchName: branch.branchName,
-//           requests: formattedRequests
-//         };
-//       })
-//     );
-
-//     // Combine results into desired structure
-//     const responseData = {
-//       schoolId: schoolId,
-//       schoolName: (await School.findById(schoolId)).schoolName,
-//       branches: branchWithRequests
-//     };
-
-//     res.status(200).json(responseData);
-
-//   } catch (error) {
-//     console.error('Error fetching data by deviceId:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-// Route to get attendance data for admin dashboard
+router.get('/geofences', async (req, res) => {
+  try {
+    const geofences = await Geofencing.find();
+    res.status(200).json(geofences);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving geofences', error });
+  }
+});
+// Get a specific geofence by deviceId
 router.get("/geofence", async (req, res) => {
   try {
     const deviceId = req.query.deviceId;

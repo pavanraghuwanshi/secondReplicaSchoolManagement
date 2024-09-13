@@ -66,7 +66,7 @@ router.post('/login',async (req, res) => {
 // School Registration Route
 router.post('/school-register', superadminMiddleware, async (req, res) => {
   try {
-    const { schoolName, username, password, email, mobileNo, branchName } = req.body;
+    const { schoolName, username, password, email, schoolMobile, branchName } = req.body;
 
     // Check for existing school by username or email
     const existingSchool = await School.findOne({ $or: [{ username }, { email }] });
@@ -80,7 +80,7 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
       username,
       password,
       email,
-      mobileNo
+      schoolMobile
     });
 
     const savedSchool = await newSchool.save();
@@ -89,7 +89,7 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
     const newBranch = new Branch({
       branchName,
       schoolId: savedSchool._id, // Set the schoolId
-      mobileNo: '', // Default empty value
+      schoolMobile: '', // Default empty value
       username: '', // Default empty value
       password: '', // Default empty value
       email: '' // Default empty value
@@ -115,7 +115,7 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
 // Add a branch route
 router.post('/add-branch', superadminMiddleware, async (req, res) => {
   try {
-    const { schoolId, branchName, email, mobileNo, username, password } = req.body;
+    const { schoolId, branchName, email, schoolMobile, username, password } = req.body;
 
     // Validate school existence
     const school = await School.findById(schoolId);
@@ -134,7 +134,7 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
       branchName,
       schoolId,
       email,
-      mobileNo,
+      schoolMobile,
       username,
       password
     });
@@ -158,7 +158,7 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     const schools = await School.find({})
       .populate({
         path: 'branches',
-        select: 'branchName mobileNo username email password', // Include branchName and other fields
+        select: 'branchName schoolMobile username email password', // Include branchName and other fields
       })
       .lean();
 
@@ -719,7 +719,7 @@ router.get('/read-drivers', superadminMiddleware, async (req, res) => {
               driverId: driver._id,
               driverName: driver.driverName,
               address: driver.address,
-              phone_no: driver.phone_no,
+              driverMobile: driver.driverMobile,
               email: driver.email,
               busName: driver.busName,
               deviceId: driver.deviceId,
@@ -1329,29 +1329,15 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
   }
 });
 
-// router.get('/geofence', async (req, res) => {
-//   const { deviceId } = req.query;
-//   try {
-//     const geofence = await Geofencing.findOne({ deviceId });
-//     if (!geofence) {
-//       return res.status(404).json({ message: 'Geofence not found' });
-//     }
-    
-//     // Structure the response data
-//     const response = {
-//       [geofence.deviceId]: {
-//         _id: geofence._id,
-//         name: geofence.name,
-//         area: geofence.area,
-//         isCrossed: geofence.isCrossed
-//       }
-//     };
-    
-//     res.status(200).json(response);
-//   } catch (error) {
-//     res.status(500).json({ message: 'Error retrieving geofence', error });
-//   }
-// });
+router.get('/geofences', async (req, res) => {
+  try {
+    const geofences = await Geofencing.find();
+    res.status(200).json(geofences);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving geofences', error });
+  }
+});
+
 router.get("/geofence", async (req, res) => {
   try {
     const deviceId = req.query.deviceId;

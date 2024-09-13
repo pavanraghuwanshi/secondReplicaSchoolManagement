@@ -21,7 +21,7 @@ const schoolSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  mobileNo:{
+  schoolMobile:{
     type: Number,
     required: true
   },

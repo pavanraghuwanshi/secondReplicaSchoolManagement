@@ -264,9 +264,62 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
 });
 
 
-
-
 // Get Children List Route
+// router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
+//   try {
+//     const parentId = req.user.id;
+//     const schoolId = req.user.schoolId; // Assuming schoolId is in the JWT payload
+
+//     // Fetch the parent data and populate children that match the schoolId
+//     const parent = await Parent.findById(parentId).populate({
+//       path: 'children',
+//       match: { schoolId: schoolId }, // Filter children by schoolId
+//       populate: {
+//         path: 'branchId', // Populate branchId to get branch details
+//         select: 'branchName', // Include the branchName field in the branch document
+//       }
+//     }).exec(); // Ensure .exec() is used to execute the query
+
+//     if (!parent) {
+//       return res.status(404).json({ error: 'Parent not found' });
+//     }
+
+//     // Log parent and children to debug
+//     console.log('Parent Data:', parent);
+//     parent.children.forEach(child => {
+//       console.log('Child Data:', {
+//         _id: child._id,
+//         branchId: child.branchId, // Log branchId to verify its presence
+//       });
+//     });
+
+//     // Convert children documents to plain objects and include branch details
+//     const childrenData = parent.children.map(child => ({
+//       _id: child._id,
+//       childName: child.childName,
+//       class: child.class,
+//       rollno: child.rollno,
+//       section: child.section,
+//       schoolName: child.schoolName,
+//       dateOfBirth: child.dateOfBirth,
+//       childAge: child.childAge,
+//       pickupPoint: child.pickupPoint,
+//       schoolId: child.schoolId,
+//       branchName: child.branchId?.branchName || "N/A", // Directly include branchName
+//       busName: child.busName,
+//       gender: child.gender,
+//       parentId: child.parentId,
+//       deviceId: child.deviceId,
+//       registrationDate: child.registrationDate,
+//     }));
+
+//     // Respond with children data including branch information
+//     res.status(200).json({ children: childrenData });
+//   } catch (error) {
+//     console.error('Error fetching child data:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
@@ -278,7 +331,7 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
       match: { schoolId: schoolId }, // Filter children by schoolId
       populate: {
         path: 'branchId', // Populate branchId to get branch details
-        select: 'branchName', // Include the branchName field in the branch document
+        select: 'branchName schoolMobile', // Include branchName and schoolMobile fields in the branch document
       }
     }).exec(); // Ensure .exec() is used to execute the query
 
@@ -286,17 +339,16 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Parent not found' });
     }
 
-    // Log parent and children to debug
-    console.log('Parent Data:', parent);
-    parent.children.forEach(child => {
-      console.log('Child Data:', {
-        _id: child._id,
-        branchId: child.branchId, // Log branchId to verify its presence
-      });
-    });
+    // Extract children with deviceId to query driver collection
+    const children = parent.children;
+    const deviceIds = children.map(child => child.deviceId);
 
-    // Convert children documents to plain objects and include branch details
-    const childrenData = parent.children.map(child => ({
+    // Query driver collection to get driver details for the deviceIds
+    const drivers = await Driver.find({ deviceId: { $in: deviceIds } }).select('deviceId driverMobile').exec();
+    const driverMap = new Map(drivers.map(driver => [driver.deviceId, driver.driverMobile]));
+
+    // Convert children documents to plain objects and include branch and driver details
+    const childrenData = children.map(child => ({
       _id: child._id,
       childName: child.childName,
       class: child.class,
@@ -308,14 +360,16 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
       pickupPoint: child.pickupPoint,
       schoolId: child.schoolId,
       branchName: child.branchId?.branchName || "N/A", // Directly include branchName
+      schoolMobile: child.branchId?.schoolMobile || "N/A", // Include schoolMobile
       busName: child.busName,
       gender: child.gender,
       parentId: child.parentId,
       deviceId: child.deviceId,
       registrationDate: child.registrationDate,
+      driverMobile: driverMap.get(child.deviceId) || "N/A" // Add driverMobile
     }));
 
-    // Respond with children data including branch information
+    // Respond with children data including branch and driver information
     res.status(200).json({ children: childrenData });
   } catch (error) {
     console.error('Error fetching child data:', error);

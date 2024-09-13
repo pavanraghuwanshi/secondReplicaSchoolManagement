@@ -8,7 +8,7 @@ exports.registerDriver = async (req, res) => {
   try {
     const {
       driverName,
-      phone_no,
+      driverMobile,
       email,
       address,
       password,
@@ -44,7 +44,7 @@ exports.registerDriver = async (req, res) => {
     // Create new driver linked to the school and branch
     const newDriver = new DriverCollection({
       driverName,
-      phone_no,
+      driverMobile,
       email,
       address,
       password, // Ensure password is hashed in schema or before saving
@@ -135,7 +135,7 @@ exports.getDriverData = async (req, res) => {
     // Create a simplified response object
     const response = {
       driverName: driver.driverName,
-      phone_no: driver.phone_no,
+      driverMobile: driver.driverMobile,
       email: driver.email,
       address: driver.address,
       deviceId: driver.deviceId,
@@ -155,14 +155,14 @@ exports.getDriverData = async (req, res) => {
 
 exports.updateDriver = async (req, res) => {
   try {
-    const { driverName, address, phone_no, email } = req.body;
+    const { driverName, address, driverMobile, email } = req.body;
     const driverId = req.user.id;
     const schoolId = req.user.schoolId; // Assuming schoolId is part of the token payload or user info
 
     // Find and update the driver by ID and ensure it matches the school context
     const driver = await DriverCollection.findOneAndUpdate(
       { _id: driverId, schoolId }, // Include schoolId in the query to ensure proper association
-      { driverName, address, phone_no, email },
+      { driverName, address, driverMobile, email },
       { new: true }
     );
 
