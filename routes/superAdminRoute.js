@@ -1331,8 +1331,34 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
 
 router.get('/geofences', async (req, res) => {
   try {
+    // Fetch all geofences
     const geofences = await Geofencing.find();
-    res.status(200).json(geofences);
+
+    // Group geofences by deviceId and include "deviceId" as a key
+    const groupedGeofences = geofences.reduce((acc, geofence) => {
+      const deviceId = geofence.deviceId.toString(); // Ensure deviceId is a string for consistency
+      if (!acc[deviceId]) {
+        acc[deviceId] = [];
+      }
+      acc[deviceId].push({
+        _id: geofence._id,
+        name: geofence.name,
+        area: geofence.area,
+        isCrossed: geofence.isCrossed,
+        deviceId: geofence.deviceId,
+        __v: geofence.__v
+      });
+      return acc;
+    }, {});
+
+    // Transform groupedGeofences to include "deviceId" key in the format required
+    const transformedResponse = Object.entries(groupedGeofences).reduce((acc, [deviceId, geofences]) => {
+      acc[`deviceId: ${deviceId}`] = geofences;
+      return acc;
+    }, {});
+
+    // Respond with the transformed geofences
+    res.status(200).json(transformedResponse);
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving geofences', error });
   }
