@@ -1238,6 +1238,8 @@ router.put("/update-driver/:id", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
 // DELETE METHOD
 // Delete child
 router.delete("/delete/child/:childId",branchAuthMiddleware,async (req, res) => {
@@ -1301,7 +1303,7 @@ router.delete("/delete/child/:childId",branchAuthMiddleware,async (req, res) => 
     }
   }
 );
-// DELETE METHOD
+
 // Delete parent
 router.delete("/delete-parent/:id", branchAuthMiddleware, async (req, res) => {
   const parentId = req.params.id;
@@ -1330,7 +1332,7 @@ router.delete("/delete-parent/:id", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// DELETE METHOD
+
 // Delete driver
 router.delete("/delete-driver/:id", branchAuthMiddleware, async (req, res) => {
   try {
@@ -1356,7 +1358,7 @@ router.delete("/delete-driver/:id", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// DELETE METHOD
+
 // Delete supervisor
 router.delete("/delete-supervisor/:id",branchAuthMiddleware,async (req, res) => {
     try {
