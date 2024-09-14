@@ -537,6 +537,7 @@ router.get("/read-supervisors", branchAuthMiddleware, async (req, res) => {
           email: supervisor.email,
           deviceId: supervisor.deviceId,
           password: decryptedPassword,
+          deviceName:supervisor.deviceName,
           registrationDate: supervisor.registrationDate,
           formattedRegistrationDate: formatDateToDDMMYYYY(
             new Date(supervisor.registrationDate)

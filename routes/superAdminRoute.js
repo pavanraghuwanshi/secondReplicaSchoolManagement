@@ -822,6 +822,7 @@ router.get('/read-supervisors', superadminMiddleware, async (req, res) => {
                 phone_no: supervisor.phone_no,
                 email: supervisor.email,
                 deviceId: supervisor.deviceId,
+                deviceName:supervisor.deviceName,
                 schoolName: supervisor.schoolId ? supervisor.schoolId.schoolName : 'N/A', // Access the populated schoolName
                 branchName: supervisor.branchId ? supervisor.branchId.branchName : 'Branch not found', // Include branchName
                 registrationDate: supervisor.registrationDate,

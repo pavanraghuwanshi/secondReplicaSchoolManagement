@@ -738,6 +738,7 @@ router.get('/read-supervisors', schoolAuthMiddleware, async (req, res) => {
           phone_no: supervisor.phone_no,
           email: supervisor.email,
           deviceId: supervisor.deviceId,
+          deviceName:supervisor.deviceName,
           password: decryptedPassword,
           registrationDate: supervisor.registrationDate,
           formattedRegistrationDate: supervisor.registrationDate ? formatDateToDDMMYYYY(new Date(supervisor.registrationDate)) : null,
