@@ -7,25 +7,64 @@ const { generateToken} = require("../jwt");
 // const sendNotification = require("../utils/sendNotification");
 const School = require("../models/school");
 const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
-
+const Device = require('../models/device');
 
 
 // Fetch School List Route
 exports.getSchools =  async (req, res) => {
   try {
-    const schools = await School.find().populate('branches');
+    // Fetch schools and populate their branches
+    const schools = await School.find().populate('branches').exec();
 
+    // Format the response
     const response = schools.map(school => {
       return {
         schoolName: school.schoolName,
-        mainBranch: school.mainBranch, // Main branch
-        branches: school.branches.map(branch => branch.branchName) // Additional branches
+        branches: school.branches.map(branch => ({
+          branchName: branch.branchName // Extract branch names
+        }))
       };
     });
 
     res.status(200).json({ schools: response });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+}
+exports.getDevices = async (req, res) => {
+  try {
+    const { schoolName, branchName } = req.query;
+
+    // Validate that required fields are present
+    if (!schoolName || !branchName) {
+      return res.status(400).json({ error: 'School name and branch name are required' });
+    }
+
+    // Find the school by name
+    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+    if (!school) {
+      return res.status(404).json({ message: 'School not found' });
+    }
+
+    // Find the branch by name within the school
+    const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+    if (!branch) {
+      return res.status(404).json({ message: 'Branch not found in the specified school' });
+    }
+
+    // Fetch devices linked to the branch
+    const devices = await Device.find({ branchId: branch._id }).exec();
+
+    // Format the response
+    const response = devices.map(device => ({
+      deviceId: device.deviceId,
+      deviceName: device.deviceName
+    }));
+
+    res.status(200).json({ devices: response });
+  } catch (error) {
+    console.error('Error fetching devices:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 exports.registerSupervisor = async (req, res) => {
@@ -36,7 +75,7 @@ exports.registerSupervisor = async (req, res) => {
       password,
       phone_no,
       address,
-      busName,
+      deviceName,
       deviceId,
       schoolName,
       branchName // Expect branch in the request
@@ -72,7 +111,7 @@ exports.registerSupervisor = async (req, res) => {
       password, // Password hashing should be handled in the schema or middleware
       phone_no,
       address,
-      busName,
+      deviceName,
       deviceId,
       schoolId: school._id, // Link to the school's ID
       branchId: branch._id,  // Link to the branch's ID
@@ -163,7 +202,7 @@ exports.getSupervisordata = async (req, res) => {
       email: supervisor.email,
       phone_no: supervisor.phone_no,
       deviceId: supervisor.deviceId,
-      busName: supervisor.busName,
+      deviceName: supervisor.deviceName,
       schoolName: supervisor.schoolId.schoolName, // Get schoolName from populated field
       branchName: supervisor.branchId.branchName, // Get branchName from populated field
       registrationDate: supervisor.registrationDate

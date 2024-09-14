@@ -28,21 +28,17 @@ const supervisorSchema = new mongoose.Schema({
   aadharImage: {
     type: String,
   },
-  deviceId: {
-    type: String,
-  },
   schoolId: {
     type: String,
   },
   profileImage: {
     type: String,
   },
-  busName:{
-    type: String
-  },
+  deviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Device', required: true },
   registrationDate: { type: Date, default: Date.now },
   schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
-  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }
+  deviceId:{type: String, required: true},
+  deviceName:{type:String, required: true},
 });
 
 supervisorSchema.pre('save', async function(next) {

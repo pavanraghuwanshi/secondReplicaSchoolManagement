@@ -13,6 +13,8 @@ const { formatDateToDDMMYYYY } = require('../utils/dateUtils');
 const jwt = require("jsonwebtoken");
 const Branch = require('../models/branch');
 const Geofencing = require("../models/geofence");
+const Device = require('../models/device');
+
 
 // Login route for schools
 router.post('/login', async (req, res) => {
@@ -1477,8 +1479,6 @@ router.post("/review-request/:requestId",schoolAuthMiddleware,async (req, res) =
     }
   }
 );
-
-
 // registration status
 router.post('/registerStatus/:parentId/', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -1509,6 +1509,103 @@ router.post('/registerStatus/:parentId/', schoolAuthMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// add a new device
+router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { deviceId, deviceName, schoolName, branchName } = req.body;
+
+    // Validate the required fields
+    if (!deviceId || !deviceName || !schoolName || !branchName) {
+      return res.status(400).json({ message: 'All fields (deviceId, deviceName, schoolName, branchName) are required' });
+    }
+
+    // Find the school by name
+    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+    if (!school) {
+      return res.status(404).json({ message: 'School not found' });
+    }
+
+    // Find the branch by name within the school
+    const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+    if (!branch) {
+      return res.status(404).json({ message: 'Branch not found in the specified school' });
+    }
+
+    // Check if a device with the same ID already exists
+    const existingDevice = await Device.findOne({ deviceId });
+    if (existingDevice) {
+      return res.status(400).json({ message: 'Device with this ID already exists' });
+    }
+
+    // Create a new device linked to the school and branch
+    const newDevice = new Device({
+      deviceId,
+      deviceName,
+      schoolId: school._id,  // Link to the school's ID
+      branchId: branch._id   // Link to the branch's ID
+    });
+
+    // Save the device
+    await newDevice.save();
+
+    // Return success response
+    res.status(201).json({ message: 'Device created successfully', device: newDevice });
+  } catch (error) {
+    console.error('Error adding device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+// read devices
+router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
+  const { schoolId } = req; // Assuming schoolId comes from authentication middleware
+
+  try {
+    // Fetch all branches associated with the current school
+    const branches = await Branch.find({ schoolId }).lean();
+
+    // Create a map to group devices by branches
+    const branchesMap = {};
+
+    // Loop through each branch to get devices
+    for (const branch of branches) {
+      const branchId = branch._id;
+
+      // Fetch all devices for the current branch
+      const devices = await Device.find({ schoolId: schoolId, branchId: branchId }).lean();
+
+      // Map over devices and return the relevant details
+      const formattedDevices = devices.map((device) => ({
+        deviceId: device.deviceId, // Correctly reference deviceId from the schema
+        deviceName: device.deviceName,
+      }));
+
+      // Add the branch and its devices to the branchesMap
+      branchesMap[branchId] = {
+        branchId: branchId,
+        branchName: branch.branchName,
+        devices: formattedDevices,
+      };
+    }
+
+    // Convert branchesMap object into an array of branches
+    const branchesArray = Object.values(branchesMap);
+
+    // Prepare the final response data
+    const responseData = {
+      schoolId: schoolId,
+      schoolName: branches.length > 0 ? branches[0].schoolId.schoolName : 'N/A',
+      branches: branchesArray,
+    };
+
+    // Send the formatted devices grouped by branches as a JSON response
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error('Error fetching devices by school:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 //PUT METHOD
 // Update child information

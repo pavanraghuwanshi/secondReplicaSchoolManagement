@@ -13,6 +13,7 @@ router.put('/mark-pickup',jwtAuthMiddleware,supervisorController.markPickup);
 router.put('/mark-drop',jwtAuthMiddleware,supervisorController.markDrop);
 router.post('/add-geofence',jwtAuthMiddleware,supervisorController.addGeofence);
 router.get("/getschools", supervisorController.getSchools);
+router.get("/get-devices", supervisorController.getDevices);
 router.delete('/delete-geofence/:id',jwtAuthMiddleware,supervisorController.deleteGeofence);
 // router.put('/geofencing/:id',jwtAuthMiddleware,supervisorController.updateGeofencing);
 // router.put("/update-password",  jwtAuthMiddleware,supervisorController.updatePassword);

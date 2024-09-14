@@ -11,10 +11,10 @@ const childSchema = new mongoose.Schema({
   pickupPoint:{type: String},
   schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true }, 
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
-  busName:{type:String},
   gender: { type: String, enum: ['female', 'male'], required: true },
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', required: true },
-  deviceId: { type: String, default: null },
+  deviceId:{type: String, required: true},
+  deviceName:{type:String, required: true},
   registrationDate: { type: Date, default: Date.now },
   // statusOfRegister: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
 });

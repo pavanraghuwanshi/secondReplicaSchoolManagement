@@ -29,13 +29,7 @@ const driverSchema = new mongoose.Schema({
   aadharImage: {
     type: String,
   },
-  deviceId: {
-    type: String,
-  },
   profileImage: {
-    type: String,
-  },
-  busName: {
     type: String,
   },
   schoolId: { // Correct schoolId definition
@@ -47,6 +41,8 @@ const driverSchema = new mongoose.Schema({
     type: Date, 
     default: Date.now 
   },
+  deviceId:{type: String, required: true},
+  deviceName:{type:String, required: true},
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }
 });
 

@@ -2,7 +2,7 @@ const DriverCollection = require("../models/driver");
 const { generateToken } = require("../jwt");
 const School = require("../models/school");
 const Branch = require('../models/branch');
-
+const Device = require('../models/device');
 
 exports.registerDriver = async (req, res) => {
   try {
@@ -12,7 +12,7 @@ exports.registerDriver = async (req, res) => {
       email,
       address,
       password,
-      busName,
+      deviceName,
       deviceId,
       schoolName,
       branchName
@@ -48,7 +48,7 @@ exports.registerDriver = async (req, res) => {
       email,
       address,
       password, // Ensure password is hashed in schema or before saving
-      busName,
+      deviceName,
       deviceId,
       schoolId: school._id, // Link to the school's ID
       branchId: branch._id  // Link to the branch's ID
@@ -68,19 +68,58 @@ exports.registerDriver = async (req, res) => {
 //Fetch School List Route
 exports.getSchools =  async (req, res) => {
   try {
-    const schools = await School.find().populate('branches');
+    // Fetch schools and populate their branches
+    const schools = await School.find().populate('branches').exec();
 
+    // Format the response
     const response = schools.map(school => {
       return {
         schoolName: school.schoolName,
-        mainBranch: school.mainBranch, // Main branch
-        branches: school.branches.map(branch => branch.branchName) // Additional branches
+        branches: school.branches.map(branch => ({
+          branchName: branch.branchName // Extract branch names
+        }))
       };
     });
 
     res.status(200).json({ schools: response });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+}
+exports.getDevices = async (req, res) => {
+  try {
+    const { schoolName, branchName } = req.query;
+
+    // Validate that required fields are present
+    if (!schoolName || !branchName) {
+      return res.status(400).json({ error: 'School name and branch name are required' });
+    }
+
+    // Find the school by name
+    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+    if (!school) {
+      return res.status(404).json({ message: 'School not found' });
+    }
+
+    // Find the branch by name within the school
+    const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+    if (!branch) {
+      return res.status(404).json({ message: 'Branch not found in the specified school' });
+    }
+
+    // Fetch devices linked to the branch
+    const devices = await Device.find({ branchId: branch._id }).exec();
+
+    // Format the response
+    const response = devices.map(device => ({
+      deviceId: device.deviceId,
+      deviceName: device.deviceName
+    }));
+
+    res.status(200).json({ devices: response });
+  } catch (error) {
+    console.error('Error fetching devices:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 exports.loginDriver = async (req, res) => {
@@ -117,7 +156,6 @@ exports.loginDriver = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-
 exports.getDriverData = async (req, res) => {
   try {
     const driverId = req.user.id;
@@ -139,7 +177,7 @@ exports.getDriverData = async (req, res) => {
       email: driver.email,
       address: driver.address,
       deviceId: driver.deviceId,
-      busName: driver.busName,
+      deviceName: driver.deviceName,
       schoolName: driver.schoolId.schoolName, // Get schoolName from populated field
       branchName: driver.branchId ? driver.branchId.branchName : 'N/A', // Get branchName from populated field or use 'N/A' if not available
       registrationDate: driver.registrationDate
@@ -152,7 +190,6 @@ exports.getDriverData = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-
 exports.updateDriver = async (req, res) => {
   try {
     const { driverName, address, driverMobile, email } = req.body;
