@@ -302,7 +302,7 @@ router.get('/read-parents', schoolAuthMiddleware, async (req, res) => {
     parents.forEach(parent => {
       if (parent.branchId) {
         const branchId = parent.branchId._id.toString();
-        
+
         if (!branchesMap[branchId]) {
           branchesMap[branchId] = {
             branchId: branchId,
@@ -318,7 +318,8 @@ router.get('/read-parents', schoolAuthMiddleware, async (req, res) => {
           phone: parent.phone,
           address: parent.address,
           password: decrypt(parent.password), // Decrypt the password
-          formattedParentRegistrationDate: formatDateToDDMMYYYY(new Date(parent.parentRegistrationDate)),
+          registrationDate: formatDateToDDMMYYYY(new Date(parent.parentRegistrationDate)),
+          statusOfRegister: parent.statusOfRegister, // Add statusOfRegister field
           schoolId: school._id, // Add schoolId to parent data
           schoolName: school.schoolName, // Add schoolName to parent data
           children: parent.children.map(child => ({
@@ -342,6 +343,7 @@ router.get('/read-parents', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 // Get all pending requests
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
@@ -364,7 +366,7 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
           path: "schoolId branchId",
           select: "schoolName branchName", // Only include the names
         },
-        select: "childName class schoolId branchId", // Ensure we get the schoolId and branchId
+        select: "childName class schoolId branchId deviceId", // Ensure we get the schoolId and branchId
       })
       .populate("parentId", "parentName email phone password parentRegistrationDate")
       .lean();
@@ -393,17 +395,22 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
         childId: request.childId._id,
         childName: request.childId.childName,
         requestType: request.requestType,
-        deviceId: request.deviceId || null,
+        //deviceId: request.deviceId || null,
         requestDate: request.requestDate,
-        formattedRequestDate: request.requestDate
+        deviceId: request.childId.deviceId,
+        requestDate: request.requestDate
           ? formatDateToDDMMYYYY(new Date(request.requestDate))
           : null,
       };
 
       // Add fields conditionally based on the request type
       if (request.requestType === "leave") {
-        formattedRequest.startDate = request.startDate || null;
-        formattedRequest.endDate = request.endDate || null;
+        formattedRequest.startDate = request.startDate
+          ? formatDateToDDMMYYYY(new Date(request.startDate))
+          : null;
+        formattedRequest.endDate = request.endDate
+          ? formatDateToDDMMYYYY(new Date(request.endDate))
+          : null;
         formattedRequest.newRoute = null;
       } else if (request.requestType === "changeRoute") {
         formattedRequest.newRoute = request.newRoute || null;

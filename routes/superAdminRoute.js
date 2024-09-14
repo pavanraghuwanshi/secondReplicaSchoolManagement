@@ -343,8 +343,6 @@ router.get('/read-children', superadminMiddleware, async (req, res) => {
   }
 });
 // Route to get all parents for all schools for the superadmin
-
-
 router.get('/read-parents', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -371,22 +369,37 @@ router.get('/read-parents', superadminMiddleware, async (req, res) => {
 
         // Fetch parents for the current branch
         const parents = await Parent.find({ schoolId, branchId })
-          .populate('children', '_id name ') // Populate child IDs and details
+          .populate('children', '_id childName registrationDate') // Populate childName and registrationDate
           .lean();
 
         // Transform and aggregate parent data
-        const transformedParents = parents.map(parent => {
+        const transformedParents = await Promise.all(parents.map(async (parent) => {
+          let decryptedPassword;
+          try {
+            decryptedPassword = decrypt(parent.password); // Decrypt the password
+          } catch (decryptError) {
+            console.error(`Error decrypting password for parent ${parent.parentName}`, decryptError);
+            decryptedPassword = null;
+          }
+
+          // Transform children data with formatted registration date
+          const transformedChildren = parent.children.map(child => ({
+            childId: child._id,
+            childName: child.childName,
+            registrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+          }));
+
           return {
             parentId: parent._id,
             parentName: parent.parentName,
             email: parent.email,
             phone: parent.phone,
-            children: parent.children.map(child => ({
-              childId: child._id,
-              childName: child.name
-            })),
+            password: decryptedPassword, // Decrypted password
+            registrationDate: formatDateToDDMMYYYY(new Date(parent.parentRegistrationDate)), // Format parent's registration date
+            statusOfRegister: parent.statusOfRegister, // Status of parent registration
+            children: transformedChildren,
           };
-        });
+        }));
 
         // Add the branch data to the branchesData array
         branchesData.push({
@@ -475,8 +488,12 @@ router.get('/pending-requests', superadminMiddleware, async (req, res) => {
 
           // Add fields conditionally based on the request type
           if (request.requestType === "leave") {
-            formattedRequest.startDate = request.startDate || null;
-            formattedRequest.endDate = request.endDate || null;
+            formattedRequest.startDate = request.startDate
+              ? formatDateToDDMMYYYY(new Date(request.startDate))
+              : null;
+            formattedRequest.endDate = request.endDate
+              ? formatDateToDDMMYYYY(new Date(request.endDate))
+              : null;
           } else if (request.requestType === "changeRoute") {
             formattedRequest.newRoute = request.newRoute || null;
           }
@@ -757,7 +774,6 @@ router.get('/read-drivers', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Route to get all supervisors across all schools for the superadmin
 router.get('/read-supervisors', superadminMiddleware, async (req, res) => {
   try {

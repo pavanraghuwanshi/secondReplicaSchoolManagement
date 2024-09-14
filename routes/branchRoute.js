@@ -14,12 +14,48 @@ const School = require("../models/school");
 const Geofencing = require("../models/geofence");
 
 // Login route for branches
+// router.post("/login", async (req, res) => {
+//   const { username, password } = req.body;
+
+//   try {
+//     // Find the branch by username
+//     const branch = await Branch.findOne({ username });
+//     if (!branch) {
+//       return res.status(400).json({ error: "Invalid username or password" });
+//     }
+
+//     // Compare the provided password with the stored hashed password
+//     const isMatch = await branch.comparePassword(password);
+//     if (!isMatch) {
+//       return res.status(400).json({ error: "Invalid username or password" });
+//     }
+
+//     // Generate the token using the existing function
+//     const token = generateToken({
+//       id: branch._id,
+//       username: branch.username,
+//       role: "branch",
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Login successful",
+//       token,
+//       role: "branch",
+//     });
+//   } catch (error) {
+//     console.error("Error during login:", error);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// });
+
+
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
     // Find the branch by username
-    const branch = await Branch.findOne({ username });
+    const branch = await Branch.findOne({ username }).populate('schoolId'); // Populate schoolId to get school details
     if (!branch) {
       return res.status(400).json({ error: "Invalid username or password" });
     }
@@ -30,11 +66,17 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Invalid username or password" });
     }
 
-    // Generate the token using the existing function
+    // Extract schoolName and branchName
+    const schoolName = branch.schoolId.schoolName; // Access populated school details
+    const branchName = branch.branchName;
+
+    // Generate the token with additional details
     const token = generateToken({
       id: branch._id,
       username: branch.username,
       role: "branch",
+      schoolName: schoolName,
+      branchName: branchName,
     });
 
     res.status(200).json({
@@ -42,13 +84,14 @@ router.post("/login", async (req, res) => {
       message: "Login successful",
       token,
       role: "branch",
+      schoolName,
+      branchName
     });
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 // Get all children for a specific branch (Authenticated branch user)
 router.get("/read-children", branchAuthMiddleware, async (req, res) => {
@@ -124,8 +167,6 @@ router.get("/read-children", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-
 // Get parents for a specific branch
 router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
   try {
@@ -136,18 +177,22 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
     if (!branch) {
       return res.status(404).json({ error: "Branch not found" });
     }
-    const branchName = branch.branch;
+    const branchName = branch.branchName;
 
     // Fetch all parents for the specific branch
     const parents = await Parent.find({ branchId })
-      .populate("children")
-      .lean();
+      .populate({
+        path: 'children',       // Populate the 'children' field in Parent
+        select: 'childName'  // Include childName and registrationDate
+      })
+      .lean(); // Use lean() for better performance with read-only queries
 
+    // Transform and decrypt parent and children data
     const transformedParents = await Promise.all(
       parents.map(async (parent) => {
         let decryptedPassword;
         try {
-          decryptedPassword = decrypt(parent.password); // Decrypt the password
+          decryptedPassword = decrypt(parent.password);
           console.log(
             `Decrypted password for parent ${parent.parentName}: ${decryptedPassword}`
           );
@@ -159,18 +204,15 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
           return null;
         }
 
-        // Format child dates
         const transformedChildren = parent.children.map((child) => ({
-          ...child,
-          formattedRegistrationDate: formatDateToDDMMYYYY(
-            new Date(child.registrationDate)
-          ),
+          childId: child._id,
+          childName: child.childName
         }));
 
         return {
           ...parent,
           password: decryptedPassword,
-          formattedRegistrationDate: formatDateToDDMMYYYY(
+          registrationDate: formatDateToDDMMYYYY(
             new Date(parent.parentRegistrationDate)
           ),
           children: transformedChildren,
@@ -182,18 +224,21 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
       (parent) => parent !== null
     );
 
-    // Structure the response with branchName as the top-level key
     const response = {
       branchName: branchName,
       parents: filteredParents,
     };
 
+    // Send the response
     res.status(200).json(response);
   } catch (error) {
     console.error("Error fetching parents:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
+
 // Fetch pending requests for a specific branch
 router.get("/pending-requests", branchAuthMiddleware, async (req, res) => {
   try {
@@ -243,15 +288,19 @@ router.get("/pending-requests", branchAuthMiddleware, async (req, res) => {
         branchName: request.childId.branchId?.branchName || null, // Include branchName
         schoolName: request.childId.schoolId?.schoolName || null, // Include schoolName
         requestType: request.requestType,
-        requestDate: request.requestDate,
-        formattedRequestDate: request.requestDate
+        rquestDate: request.requestDate
           ? formatDateToDDMMYYYY(new Date(request.requestDate))
           : null,
       };
 
+      // Add fields conditionally based on the request type and format dates if available
       if (request.requestType === "leave") {
-        formattedRequest.startDate = request.startDate || null;
-        formattedRequest.endDate = request.endDate || null;
+        formattedRequest.startDate = request.startDate
+          ? formatDateToDDMMYYYY(new Date(request.startDate))
+          : null;
+        formattedRequest.endDate = request.endDate
+          ? formatDateToDDMMYYYY(new Date(request.endDate))
+          : null;
         formattedRequest.newRoute = null;
       } else if (request.requestType === "changeRoute") {
         formattedRequest.newRoute = request.newRoute || null;
