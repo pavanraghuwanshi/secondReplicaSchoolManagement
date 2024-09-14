@@ -807,7 +807,6 @@ router.get("/pickup-drop-status", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Present Children
 router.get("/present-children", branchAuthMiddleware, async (req, res) => {
   try {
@@ -1210,6 +1209,7 @@ router.post('/add-device', branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 

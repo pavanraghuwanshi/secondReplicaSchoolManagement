@@ -17,7 +17,6 @@ const Geofencing = require("../models/geofence");
 const Device = require('../models/device');
 
 
-
 router.post('/register', async (req, res) => {
   try {
     const data = {
@@ -1897,7 +1896,7 @@ router.delete('/delete-supervisor/:id', superadminMiddleware, async (req, res) =
   }
 });
 // school delete
-router.delete('/school-delete/:schoolId', superadminMiddleware, async (req, res) => {
+router.delete('/delete-school/:schoolId', superadminMiddleware, async (req, res) => {
   try {
     const { schoolId } = req.params;
 
@@ -1918,14 +1917,14 @@ router.delete('/school-delete/:schoolId', superadminMiddleware, async (req, res)
       }
       await Parent.deleteMany({ schoolId: school._id });
       await Supervisor.deleteMany({ branchId: branch._id });
-      await Driver.deleteMany({ branchId: branch._id });
+      await DriverCollection.deleteMany({ branchId: branch._id });
     }
 
-    // Delete all branches
+    // Delete all branches associated with the school
     await Branch.deleteMany({ schoolId: school._id });
     
-    // Delete the school
-    await school.remove();
+    // Delete the school using deleteOne()
+    await School.deleteOne({ _id: schoolId });
 
     res.status(200).json({ message: 'School, branches, and all related data deleted successfully' });
   } catch (error) {
@@ -1934,7 +1933,7 @@ router.delete('/school-delete/:schoolId', superadminMiddleware, async (req, res)
   }
 });
 //branch delete
-router.delete('/branch-delete/:branchId', superadminMiddleware, async (req, res) => {
+router.delete('/delete-branch/:branchId', superadminMiddleware, async (req, res) => {
   try {
     const { branchId } = req.params;
 
@@ -1957,10 +1956,10 @@ router.delete('/branch-delete/:branchId', superadminMiddleware, async (req, res)
 
     // Delete supervisors and drivers associated with the branch
     await Supervisor.deleteMany({ branchId: branch._id });
-    await Driver.deleteMany({ branchId: branch._id });
+    await DriverCollection.deleteMany({ branchId: branch._id });
 
-    // Finally, delete the branch itself
-    await branch.remove();
+    // Delete the branch itself using deleteOne()
+    await Branch.deleteOne({ _id: branchId });
 
     res.status(200).json({ message: 'Branch and all related data deleted successfully' });
   } catch (error) {
@@ -1968,6 +1967,7 @@ router.delete('/branch-delete/:branchId', superadminMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 module.exports = router;
