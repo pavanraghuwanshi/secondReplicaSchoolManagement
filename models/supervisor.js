@@ -39,6 +39,7 @@ const supervisorSchema = new mongoose.Schema({
   schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
   deviceId:{type: String, required: true},
   deviceName:{type:String, required: true},
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }
 });
 
 supervisorSchema.pre('save', async function(next) {
