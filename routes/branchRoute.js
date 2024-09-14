@@ -50,8 +50,6 @@ const Device = require('../models/device');
 //     res.status(500).json({ error: "Server error" });
 //   }
 // });
-
-
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
@@ -94,7 +92,6 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 // Get all children for a specific branch (Authenticated branch user)
 router.get("/read-children", branchAuthMiddleware, async (req, res) => {
   try {
@@ -170,6 +167,74 @@ router.get("/read-children", branchAuthMiddleware, async (req, res) => {
   }
 });
 // Get parents for a specific branch
+// router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
+//   try {
+//     const { branchId } = req;
+
+//     // Fetch branch details to get the branchName
+//     const branch = await Branch.findById(branchId).lean();
+//     if (!branch) {
+//       return res.status(404).json({ error: "Branch not found" });
+//     }
+//     const branchName = branch.branchName;
+
+//     // Fetch all parents for the specific branch
+//     const parents = await Parent.find({ branchId })
+//       .populate({
+//         path: 'children',       // Populate the 'children' field in Parent
+//         select: 'childName'  // Include childName and registrationDate
+//       })
+//       .lean(); // Use lean() for better performance with read-only queries
+
+//     // Transform and decrypt parent and children data
+//     const transformedParents = await Promise.all(
+//       parents.map(async (parent) => {
+//         let decryptedPassword;
+//         try {
+//           decryptedPassword = decrypt(parent.password);
+//           console.log(
+//             `Decrypted password for parent ${parent.parentName}: ${decryptedPassword}`
+//           );
+//         } catch (decryptError) {
+//           console.error(
+//             `Error decrypting password for parent ${parent.parentName}`,
+//             decryptError
+//           );
+//           return null;
+//         }
+
+//         const transformedChildren = parent.children.map((child) => ({
+//           childId: child._id,
+//           childName: child.childName
+//         }));
+
+//         return {
+//           ...parent,
+//           password: decryptedPassword,
+//           registrationDate: formatDateToDDMMYYYY(
+//             new Date(parent.parentRegistrationDate)
+//           ),
+//           children: transformedChildren,
+//         };
+//       })
+//     );
+
+//     const filteredParents = transformedParents.filter(
+//       (parent) => parent !== null
+//     );
+
+//     const response = {
+//       branchName: branchName,
+//       parents: filteredParents,
+//     };
+
+//     // Send the response
+//     res.status(200).json(response);
+//   } catch (error) {
+//     console.error("Error fetching parents:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
   try {
     const { branchId } = req;
@@ -185,7 +250,11 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
     const parents = await Parent.find({ branchId })
       .populate({
         path: 'children',       // Populate the 'children' field in Parent
-        select: 'childName'  // Include childName and registrationDate
+        select: 'childName'     // Include childName
+      })
+      .populate({
+        path: 'schoolId',       // Populate the 'schoolId' field
+        select: 'schoolName'    // Include schoolName from the School collection
       })
       .lean(); // Use lean() for better performance with read-only queries
 
@@ -195,9 +264,6 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
         let decryptedPassword;
         try {
           decryptedPassword = decrypt(parent.password);
-          console.log(
-            `Decrypted password for parent ${parent.parentName}: ${decryptedPassword}`
-          );
         } catch (decryptError) {
           console.error(
             `Error decrypting password for parent ${parent.parentName}`,
@@ -212,12 +278,18 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
         }));
 
         return {
-          ...parent,
+          _id: parent._id,
+          parentName: parent.parentName,
+          email: parent.email,
           password: decryptedPassword,
-          registrationDate: formatDateToDDMMYYYY(
-            new Date(parent.parentRegistrationDate)
-          ),
+          phone: parent.phone,
           children: transformedChildren,
+          fcmToken: parent.fcmToken,
+          statusOfRegister: parent.statusOfRegister,
+          schoolId: parent.schoolId?._id || parent.schoolId,   // Use schoolId as a string
+          schoolName: parent.schoolId?.schoolName || "",        // Populate schoolName separately
+          branchId: parent.branchId,
+          registrationDate: formatDateToDDMMYYYY(new Date(parent.parentRegistrationDate))
         };
       })
     );
@@ -238,9 +310,6 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
-
 // Fetch pending requests for a specific branch
 router.get("/pending-requests", branchAuthMiddleware, async (req, res) => {
   try {
@@ -677,7 +746,6 @@ router.get("/data-by-deviceId", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Route to get attendance data for admin dashboard
 const convertDate = (dateStr) => {
   const dateParts = dateStr.split("-");
@@ -965,8 +1033,6 @@ router.get('/geofences', async (req, res) => {
     res.status(500).json({ message: 'Error retrieving geofences', error });
   }
 });
-
-
 // Get a specific geofence by deviceId
 router.get("/geofence", async (req, res) => {
   try {

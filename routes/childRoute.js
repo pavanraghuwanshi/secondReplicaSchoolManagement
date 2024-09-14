@@ -156,45 +156,6 @@ router.get('/get-devices', async (req, res) => {
 });
 
 // Parent Login Route
-// router.post('/login', async (req, res) => {
-//   const { email, password } = req.body;
-
-//   try {
-//     // Find the parent by email
-//     const parent = await Parent.findOne({ email });
-
-//     // Check if parent exists
-//     if (!parent) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-
-//     // Compare provided password with stored hashed password
-//     const isMatch = await parent.comparePassword(password); // Assuming comparePassword is defined
-
-//     // Check if password matches
-//     if (!isMatch) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-
-//     // Generate JWT token with parent ID, email, and schoolId
-//     const token = generateToken({
-//       id: parent._id,
-//       email: parent.email,
-//       schoolId: parent.schoolId, // Add schoolId to the token payload
-//       branchId: parent.branchId  // Add branchId to the token payload
-//     });
-
-//     // Send success response with token
-//     res.status(200).json({
-//       success: true,
-//       message: "Login successful",
-//       token: token
-//     });
-//   } catch (err) {
-//     console.error('Error during login:', err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// });
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -208,24 +169,19 @@ router.post('/login', async (req, res) => {
     }
 
     // Compare provided password with stored hashed password
-    const isMatch = await parent.comparePassword(password);
+    const isMatch = await parent.comparePassword(password); // Assuming comparePassword is defined
 
     // Check if password matches
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
 
-    // Check if the registration status is approved
-    if (parent.statusOfRegister !== 'approved') {
-      return res.status(400).json({ error: "Account not approved yet" });
-    }
-
     // Generate JWT token with parent ID, email, and schoolId
     const token = generateToken({
       id: parent._id,
       email: parent.email,
-      schoolId: parent.schoolId,
-      branchId: parent.branchId
+      schoolId: parent.schoolId, // Add schoolId to the token payload
+      branchId: parent.branchId  // Add branchId to the token payload
     });
 
     // Send success response with token
@@ -239,6 +195,50 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+// router.post('/login', async (req, res) => {
+//   const { email, password } = req.body;
+
+//   try {
+//     // Find the parent by email
+//     const parent = await Parent.findOne({ email });
+
+//     // Check if parent exists
+//     if (!parent) {
+//       return res.status(400).json({ error: "Invalid email or password" });
+//     }
+
+//     // Compare provided password with stored hashed password
+//     const isMatch = await parent.comparePassword(password);
+
+//     // Check if password matches
+//     if (!isMatch) {
+//       return res.status(400).json({ error: "Invalid email or password" });
+//     }
+
+//     // Check if the registration status is approved
+//     if (parent.statusOfRegister !== 'approved') {
+//       return res.status(400).json({ error: "Account not approved yet" });
+//     }
+
+//     // Generate JWT token with parent ID, email, and schoolId
+//     const token = generateToken({
+//       id: parent._id,
+//       email: parent.email,
+//       schoolId: parent.schoolId,
+//       branchId: parent.branchId
+//     });
+
+//     // Send success response with token
+//     res.status(200).json({
+//       success: true,
+//       message: "Login successful",
+//       token: token
+//     });
+//   } catch (err) {
+//     console.error('Error during login:', err);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// });
 
 router.put('/update-pickup-point', jwtAuthMiddleware, async (req, res) => {
   try {
