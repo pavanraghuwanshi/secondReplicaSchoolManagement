@@ -990,14 +990,6 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
   }
 });
 // Get all geofences
-// router.get('/geofences', async (req, res) => {
-//   try {
-//     const geofences = await Geofencing.find();
-//     res.status(200).json(geofences);
-//   } catch (error) {
-//     res.status(500).json({ message: 'Error retrieving geofences', error });
-//   }
-// });
 router.get('/geofences', async (req, res) => {
   try {
     // Fetch all geofences
@@ -1163,6 +1155,8 @@ router.post("/registerStatus/:parentId/",branchAuthMiddleware,async (req, res) =
     }
   }
 );
+
+
 // add a new device
 router.post('/add-device', branchAuthMiddleware, async (req, res) => {
   try {
@@ -1209,10 +1203,6 @@ router.post('/add-device', branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
-
-
 // read devices
 router.get('/read-devices', branchAuthMiddleware, async (req, res) => {
   const { branchId } = req; // Assuming branchId comes from authentication middleware
@@ -1229,9 +1219,10 @@ router.get('/read-devices', branchAuthMiddleware, async (req, res) => {
     // Fetch devices associated with the specific branch
     const devices = await Device.find({ branchId }).lean();
 
-    // Map over devices and format the data, correctly referencing deviceId from each device
+    // Map over devices and format the data, including both deviceId and actualDeviceId
     const formattedDevices = devices.map((device) => ({
-      deviceId: device.deviceId, // Correct reference to deviceId
+      deviceId: device.deviceId, // Manually added deviceId
+      actualDeviceId: device._id, // MongoDB-generated _id as actualDeviceId
       deviceName: device.deviceName
     }));
 
@@ -1249,6 +1240,68 @@ router.get('/read-devices', branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+router.put('/edit-device/:deviceId', branchAuthMiddleware, async (req, res) => {
+  try {
+    const { deviceId } = req.params; // MongoDB _id from URL params
+    const { newDeviceId, deviceName } = req.body; // New manually added deviceId and deviceName from request body
+
+    // Validate the required fields
+    if (!newDeviceId || !deviceName) {
+      return res.status(400).json({ message: 'Both newDeviceId and deviceName are required' });
+    }
+
+    // Find the device using MongoDB _id (from the URL params)
+    const device = await Device.findById(deviceId);
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Check if the newDeviceId (manually added) already exists in the system, excluding the current device
+    const existingDevice = await Device.findOne({ deviceId: newDeviceId });
+    if (existingDevice && existingDevice._id.toString() !== device._id.toString()) {
+      return res.status(400).json({ message: 'Device with this new ID already exists' });
+    }
+
+    // Update the manually added deviceId and deviceName
+    device.deviceId = newDeviceId; // Update manually added deviceId
+    device.deviceName = deviceName;
+
+    // Save the updated device
+    await device.save();
+
+    // Return success response
+    res.status(200).json({ message: 'Device updated successfully', device });
+  } catch (error) {
+    console.error('Error updating device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+
+router.delete('/delete-device/:deviceId', branchAuthMiddleware, async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+
+    // Find the device by deviceId
+    const device = await Device.findOne({ deviceId });
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Delete the device
+    await Device.deleteOne({ deviceId });
+
+    // Return success response
+    res.status(200).json({ message: 'Device deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
 
 
 // PUT METHOD

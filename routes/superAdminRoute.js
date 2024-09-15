@@ -153,9 +153,63 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.get('/getschools', superadminMiddleware, async (req, res) => {
+//   try {
+//     // Fetch schools with populated branches, including branchName
+//     const schools = await School.find({})
+//       .populate({
+//         path: 'branches',
+//         select: 'branchName schoolMobile username email password', // Include branchName and other fields
+//       })
+//       .lean();
+
+//     // Decrypt school passwords and branch passwords
+//     const transformedSchools = await Promise.all(schools.map(async (school) => {
+//       let decryptedSchoolPassword;
+//       try {
+//         decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password'; // Decrypt the password if exists
+//       } catch (decryptError) {
+//         console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
+//         decryptedSchoolPassword = 'Error decrypting password'; // Handle decryption errors
+//       }
+
+//       // Ensure branches field exists before mapping
+//       const transformedBranches = (school.branches || []).map(async (branch) => {
+//         let decryptedBranchPassword;
+//         try {
+//           decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; // Decrypt the password if exists
+//         } catch (decryptError) {
+//           console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
+//           decryptedBranchPassword = 'Error decrypting password'; // Handle decryption errors
+//         }
+
+//         // Return the branch object with the decrypted password
+//         return {
+//           ...branch,
+//           password: decryptedBranchPassword,
+//         };
+//       });
+
+//       // Return the school object with the decrypted password and branches
+//       return {
+//         ...school,
+//         password: decryptedSchoolPassword,
+//         branches: await Promise.all(transformedBranches), // Ensure all branches are processed
+//       };
+//     }));
+
+//     // Send the response with the transformed school data
+//     res.status(200).json({ schools: transformedSchools });
+//   } catch (error) {
+//     console.error('Error fetching school list:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
+
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
-    // Fetch schools with populated branches, including branchName
+    // Fetch schools with populated branches, including branchName and other fields
     const schools = await School.find({})
       .populate({
         path: 'branches',
@@ -174,7 +228,7 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
       }
 
       // Ensure branches field exists before mapping
-      const transformedBranches = (school.branches || []).map(async (branch) => {
+      const transformedBranches = await Promise.all((school.branches || []).map(async (branch) => {
         let decryptedBranchPassword;
         try {
           decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; // Decrypt the password if exists
@@ -188,13 +242,17 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
           ...branch,
           password: decryptedBranchPassword,
         };
-      });
+      }));
 
-      // Return the school object with the decrypted password and branches
+      // Include the first branch's branchName next to the schoolName if only one branch exists
+      const branchName = school.branches.length === 1 ? school.branches[0].branchName : null;
+
+      // Return the school object with the decrypted password, branches, and branchName if only one branch exists
       return {
         ...school,
         password: decryptedSchoolPassword,
-        branches: await Promise.all(transformedBranches), // Ensure all branches are processed
+        branches: transformedBranches, // Ensure all branches are processed
+        branchName: branchName // Include the branchName if only one branch exists
       };
     }));
 
@@ -205,6 +263,8 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 
 
 // GET METHOD
@@ -1499,6 +1559,7 @@ router.post('/registerStatus/:parentId/', superadminMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 router.post('/add-device', superadminMiddleware, async (req, res) => {
   try {
     const { deviceId, deviceName, schoolName, branchName } = req.body;
@@ -1570,8 +1631,9 @@ router.get('/read-devices', superadminMiddleware, async (req, res) => {
 
             // Map over devices and return the relevant details
             const rawDevices = devices.map((device) => ({
-              deviceId: device.deviceId, // Correctly reference deviceId from the schema
-              deviceName: device.deviceName, // Raw device name, no decryption
+              actualDeviceId: device._id, // MongoDB's _id for edit/delete operations
+              deviceId: device.deviceId,   // Schema deviceId for display
+              deviceName: device.deviceName, // Device name as stored in the schema
               registrationDate: device.registrationDate,
             }));
 
@@ -1602,6 +1664,69 @@ router.get('/read-devices', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// edit devices
+router.put('/edit-device/:deviceId', superadminMiddleware, async (req, res) => {
+  try {
+    const { deviceId } = req.params; // MongoDB _id from URL params
+    const { deviceName, newDeviceId } = req.body; // Manually added deviceId and deviceName from request body
+
+    // Validate the required fields
+    if (!newDeviceId || !deviceName) {
+      return res.status(400).json({ message: 'Both deviceId and deviceName are required' });
+    }
+
+    // Find the device using MongoDB _id from the URL params
+    const device = await Device.findById(deviceId);
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Check if the manual deviceId already exists in the system (other than this device)
+    const existingDevice = await Device.findOne({ deviceId: newDeviceId });
+    if (existingDevice && existingDevice._id.toString() !== device._id.toString()) {
+      return res.status(400).json({ message: 'Device with this manual deviceId already exists' });
+    }
+
+    // Update the manually added deviceId and deviceName
+    device.deviceId = newDeviceId; // Update manually added deviceId
+    device.deviceName = deviceName;
+
+    // Save the updated device
+    await device.save();
+
+    // Return success response
+    res.status(200).json({ message: 'Device updated successfully', device });
+  } catch (error) {
+    console.error('Error updating device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+// delete devices
+router.delete('/delete-device/:deviceId', superadminMiddleware, async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+
+    // Find the device by deviceId
+    const device = await Device.findOne({ deviceId });
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Delete the device
+    await Device.deleteOne({ deviceId });
+
+    // Return success response
+    res.status(200).json({ message: 'Device deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
 
 router.put('/update-child/:childId', superadminMiddleware, async (req, res) => {
   const { childId } = req.params;

@@ -1578,7 +1578,8 @@ router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
 
       // Map over devices and return the relevant details
       const formattedDevices = devices.map((device) => ({
-        deviceId: device.deviceId, // Correctly reference deviceId from the schema
+        deviceId: device.deviceId, // Manually added deviceId
+        actualDeviceId: device._id, // MongoDB generated _id as actualDeviceId
         deviceName: device.deviceName,
       }));
 
@@ -1607,6 +1608,66 @@ router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+router.put('/edit-device/:deviceId', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { deviceId } = req.params; // MongoDB _id (passed as URL param)
+    const { newDeviceId, deviceName } = req.body; // Manually added deviceId and deviceName from request body
+
+    // Validate the required fields
+    if (!newDeviceId || !deviceName) {
+      return res.status(400).json({ message: 'Both fields (newDeviceId and deviceName) are required' });
+    }
+
+    // Find the device by MongoDB _id (not the manually added deviceId)
+    const device = await Device.findById(deviceId);
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Check if the newDeviceId (manually added) already exists, excluding the current device
+    const existingDevice = await Device.findOne({ deviceId: newDeviceId });
+    if (existingDevice && existingDevice._id.toString() !== device._id.toString()) {
+      return res.status(400).json({ message: 'Device with this new ID already exists' });
+    }
+
+    // Update the manually added deviceId and deviceName
+    device.deviceId = newDeviceId; // Manually added deviceId
+    device.deviceName = deviceName;
+
+    // Save the updated device
+    await device.save();
+
+    // Return success response
+    res.status(200).json({ message: 'Device updated successfully', device });
+  } catch (error) {
+    console.error('Error updating device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.delete('/delete-device/:deviceId', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+
+    // Find the device by deviceId
+    const device = await Device.findOne({ deviceId });
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Delete the device
+    await Device.deleteOne({ deviceId });
+
+    // Return success response
+    res.status(200).json({ message: 'Device deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 
 
 //PUT METHOD
