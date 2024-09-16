@@ -914,10 +914,10 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
 
     // Find all children within the specified branch and populate related fields
     const children = await Child.find({ branchId })
-      .populate('parentId') // Populate parent details
-      .populate('schoolId') // Populate school details
+      .populate('parentId')
+      .populate('schoolId') 
       .populate({
-        path: 'branchId', // Populate branch details
+        path: 'branchId',
         select: 'branchName'
       })
       .lean(); // Convert to plain JavaScript object for easier manipulation
@@ -947,48 +947,55 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
       Promise.all(requestPromises)
     ]);
 
-    // Map attendance and request data to children
-    const response = children.map((child, index) => {
-      const attendance = attendances[index];
-      const request = requests[index];
-      const parent = child.parentId;
-      const school = child.schoolId;
-      const branch = child.branchId;
+    // Filter out children without relevant attendance or request data
+    const filteredResponse = children
+      .map((child, index) => {
+        const attendance = attendances[index];
+        const request = requests[index];
+        const parent = child.parentId;
+        const school = child.schoolId;
+        const branch = child.branchId;
 
-      return {
-        childName: child.childName,
-        childClass: child.class,
-        parentName: parent ? parent.parentName : null,
-        parentNumber: parent ? parent.phone : null,
-        pickupStatus: attendance
-          ? attendance.pickup
-            ? "Present"
-            : "Absent"
-          : null,
-        dropStatus: attendance ? (attendance.drop ? "Present" : "Absent") : null,
-        pickupTime: attendance ? attendance.pickupTime : null,
-        dropTime: attendance ? attendance.dropTime : null,
-        date: attendance ? attendance.date : null,
-        requestType: request ? request.requestType : null,
-        startDate: request ? request.startDate || null : null,
-        endDate: request ? request.endDate || null : null,
-        reason: request ? request.reason || null : null,
-        newRoute: request ? request.newRoute || null : null,
-        statusOfRequest: request ? request.statusOfRequest : null,
-        requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : null,
-        supervisorName: null, // Optional: You might need to add logic to find supervisors if needed
-        branchName: branch ? branch.branchName : 'Unknown Branch',
-        schoolName: school ? school.schoolName : 'Unknown School'
-      };
-    });
+        // Check if the child has either attendance or request data
+        if (attendance || request) {
+          return {
+            childName: child.childName,
+            childClass: child.class,
+            parentName: parent ? parent.parentName : null,
+            parentNumber: parent ? parent.phone : null,
+            pickupStatus: attendance
+              ? attendance.pickup
+                ? "Present"
+                : "Absent"
+              : null,
+            dropStatus: attendance ? (attendance.drop ? "Present" : "Absent") : null,
+            pickupTime: attendance ? attendance.pickupTime : null,
+            dropTime: attendance ? attendance.dropTime : null,
+            date: attendance ? attendance.date : null,
+            requestType: request ? request.requestType : null,
+            startDate: request ? request.startDate || null : null,
+            endDate: request ? request.endDate || null : null,
+            reason: request ? request.reason || null : null,
+            newRoute: request ? request.newRoute || null : null,
+            statusOfRequest: request ? request.statusOfRequest : null,
+            requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : null,
+            supervisorName: null, // Optional: You might need to add logic to find supervisors if needed
+            branchName: branch ? branch.branchName : 'Unknown Branch',
+            schoolName: school ? school.schoolName : 'Unknown School'
+          };
+        }
+        return null; // Exclude the child if no relevant data
+      })
+      .filter(child => child !== null); // Remove null entries
 
     // Send the response
-    res.json(response);
+    res.json(filteredResponse);
   } catch (error) {
     console.error("Error fetching child statuses:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 // Get all geofences
 router.get('/geofences', async (req, res) => {
   try {
@@ -1287,18 +1294,38 @@ router.put('/edit-device/:actualDeviceId', branchAuthMiddleware, async (req, res
 
 
 
-router.delete('/delete-device/:deviceId', branchAuthMiddleware, async (req, res) => {
-  try {
-    const { deviceId } = req.params;
+// router.delete('/delete-device/:deviceId', branchAuthMiddleware, async (req, res) => {
+//   try {
+//     const { deviceId } = req.params;
 
-    // Find the device by deviceId
-    const device = await Device.findOne({ deviceId });
+//     // Find the device by deviceId
+//     const device = await Device.findOne({ deviceId });
+//     if (!device) {
+//       return res.status(404).json({ message: 'Device not found' });
+//     }
+
+//     // Delete the device
+//     await Device.deleteOne({ deviceId });
+
+//     // Return success response
+//     res.status(200).json({ message: 'Device deleted successfully' });
+//   } catch (error) {
+//     console.error('Error deleting device:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
+router.delete('/delete-device/:actualDeviceId', branchAuthMiddleware, async (req, res) => {
+  try {
+    const { actualDeviceId } = req.params;
+
+    // Find the device by actualDeviceId (which is the MongoDB _id)
+    const device = await Device.findById(actualDeviceId);
     if (!device) {
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Delete the device
-    await Device.deleteOne({ deviceId });
+    // Delete the device by actualDeviceId (MongoDB _id)
+    await Device.deleteOne({ _id: actualDeviceId });
 
     // Return success response
     res.status(200).json({ message: 'Device deleted successfully' });
@@ -1307,7 +1334,6 @@ router.delete('/delete-device/:deviceId', branchAuthMiddleware, async (req, res)
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
 
 
 

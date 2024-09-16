@@ -153,9 +153,11 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 // router.get('/getschools', superadminMiddleware, async (req, res) => {
 //   try {
-//     // Fetch schools with populated branches, including branchName
+//     // Fetch schools with populated branches, including branchName and other fields
 //     const schools = await School.find({})
 //       .populate({
 //         path: 'branches',
@@ -174,7 +176,7 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
 //       }
 
 //       // Ensure branches field exists before mapping
-//       const transformedBranches = (school.branches || []).map(async (branch) => {
+//       const transformedBranches = await Promise.all((school.branches || []).map(async (branch) => {
 //         let decryptedBranchPassword;
 //         try {
 //           decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; // Decrypt the password if exists
@@ -188,13 +190,17 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
 //           ...branch,
 //           password: decryptedBranchPassword,
 //         };
-//       });
+//       }));
 
-//       // Return the school object with the decrypted password and branches
+//       // Include the first branch's branchName next to the schoolName if only one branch exists
+//       const branchName = school.branches.length === 1 ? school.branches[0].branchName : null;
+
+//       // Return the school object with the decrypted password, branches, and branchName if only one branch exists
 //       return {
 //         ...school,
 //         password: decryptedSchoolPassword,
-//         branches: await Promise.all(transformedBranches), // Ensure all branches are processed
+//         branches: transformedBranches, // Ensure all branches are processed
+//         branchName: branchName // Include the branchName if only one branch exists
 //       };
 //     }));
 
@@ -205,64 +211,6 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
 //     res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
-
-
-router.get('/getschools', superadminMiddleware, async (req, res) => {
-  try {
-    // Fetch schools with populated branches, including branchName and other fields
-    const schools = await School.find({})
-      .populate({
-        path: 'branches',
-        select: 'branchName schoolMobile username email password', // Include branchName and other fields
-      })
-      .lean();
-
-    // Decrypt school passwords and branch passwords
-    const transformedSchools = await Promise.all(schools.map(async (school) => {
-      let decryptedSchoolPassword;
-      try {
-        decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password'; // Decrypt the password if exists
-      } catch (decryptError) {
-        console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
-        decryptedSchoolPassword = 'Error decrypting password'; // Handle decryption errors
-      }
-
-      // Ensure branches field exists before mapping
-      const transformedBranches = await Promise.all((school.branches || []).map(async (branch) => {
-        let decryptedBranchPassword;
-        try {
-          decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; // Decrypt the password if exists
-        } catch (decryptError) {
-          console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
-          decryptedBranchPassword = 'Error decrypting password'; // Handle decryption errors
-        }
-
-        // Return the branch object with the decrypted password
-        return {
-          ...branch,
-          password: decryptedBranchPassword,
-        };
-      }));
-
-      // Include the first branch's branchName next to the schoolName if only one branch exists
-      const branchName = school.branches.length === 1 ? school.branches[0].branchName : null;
-
-      // Return the school object with the decrypted password, branches, and branchName if only one branch exists
-      return {
-        ...school,
-        password: decryptedSchoolPassword,
-        branches: transformedBranches, // Ensure all branches are processed
-        branchName: branchName // Include the branchName if only one branch exists
-      };
-    }));
-
-    // Send the response with the transformed school data
-    res.status(200).json({ schools: transformedSchools });
-  } catch (error) {
-    console.error('Error fetching school list:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 
 
@@ -333,6 +281,60 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
 //     res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
+
+
+router.get('/getschools', superadminMiddleware, async (req, res) => {
+  try {
+    const schools = await School.find({})
+      .populate({
+        path: 'branches',
+        select: 'branchName _id username password email' 
+      })
+      .lean();
+    const transformedSchools = await Promise.all(schools.map(async (school) => {
+      let decryptedSchoolPassword;
+      try {
+        decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password';
+      } catch (decryptError) {
+        console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
+        decryptedSchoolPassword = 'Error decrypting password';
+      }
+      const transformedBranches = school.branches.map(branch => {
+        if (!branch.username || !branch.password) {
+          return {
+            _id: branch._id,
+            branchName: branch.branchName
+          };
+        } else {
+          let decryptedBranchPassword;
+          try {
+            decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
+          } catch (decryptError) {
+            console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
+            decryptedBranchPassword = 'Error decrypting password'; 
+          }
+
+          return {
+            ...branch,
+            password: decryptedBranchPassword 
+          };
+        }
+      });
+      const branchName = transformedBranches.find(branch => !branch.username || !branch.password)?.branchName || null;
+      return {
+        ...school,
+        password: decryptedSchoolPassword,
+        branchName: branchName ,
+        branches: transformedBranches
+      };
+    }));
+    res.status(200).json({ schools: transformedSchools });
+  } catch (error) {
+    console.error('Error fetching school list:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/read-children', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -1340,51 +1342,60 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
         supervisor = await Supervisor.findOne({ deviceId: child.deviceId }).lean();
       }
 
-      // Structure the child data
-      const childData = {
-        childName: child.childName,
-        childClass: child.class,
-        parentName: parent ? parent.parentName : 'Unknown Parent',
-        parentNumber: parent ? parent.phone : 'Unknown Phone',
-        pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : 'Unknown',
-        dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : 'Unknown',
-        pickupTime: attendance ? attendance.pickupTime : null,
-        dropTime: attendance ? attendance.dropTime : null,
-        date: attendance ? attendance.date : null,
-        request: {
-          requestType: request ? request.requestType : 'No Request',
-          startDate: request ? request.startDate || null : null,
-          endDate: request ? request.endDate || null : null,
-          reason: request ? request.reason || null : null,
-          newRoute: request ? request.newRoute || null : null,
-          statusOfRequest: request ? request.statusOfRequest || null : null,
-          requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : null
-        },
-        supervisor: supervisor ? {
-          supervisorName: supervisor.supervisorName
-        } : null
-      };
-
-      // Initialize school if not already added
-      if (!schoolBranchData[school._id]) {
-        schoolBranchData[school._id] = {
-          schoolId: school._id.toString(),
-          schoolName: school.schoolName,
-          branches: {}
+      // Check if the child has any relevant data
+      if (attendance || request) {
+        // Structure the child data
+        const childData = {
+          childName: child.childName,
+          childClass: child.class,
+          parentName: parent ? parent.parentName : 'Unknown Parent',
+          parentNumber: parent ? parent.phone : 'Unknown Phone',
+          ...(attendance && {
+            pickupStatus: attendance.pickup ? 'Present' : 'Absent',
+            dropStatus: attendance.drop ? 'Present' : 'Absent',
+            pickupTime: attendance.pickupTime,
+            dropTime: attendance.dropTime,
+            date: attendance.date
+          }),
+          ...(request && {
+            request: {
+              requestType: request.requestType,
+              startDate: request.startDate,
+              endDate: request.endDate,
+              reason: request.reason,
+              newRoute: request.newRoute,
+              statusOfRequest: request.statusOfRequest,
+              requestDate: formatDateToDDMMYYYY(request.requestDate)
+            }
+          }),
+          ...(supervisor && {
+            supervisor: {
+              supervisorName: supervisor.supervisorName
+            }
+          })
         };
-      }
 
-      // Initialize branch under the school if not already added
-      if (!schoolBranchData[school._id].branches[branch._id]) {
-        schoolBranchData[school._id].branches[branch._id] = {
-          branchId: branch._id.toString(),
-          branchName: branch.branchName,
-          children: []
-        };
-      }
+        // Initialize school if not already added
+        if (!schoolBranchData[school._id]) {
+          schoolBranchData[school._id] = {
+            schoolId: school._id.toString(),
+            schoolName: school.schoolName,
+            branches: {}
+          };
+        }
 
-      // Add the child data to the respective branch under the school
-      schoolBranchData[school._id].branches[branch._id].children.push(childData);
+        // Initialize branch under the school if not already added
+        if (!schoolBranchData[school._id].branches[branch._id]) {
+          schoolBranchData[school._id].branches[branch._id] = {
+            branchId: branch._id.toString(),
+            branchName: branch.branchName,
+            children: []
+          };
+        }
+
+        // Add the child data to the respective branch under the school
+        schoolBranchData[school._id].branches[branch._id].children.push(childData);
+      }
     }
 
     // Convert the schoolBranchData object into a proper array structure
@@ -1405,6 +1416,8 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+
 
 router.get('/geofences', async (req, res) => {
   try {
@@ -1709,20 +1722,19 @@ router.put('/edit-device/:actualDeviceId', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
 // delete devices
 router.delete('/delete-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
   try {
     const { actualDeviceId } = req.params;
 
-    // Find the device by actualDeviceId
-    const device = await Device.findOne({ actualDeviceId });
+    // Find the device by actualDeviceId (which is the MongoDB _id)
+    const device = await Device.findById(actualDeviceId);
     if (!device) {
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Delete the device
-    await Device.deleteOne({ actualDeviceId });
+    // Delete the device by actualDeviceId (MongoDB _id)
+    await Device.deleteOne({ _id: actualDeviceId });
 
     // Return success response
     res.status(200).json({ message: 'Device deleted successfully' });
@@ -1731,6 +1743,7 @@ router.delete('/delete-device/:actualDeviceId', superadminMiddleware, async (req
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 

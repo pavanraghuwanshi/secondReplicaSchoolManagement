@@ -1362,43 +1362,52 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
         supervisor = await Supervisor.findOne({ deviceId: child.deviceId, schoolId }).lean();
       }
 
-      // Prepare the child status data
-      const childData = {
-        childId: child._id,
-        childName: child.childName,
-        childClass: child.class,
-        parent: {
-          parentName: parent ? parent.parentName : 'Parent not found',
-          parentNumber: parent ? parent.phone : 'Parent not found'
-        },
-        pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : 'No record',
-        dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : 'No record',
-        pickupTime: attendance ? attendance.pickupTime : 'N/A',
-        dropTime: attendance ? attendance.dropTime : 'N/A',
-        date: attendance ? attendance.date : 'N/A',
-        request: {
-          requestType: request ? request.requestType : 'N/A',
-          startDate: request ? request.startDate || 'N/A' : 'N/A',
-          endDate: request ? request.endDate || 'N/A' : 'N/A',
-          reason: request ? request.reason || 'N/A' : 'N/A',
-          newRoute: request ? request.newRoute || 'N/A' : 'N/A',
-          statusOfRequest: request ? request.statusOfRequest || 'N/A' : 'N/A',
-          requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : 'N/A'
-        },
-        supervisorName: supervisor ? supervisor.supervisorName : 'Supervisor not found'
-      };
-
-      // Group children by branch
-      if (!branchesMap[child.branchId._id]) {
-        branchesMap[child.branchId._id] = {
-          branchId: child.branchId._id,
-          branchName: child.branchId.branchName,
-          children: []
+      // Check if the child has any relevant data
+      if (attendance || request) {
+        // Prepare the child status data
+        const childData = {
+          childId: child._id,
+          childName: child.childName,
+          childClass: child.class,
+          parent: {
+            parentName: parent ? parent.parentName : 'Parent not found',
+            parentNumber: parent ? parent.phone : 'Parent not found'
+          },
+          ...(attendance && {
+            pickupStatus: attendance.pickup ? 'Present' : 'Absent',
+            dropStatus: attendance.drop ? 'Present' : 'Absent',
+            pickupTime: attendance.pickupTime,
+            dropTime: attendance.dropTime,
+            date: attendance.date
+          }),
+          ...(request && {
+            request: {
+              requestType: request.requestType,
+              startDate: request.startDate || 'N/A',
+              endDate: request.endDate || 'N/A',
+              reason: request.reason || 'N/A',
+              newRoute: request.newRoute || 'N/A',
+              statusOfRequest: request.statusOfRequest || 'N/A',
+              requestDate: formatDateToDDMMYYYY(request.requestDate) || 'N/A'
+            }
+          }),
+          ...(supervisor && {
+            supervisorName: supervisor.supervisorName
+          })
         };
-      }
 
-      // Add the child to the respective branch
-      branchesMap[child.branchId._id].children.push(childData);
+        // Group children by branch
+        if (!branchesMap[child.branchId._id]) {
+          branchesMap[child.branchId._id] = {
+            branchId: child.branchId._id,
+            branchName: child.branchId.branchName,
+            children: []
+          };
+        }
+
+        // Add the child to the respective branch
+        branchesMap[child.branchId._id].children.push(childData);
+      }
     }
 
     // Convert the branchesMap into an array of branches
@@ -1418,6 +1427,7 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 router.post("/review-request/:requestId",schoolAuthMiddleware,async (req, res) => {
     try {
@@ -1654,18 +1664,18 @@ router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res
 });
 
 
-router.delete('/delete-device/:deviceId', schoolAuthMiddleware, async (req, res) => {
+router.delete('/delete-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
   try {
-    const { deviceId } = req.params;
+    const { actualDeviceId } = req.params;
 
-    // Find the device by deviceId
-    const device = await Device.findOne({ deviceId });
+    // Find the device by actualDeviceId (which is the MongoDB _id)
+    const device = await Device.findById(actualDeviceId);
     if (!device) {
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Delete the device
-    await Device.deleteOne({ deviceId });
+    // Delete the device by actualDeviceId (MongoDB _id)
+    await Device.deleteOne({ _id: actualDeviceId });
 
     // Return success response
     res.status(200).json({ message: 'Device deleted successfully' });
