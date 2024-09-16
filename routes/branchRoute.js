@@ -1241,42 +1241,49 @@ router.get('/read-devices', branchAuthMiddleware, async (req, res) => {
   }
 });
 
-router.put('/edit-device/:deviceId', branchAuthMiddleware, async (req, res) => {
+router.put('/edit-device/:actualDeviceId', branchAuthMiddleware, async (req, res) => {
   try {
-    const { deviceId } = req.params; // MongoDB _id from URL params
-    const { newDeviceId, deviceName } = req.body; // New manually added deviceId and deviceName from request body
+    const { actualDeviceId } = req.params; // MongoDB _id of the device from the URL
+    const { deviceId, deviceName, branchName, schoolName } = req.body; // Values from the request body
 
-    // Validate the required fields
-    if (!newDeviceId || !deviceName) {
-      return res.status(400).json({ message: 'Both newDeviceId and deviceName are required' });
+    // Validate required fields
+    if (!deviceId || !deviceName || !branchName || !schoolName) {
+      return res.status(400).json({ message: 'deviceId, deviceName, branchName, and schoolName are required' });
     }
 
-    // Find the device using MongoDB _id (from the URL params)
-    const device = await Device.findById(deviceId);
+    // Check if the manually added deviceId already exists in another device
+    const existingDevice = await Device.findOne({
+      deviceId,
+      _id: { $ne: actualDeviceId } // Exclude the current device from this check
+    });
+
+    if (existingDevice) {
+      return res.status(400).json({ message: 'Device with this deviceId already exists' });
+    }
+
+    // Find the device by actualDeviceId (MongoDB _id) and update it
+    const device = await Device.findById(actualDeviceId);
     if (!device) {
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Check if the newDeviceId (manually added) already exists in the system, excluding the current device
-    const existingDevice = await Device.findOne({ deviceId: newDeviceId });
-    if (existingDevice && existingDevice._id.toString() !== device._id.toString()) {
-      return res.status(400).json({ message: 'Device with this new ID already exists' });
-    }
-
-    // Update the manually added deviceId and deviceName
-    device.deviceId = newDeviceId; // Update manually added deviceId
+    // Update the manually added deviceId, deviceName, branchName, and schoolName
+    device.deviceId = deviceId; // Update manually added deviceId
     device.deviceName = deviceName;
+    device.branchName = branchName;
+    device.schoolName = schoolName;
 
     // Save the updated device
     await device.save();
 
-    // Return success response
+    // Return success response with the updated device data
     res.status(200).json({ message: 'Device updated successfully', device });
   } catch (error) {
     console.error('Error updating device:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 

@@ -1610,31 +1610,37 @@ router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
 });
 
 
-router.put('/edit-device/:deviceId', schoolAuthMiddleware, async (req, res) => {
+router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
   try {
-    const { deviceId } = req.params; // MongoDB _id (passed as URL param)
-    const { newDeviceId, deviceName } = req.body; // Manually added deviceId and deviceName from request body
+    const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
+    const { deviceId, deviceName, branchName, schoolName } = req.body; // Values from the request body
 
-    // Validate the required fields
-    if (!newDeviceId || !deviceName) {
-      return res.status(400).json({ message: 'Both fields (newDeviceId and deviceName) are required' });
+    // Validate required fields
+    if (!deviceId || !deviceName || !branchName || !schoolName) {
+      return res.status(400).json({ message: 'deviceId, deviceName, branchName, and schoolName are required' });
     }
 
-    // Find the device by MongoDB _id (not the manually added deviceId)
-    const device = await Device.findById(deviceId);
+    // Check if the manually added deviceId already exists in another device
+    const existingDevice = await Device.findOne({
+      deviceId,
+      _id: { $ne: actualDeviceId } // Exclude the current device from this check
+    });
+
+    if (existingDevice) {
+      return res.status(400).json({ message: 'Device with this deviceId already exists' });
+    }
+
+    // Find the device by actualDeviceId (MongoDB _id) and update it
+    const device = await Device.findById(actualDeviceId);
     if (!device) {
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Check if the newDeviceId (manually added) already exists, excluding the current device
-    const existingDevice = await Device.findOne({ deviceId: newDeviceId });
-    if (existingDevice && existingDevice._id.toString() !== device._id.toString()) {
-      return res.status(400).json({ message: 'Device with this new ID already exists' });
-    }
-
-    // Update the manually added deviceId and deviceName
-    device.deviceId = newDeviceId; // Manually added deviceId
+    // Update the manually added deviceId, deviceName, branchName, and schoolName
+    device.deviceId = deviceId; // Manually added deviceId
     device.deviceName = deviceName;
+    device.branchName = branchName;
+    device.schoolName = schoolName;
 
     // Save the updated device
     await device.save();
@@ -1646,6 +1652,7 @@ router.put('/edit-device/:deviceId', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 router.delete('/delete-device/:deviceId', schoolAuthMiddleware, async (req, res) => {
   try {

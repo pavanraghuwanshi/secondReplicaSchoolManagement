@@ -1666,57 +1666,63 @@ router.get('/read-devices', superadminMiddleware, async (req, res) => {
 });
 
 // edit devices
-router.put('/edit-device/:deviceId', superadminMiddleware, async (req, res) => {
+router.put('/edit-device/:actualDeviceId', async (req, res) => {
   try {
-    const { deviceId } = req.params; // MongoDB _id from URL params
-    const { deviceName, newDeviceId } = req.body; // Manually added deviceId and deviceName from request body
+    const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
+    const { deviceId, deviceName, branchName, schoolName } = req.body; // The new values from the request body
 
-    // Validate the required fields
-    if (!newDeviceId || !deviceName) {
-      return res.status(400).json({ message: 'Both deviceId and deviceName are required' });
+    // Validate that required fields are provided
+    if (!deviceId || !deviceName || !branchName || !schoolName) {
+      return res.status(400).json({ message: 'deviceId, deviceName, branchName, and schoolName are required' });
     }
 
-    // Find the device using MongoDB _id from the URL params
-    const device = await Device.findById(deviceId);
-    if (!device) {
+    // Check if the manually added deviceId already exists in another device
+    const existingDevice = await Device.findOne({
+      deviceId,
+      _id: { $ne: actualDeviceId } // Exclude the current device from this check
+    });
+
+    if (existingDevice) {
+      return res.status(400).json({ message: 'Device with this manually added deviceId already exists' });
+    }
+
+    // Find the device by actualDeviceId (MongoDB _id) and update it
+    const updatedDevice = await Device.findByIdAndUpdate(
+      actualDeviceId,
+      {
+        deviceId, // Manually added deviceId
+        deviceName,
+        branchName, // Manually provided branch name
+        schoolName  // Manually provided school name
+      },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedDevice) {
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Check if the manual deviceId already exists in the system (other than this device)
-    const existingDevice = await Device.findOne({ deviceId: newDeviceId });
-    if (existingDevice && existingDevice._id.toString() !== device._id.toString()) {
-      return res.status(400).json({ message: 'Device with this manual deviceId already exists' });
-    }
-
-    // Update the manually added deviceId and deviceName
-    device.deviceId = newDeviceId; // Update manually added deviceId
-    device.deviceName = deviceName;
-
-    // Save the updated device
-    await device.save();
-
-    // Return success response
-    res.status(200).json({ message: 'Device updated successfully', device });
+    // Return success response with the updated device data
+    res.status(200).json({ message: 'Device updated successfully', device: updatedDevice });
   } catch (error) {
     console.error('Error updating device:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-
 // delete devices
-router.delete('/delete-device/:deviceId', superadminMiddleware, async (req, res) => {
+router.delete('/delete-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
   try {
-    const { deviceId } = req.params;
+    const { actualDeviceId } = req.params;
 
-    // Find the device by deviceId
-    const device = await Device.findOne({ deviceId });
+    // Find the device by actualDeviceId
+    const device = await Device.findOne({ actualDeviceId });
     if (!device) {
       return res.status(404).json({ message: 'Device not found' });
     }
 
     // Delete the device
-    await Device.deleteOne({ deviceId });
+    await Device.deleteOne({ actualDeviceId });
 
     // Return success response
     res.status(200).json({ message: 'Device deleted successfully' });
