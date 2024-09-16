@@ -27,7 +27,8 @@ const branchSchema = new mongoose.Schema({
   email:{
     type: String,
     default: ''
-  }
+  },
+  devices: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Device' }]
 });
 
 

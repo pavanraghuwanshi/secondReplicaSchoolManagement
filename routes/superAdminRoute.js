@@ -153,144 +153,70 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 // router.get('/getschools', superadminMiddleware, async (req, res) => {
 //   try {
-//     // Fetch schools with populated branches, including branchName and other fields
 //     const schools = await School.find({})
 //       .populate({
 //         path: 'branches',
-//         select: 'branchName schoolMobile username email password', // Include branchName and other fields
+//         select: 'branchName _id username password email' 
 //       })
 //       .lean();
-
-//     // Decrypt school passwords and branch passwords
 //     const transformedSchools = await Promise.all(schools.map(async (school) => {
 //       let decryptedSchoolPassword;
 //       try {
-//         decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password'; // Decrypt the password if exists
+//         decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password';
 //       } catch (decryptError) {
 //         console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
-//         decryptedSchoolPassword = 'Error decrypting password'; // Handle decryption errors
+//         decryptedSchoolPassword = 'Error decrypting password';
 //       }
+//       const transformedBranches = school.branches.map(branch => {
+//         if (!branch.username || !branch.password) {
+//           return {
+//             _id: branch._id,
+//             branchName: branch.branchName
+//           };
+//         } else {
+//           let decryptedBranchPassword;
+//           try {
+//             decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
+//           } catch (decryptError) {
+//             console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
+//             decryptedBranchPassword = 'Error decrypting password'; 
+//           }
 
-//       // Ensure branches field exists before mapping
-//       const transformedBranches = await Promise.all((school.branches || []).map(async (branch) => {
-//         let decryptedBranchPassword;
-//         try {
-//           decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; // Decrypt the password if exists
-//         } catch (decryptError) {
-//           console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
-//           decryptedBranchPassword = 'Error decrypting password'; // Handle decryption errors
+//           return {
+//             ...branch,
+//             password: decryptedBranchPassword 
+//           };
 //         }
-
-//         // Return the branch object with the decrypted password
-//         return {
-//           ...branch,
-//           password: decryptedBranchPassword,
-//         };
-//       }));
-
-//       // Include the first branch's branchName next to the schoolName if only one branch exists
-//       const branchName = school.branches.length === 1 ? school.branches[0].branchName : null;
-
-//       // Return the school object with the decrypted password, branches, and branchName if only one branch exists
+//       });
+//       const branchName = transformedBranches.find(branch => !branch.username || !branch.password)?.branchName || null;
 //       return {
 //         ...school,
 //         password: decryptedSchoolPassword,
-//         branches: transformedBranches, // Ensure all branches are processed
-//         branchName: branchName // Include the branchName if only one branch exists
+//         branchName: branchName ,
+//         branches: transformedBranches
 //       };
 //     }));
-
-//     // Send the response with the transformed school data
 //     res.status(200).json({ schools: transformedSchools });
 //   } catch (error) {
 //     console.error('Error fetching school list:', error);
 //     res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
-
-
-
-
-// GET METHOD
-// Route to get all childrren
-// router.get('/read-children', superadminMiddleware, async (req, res) => {
-//   try {
-//     // Fetch all schools
-//     const schools = await School.find({}).lean();
-
-//     // Prepare an array to hold children data by school
-//     const childrenBySchool = await Promise.all(schools.map(async (school) => {
-//       // Fetch all branch data for this school
-//       const branches = await Branch.find({ schoolId: school._id }).lean();
-
-//       // Fetch children and populate parent data
-//       const children = await Child.find({ schoolId: school._id })
-//         .populate('parentId', 'parentName email phone password statusOfRegister')
-//         .lean();
-
-//       // Format children data by branch
-//       const childrenByBranch = branches.map((branch) => {
-//         const childrenInBranch = children
-//           .filter(child => child.branchId?.toString() === branch._id.toString())
-//           .map((child) => {
-//             return {
-//               childId: child._id,
-//               childName: child.childName,
-//               class: child.class,
-//               rollno: child.rollno,
-//               section: child.section,
-//               dateOfBirth: child.dateOfBirth,
-//               childAge: child.childAge,
-//               pickupPoint: child.pickupPoint,
-//               deviceName: child.deviceName,
-//               gender: child.gender,
-//               parentId: child.parentId._id,
-//               parentName: child.parentId.parentName,
-//               email: child.parentId.email,
-//               phone: child.parentId.phone,
-//               statusOfRegister: child.parentId.statusOfRegister,
-//               deviceId: child.deviceId,
-//               registrationDate: child.registrationDate,
-//               formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-//             };
-//           });
-
-//         return {
-//           branchId: branch._id,
-//           branchName: branch.branchName,
-//           children: childrenInBranch,
-//         };
-//       });
-
-//       return {
-//         schoolId: school._id,
-//         schoolName: school.schoolName,
-//         branches: childrenByBranch,
-//       };
-//     }));
-
-//     res.status(200).json({
-//       data: childrenBySchool,
-//     });
-//   } catch (error) {
-//     console.error('Error fetching children by school:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-
-
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
     const schools = await School.find({})
       .populate({
         path: 'branches',
-        select: 'branchName _id username password email' 
+        select: 'branchName _id username password email',
+        populate: {
+          path: 'devices',
+          select: 'deviceId deviceName'
+        }
       })
       .lean();
+
     const transformedSchools = await Promise.all(schools.map(async (school) => {
       let decryptedSchoolPassword;
       try {
@@ -299,11 +225,13 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
         console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
         decryptedSchoolPassword = 'Error decrypting password';
       }
+      
       const transformedBranches = school.branches.map(branch => {
         if (!branch.username || !branch.password) {
           return {
             _id: branch._id,
-            branchName: branch.branchName
+            branchName: branch.branchName,
+            devices: branch.devices // Include devices
           };
         } else {
           let decryptedBranchPassword;
@@ -316,18 +244,21 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
 
           return {
             ...branch,
-            password: decryptedBranchPassword 
+            password: decryptedBranchPassword,
+            devices: branch.devices // Include devices
           };
         }
       });
+      
       const branchName = transformedBranches.find(branch => !branch.username || !branch.password)?.branchName || null;
       return {
         ...school,
         password: decryptedSchoolPassword,
-        branchName: branchName ,
+        branchName: branchName,
         branches: transformedBranches
       };
     }));
+    
     res.status(200).json({ schools: transformedSchools });
   } catch (error) {
     console.error('Error fetching school list:', error);
@@ -1346,6 +1277,7 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
       if (attendance || request) {
         // Structure the child data
         const childData = {
+          childId: child._id,
           childName: child.childName,
           childClass: child.class,
           parentName: parent ? parent.parentName : 'Unknown Parent',
@@ -1416,9 +1348,82 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+router.get('/status/:childId', superadminMiddleware, async (req, res) => {
+  try {
+    const { childId } = req.params;
+    const schoolId = req.schoolId;
 
+    // Find the child within the specified school and populate branch and parent details
+    const child = await Child.findOne({ _id: childId, schoolId })
+      .populate({
+        path: 'parentId',
+        select: 'parentName phone'
+      })
+      .populate({
+        path: 'branchId', // Populate branchId field
+        select: 'branchName'
+      })
+      .populate({
+        path: 'schoolId', // Populate schoolId field
+        select: 'schoolName'
+      })
+      .lean(); // Convert to plain JavaScript object
 
+    if (!child) {
+      return res.status(404).json({ message: 'Child not found' });
+    }
 
+    const parent = child.parentId;
+
+    // Fetch the most recent attendance record for the child
+    const attendance = await Attendance.findOne({ childId })
+      .sort({ date: -1 })
+      .limit(1);
+
+    // Fetch the most recent request for the child
+    const request = await Request.findOne({ childId })
+      .sort({ requestDate: -1 })
+      .limit(1);
+
+    // Fetch the supervisor based on deviceId and schoolId
+    let supervisor = null;
+    if (child.deviceId) {
+      supervisor = await Supervisor.findOne({ deviceId: child.deviceId, schoolId });
+    }
+
+    // Construct the response object only with fields that have data
+    const response = {};
+
+    if (child.childName) response.childName = child.childName;
+    if (child.class) response.childClass = child.class;
+    if (parent && parent.parentName) response.parentName = parent.parentName;
+    if (parent && parent.phone) response.parentNumber = parent.phone;
+    if (child.branchId && child.branchId.branchName) response.branchName = child.branchId.branchName;
+    if (child.schoolId && child.schoolId.schoolName) response.schoolName = child.schoolId.schoolName;
+    if (attendance && attendance.pickup !== undefined) response.pickupStatus = attendance.pickup ? 'Present' : 'Absent';
+    if (attendance && attendance.drop !== undefined) response.dropStatus = attendance.drop ? 'Present' : 'Absent';
+    if (attendance && attendance.pickupTime) response.pickupTime = attendance.pickupTime;
+    if (attendance && attendance.dropTime) response.dropTime = attendance.dropTime;
+    if (attendance && attendance.date) response.date = attendance.date;
+    if (request && request.requestType) response.requestType = request.requestType;
+
+    // Format startDate, endDate, and requestDate to 'dd-mm-yyyy'
+    if (request && request.startDate) response.startDate = formatDateToDDMMYYYY(request.startDate);
+    if (request && request.endDate) response.endDate = formatDateToDDMMYYYY(request.endDate);
+    if (request && request.requestDate) response.requestDate = formatDateToDDMMYYYY(request.requestDate);
+
+    if (request && request.reason) response.reason = request.reason;
+    if (request && request.newRoute) response.newRoute = request.newRoute;
+    if (request && request.statusOfRequest) response.statusOfRequest = request.statusOfRequest;
+    if (supervisor && supervisor.supervisorName) response.supervisorName = supervisor.supervisorName;
+
+    // Send the filtered response
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching child status:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 router.get('/geofences', async (req, res) => {
   try {
     // Fetch all geofences
@@ -1453,7 +1458,6 @@ router.get('/geofences', async (req, res) => {
     res.status(500).json({ message: 'Error retrieving geofences', error });
   }
 });
-
 router.get("/geofence", async (req, res) => {
   try {
     const deviceId = req.query.deviceId;
@@ -1572,7 +1576,52 @@ router.post('/registerStatus/:parentId/', superadminMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.post('/add-device', superadminMiddleware, async (req, res) => {
+//   try {
+//     const { deviceId, deviceName, schoolName, branchName } = req.body;
 
+//     // Validate the required fields
+//     if (!deviceId || !deviceName || !schoolName || !branchName) {
+//       return res.status(400).json({ message: 'All fields (deviceId, deviceName, schoolName, branchName) are required' });
+//     }
+
+//     // Find the school by name
+//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+//     if (!school) {
+//       return res.status(404).json({ message: 'School not found' });
+//     }
+
+//     // Find the branch by name within the school
+//     const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+//     if (!branch) {
+//       return res.status(404).json({ message: 'Branch not found in the specified school' });
+//     }
+
+//     // Check if a device with the same ID already exists
+//     const existingDevice = await Device.findOne({ deviceId });
+//     if (existingDevice) {
+//       return res.status(400).json({ message: 'Device with this ID already exists' });
+//     }
+
+//     // Create a new device linked to the school and branch
+//     const newDevice = new Device({
+//       deviceId,
+//       deviceName,
+//       schoolId: school._id,  // Link to the school's ID
+//       branchId: branch._id   // Link to the branch's ID
+//     });
+
+//     // Save the device
+//     await newDevice.save();
+
+//     // Return success response
+//     res.status(201).json({ message: 'Device created successfully', device: newDevice });
+//   } catch (error) {
+//     console.error('Error adding device:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
+// read devices
 router.post('/add-device', superadminMiddleware, async (req, res) => {
   try {
     const { deviceId, deviceName, schoolName, branchName } = req.body;
@@ -1611,6 +1660,10 @@ router.post('/add-device', superadminMiddleware, async (req, res) => {
     // Save the device
     await newDevice.save();
 
+    // Update the branch to include the new device
+    branch.devices.push(newDevice._id);
+    await branch.save();
+
     // Return success response
     res.status(201).json({ message: 'Device created successfully', device: newDevice });
   } catch (error) {
@@ -1618,7 +1671,9 @@ router.post('/add-device', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-// read devices
+
+
+
 router.get('/read-devices', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -1677,9 +1732,51 @@ router.get('/read-devices', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // edit devices
-router.put('/edit-device/:actualDeviceId', async (req, res) => {
+// router.put('/edit-device/:actualDeviceId', superadminMiddleware,async (req, res) => {
+//   try {
+//     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
+//     const { deviceId, deviceName, branchName, schoolName } = req.body; // The new values from the request body
+
+//     // Validate that required fields are provided
+//     if (!deviceId || !deviceName || !branchName || !schoolName) {
+//       return res.status(400).json({ message: 'deviceId, deviceName, branchName, and schoolName are required' });
+//     }
+
+//     // Check if the manually added deviceId already exists in another device
+//     const existingDevice = await Device.findOne({
+//       deviceId,
+//       _id: { $ne: actualDeviceId } // Exclude the current device from this check
+//     });
+
+//     if (existingDevice) {
+//       return res.status(400).json({ message: 'Device with this manually added deviceId already exists' });
+//     }
+
+//     // Find the device by actualDeviceId (MongoDB _id) and update it
+//     const updatedDevice = await Device.findByIdAndUpdate(
+//       actualDeviceId,
+//       {
+//         deviceId, // Manually added deviceId
+//         deviceName,
+//         branchName, // Manually provided branch name
+//         schoolName  // Manually provided school name
+//       },
+//       { new: true } // Return the updated document
+//     );
+
+//     if (!updatedDevice) {
+//       return res.status(404).json({ message: 'Device not found' });
+//     }
+
+//     // Return success response with the updated device data
+//     res.status(200).json({ message: 'Device updated successfully', device: updatedDevice });
+//   } catch (error) {
+//     console.error('Error updating device:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
+router.put('/edit-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
   try {
     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
     const { deviceId, deviceName, branchName, schoolName } = req.body; // The new values from the request body
@@ -1699,7 +1796,7 @@ router.put('/edit-device/:actualDeviceId', async (req, res) => {
       return res.status(400).json({ message: 'Device with this manually added deviceId already exists' });
     }
 
-    // Find the device by actualDeviceId (MongoDB _id) and update it
+    // Find and update the device
     const updatedDevice = await Device.findByIdAndUpdate(
       actualDeviceId,
       {
@@ -1715,6 +1812,23 @@ router.put('/edit-device/:actualDeviceId', async (req, res) => {
       return res.status(404).json({ message: 'Device not found' });
     }
 
+    // Find the school and branch where this device should be updated
+    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+    if (!school) {
+      return res.status(404).json({ message: 'School not found' });
+    }
+
+    const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+    if (!branch) {
+      return res.status(404).json({ message: 'Branch not found in the specified school' });
+    }
+
+    // Update the branch to include the updated device (if necessary)
+    if (!branch.devices.includes(updatedDevice._id)) {
+      branch.devices.push(updatedDevice._id);
+      await branch.save();
+    }
+
     // Return success response with the updated device data
     res.status(200).json({ message: 'Device updated successfully', device: updatedDevice });
   } catch (error) {
@@ -1722,6 +1836,8 @@ router.put('/edit-device/:actualDeviceId', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+// Example route handler for editing a device
 // delete devices
 router.delete('/delete-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
   try {
@@ -1743,10 +1859,6 @@ router.delete('/delete-device/:actualDeviceId', superadminMiddleware, async (req
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
-
-
 router.put('/update-child/:childId', superadminMiddleware, async (req, res) => {
   const { childId } = req.params;
   const { deviceId, ...updateFields } = req.body;
@@ -1925,9 +2037,6 @@ router.put('/update-supervisor/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
 // DELETE METHOD
 // Delete child
 router.delete('/delete/child/:childId', superadminMiddleware, async (req, res) => {
@@ -2111,7 +2220,6 @@ router.delete('/delete-branch/:branchId', superadminMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 
 module.exports = router;

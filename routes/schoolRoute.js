@@ -131,74 +131,7 @@ router.get('/branches', schoolAuthMiddleware, async (req, res) => {
 
 // GET METHOD 
 // read chilren
-// router.get('/read-children', schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     const { schoolId } = req; // Extract schoolId from token
 
-//     // Fetch the school along with its branches based on schoolId
-//     const school = await School.findById(schoolId)
-//       .populate({
-//         path: 'branches',
-//         select: 'branchName',
-//       })
-//       .lean();
-
-//     if (!school) {
-//       return res.status(404).json({ error: 'School not found' });
-//     }
-
-//     const result = {
-//       schoolId: school._id,
-//       schoolName: school.schoolName,
-//       branches: [],
-//     };
-
-//     const branchPromises = school.branches.map(async (branch) => {
-//       const children = await Child.find({ branchId: branch._id })
-//         .populate({
-//           path: 'parentId',
-//           select: 'parentName email phone',
-//         })
-//         .lean();
-
-//       const formattedChildren = children.map((child) => ({
-//         schoolName: school.schoolName, // Add schoolName
-//         branchName: branch.branchName,  // Add branchName
-//         childId: child._id,
-//         childName: child.childName,
-//         class: child.class,
-//         rollno: child.rollno,
-//         section: child.section,
-//         dateOfBirth: child.dateOfBirth,
-//         childAge: child.childAge,
-//         pickupPoint: child.pickupPoint,
-//         deviceName: child.deviceName,
-//         gender: child.gender,
-//         parentId: child.parentId._id,
-//         parentName: child.parentId.parentName,
-//         email: child.parentId.email,
-//         phone: child.parentId.phone,
-//         statusOfRegister: child.statusOfRegister,
-//         deviceId: child.deviceId,
-//         registrationDate: child.registrationDate,
-//         formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-//       }));
-
-//       result.branches.push({
-//         branchId: branch._id,
-//         branchName: branch.branchName,
-//         children: formattedChildren,
-//       });
-//     });
-
-//     await Promise.all(branchPromises);
-
-//     res.status(200).json(result);
-//   } catch (error) {
-//     console.error('Error fetching school data:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 router.get('/read-children', schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req; // Extract schoolId from token
@@ -1239,82 +1172,83 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     const { childId } = req.params;
-//     const schoolId = req.schoolId;
 
-//     // Find the child within the specified school and populate branch and parent details
-//     const child = await Child.findOne({ _id: childId, schoolId })
-//       .populate({
-//         path: 'parentId',
-//         select: 'parentName phone'
-//       })
-//       .populate({
-//         path: 'branchId', // Populate branchId field
-//         select: 'branchName'
-//       })
-//       .populate({
-//         path: 'schoolId', // Populate schoolId field
-//         select: 'schoolName'
-//       })
-//       .lean(); // Convert to plain JavaScript object
+router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { childId } = req.params;
+    const schoolId = req.schoolId;
 
-//     if (!child) {
-//       return res.status(404).json({ message: 'Child not found' });
-//     }
+    // Find the child within the specified school and populate branch and parent details
+    const child = await Child.findOne({ _id: childId, schoolId })
+      .populate({
+        path: 'parentId',
+        select: 'parentName phone'
+      })
+      .populate({
+        path: 'branchId', // Populate branchId field
+        select: 'branchName'
+      })
+      .populate({
+        path: 'schoolId', // Populate schoolId field
+        select: 'schoolName'
+      })
+      .lean(); // Convert to plain JavaScript object
 
-//     const parent = child.parentId;
+    if (!child) {
+      return res.status(404).json({ message: 'Child not found' });
+    }
 
-//     // Fetch the most recent attendance record for the child
-//     const attendance = await Attendance.findOne({ childId })
-//       .sort({ date: -1 })
-//       .limit(1);
+    const parent = child.parentId;
 
-//     // Fetch the most recent request for the child
-//     const request = await Request.findOne({ childId })
-//       .sort({ requestDate: -1 })
-//       .limit(1);
+    // Fetch the most recent attendance record for the child
+    const attendance = await Attendance.findOne({ childId })
+      .sort({ date: -1 })
+      .limit(1);
 
-//     // Fetch the supervisor based on deviceId and schoolId
-//     let supervisor = null;
-//     if (child.deviceId) {
-//       supervisor = await Supervisor.findOne({ deviceId: child.deviceId, schoolId });
-//     }
+    // Fetch the most recent request for the child
+    const request = await Request.findOne({ childId })
+      .sort({ requestDate: -1 })
+      .limit(1);
 
-//     // Construct the response object
-//     const response = {
-//       childName: child.childName,
-//       childClass: child.class,
-//       parentName: parent ? parent.parentName : 'Parent not found',
-//       parentNumber: parent ? parent.phone : 'Parent not found',
-//       branchName: child.branchId ? child.branchId.branchName : 'Branch not found',
-//       schoolName: child.schoolId ? child.schoolId.schoolName : 'School not found',
-//       pickupStatus: attendance ? (attendance.pickup ? 'Present' : 'Absent') : 'No record',
-//       dropStatus: attendance ? (attendance.drop ? 'Present' : 'Absent') : 'No record',
-//       pickupTime: attendance ? attendance.pickupTime : 'N/A',
-//       dropTime: attendance ? attendance.dropTime : 'N/A',
-//       date: attendance ? attendance.date : 'N/A',
-//       requestType: request ? request.requestType : 'N/A',
-//       startDate: request ? request.startDate || 'N/A' : 'N/A',
-//       endDate: request ? request.endDate || 'N/A' : 'N/A',
-//       reason: request ? request.reason || 'N/A' : 'N/A',
-//       newRoute: request ? request.newRoute || 'N/A' : 'N/A',
-//       statusOfRequest: request ? request.statusOfRequest || 'N/A' : 'N/A',
-//       requestDate: request ? formatDateToDDMMYYYY(request.requestDate) : 'N/A',
-//       supervisorName: supervisor ? supervisor.supervisorName : 'Supervisor not found'
-//     };
+    // Fetch the supervisor based on deviceId and schoolId
+    let supervisor = null;
+    if (child.deviceId) {
+      supervisor = await Supervisor.findOne({ deviceId: child.deviceId, schoolId });
+    }
 
-//     // Send the response
-//     res.json(response);
-//   } catch (error) {
-//     console.error('Error fetching child status:', error);
-//     res.status(500).json({ message: 'Server error' });
-//   }
-// });
+    // Construct the response object only with fields that have data
+    const response = {};
 
-// POST METHOD
-//review request
+    if (child.childName) response.childName = child.childName;
+    if (child.class) response.childClass = child.class;
+    if (parent && parent.parentName) response.parentName = parent.parentName;
+    if (parent && parent.phone) response.parentNumber = parent.phone;
+    if (child.branchId && child.branchId.branchName) response.branchName = child.branchId.branchName;
+    if (child.schoolId && child.schoolId.schoolName) response.schoolName = child.schoolId.schoolName;
+    if (attendance && attendance.pickup !== undefined) response.pickupStatus = attendance.pickup ? 'Present' : 'Absent';
+    if (attendance && attendance.drop !== undefined) response.dropStatus = attendance.drop ? 'Present' : 'Absent';
+    if (attendance && attendance.pickupTime) response.pickupTime = attendance.pickupTime;
+    if (attendance && attendance.dropTime) response.dropTime = attendance.dropTime;
+    if (attendance && attendance.date) response.date = attendance.date;
+    if (request && request.requestType) response.requestType = request.requestType;
+
+    // Format startDate, endDate, and requestDate to 'dd-mm-yyyy'
+    if (request && request.startDate) response.startDate = formatDateToDDMMYYYY(request.startDate);
+    if (request && request.endDate) response.endDate = formatDateToDDMMYYYY(request.endDate);
+    if (request && request.requestDate) response.requestDate = formatDateToDDMMYYYY(request.requestDate);
+
+    if (request && request.reason) response.reason = request.reason;
+    if (request && request.newRoute) response.newRoute = request.newRoute;
+    if (request && request.statusOfRequest) response.statusOfRequest = request.statusOfRequest;
+    if (supervisor && supervisor.supervisorName) response.supervisorName = supervisor.supervisorName;
+
+    // Send the filtered response
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching child status:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
   try {
     const schoolId = req.schoolId;
@@ -1427,8 +1361,8 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-
+// POST METHOD
+//review request
 router.post("/review-request/:requestId",schoolAuthMiddleware,async (req, res) => {
     try {
       const { statusOfRequest } = req.body;
@@ -1523,6 +1457,51 @@ router.post('/registerStatus/:parentId/', schoolAuthMiddleware, async (req, res)
 });
 
 // add a new device
+// router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const { deviceId, deviceName, schoolName, branchName } = req.body;
+
+//     // Validate the required fields
+//     if (!deviceId || !deviceName || !schoolName || !branchName) {
+//       return res.status(400).json({ message: 'All fields (deviceId, deviceName, schoolName, branchName) are required' });
+//     }
+
+//     // Find the school by name
+//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+//     if (!school) {
+//       return res.status(404).json({ message: 'School not found' });
+//     }
+
+//     // Find the branch by name within the school
+//     const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+//     if (!branch) {
+//       return res.status(404).json({ message: 'Branch not found in the specified school' });
+//     }
+
+//     // Check if a device with the same ID already exists
+//     const existingDevice = await Device.findOne({ deviceId });
+//     if (existingDevice) {
+//       return res.status(400).json({ message: 'Device with this ID already exists' });
+//     }
+
+//     // Create a new device linked to the school and branch
+//     const newDevice = new Device({
+//       deviceId,
+//       deviceName,
+//       schoolId: school._id,  // Link to the school's ID
+//       branchId: branch._id   // Link to the branch's ID
+//     });
+
+//     // Save the device
+//     await newDevice.save();
+
+//     // Return success response
+//     res.status(201).json({ message: 'Device created successfully', device: newDevice });
+//   } catch (error) {
+//     console.error('Error adding device:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
 router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
   try {
     const { deviceId, deviceName, schoolName, branchName } = req.body;
@@ -1561,6 +1540,10 @@ router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
     // Save the device
     await newDevice.save();
 
+    // Update the branch to include the new device
+    branch.devices.push(newDevice._id);
+    await branch.save();
+
     // Return success response
     res.status(201).json({ message: 'Device created successfully', device: newDevice });
   } catch (error) {
@@ -1568,6 +1551,8 @@ router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+
 // read devices
 router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req; // Assuming schoolId comes from authentication middleware
@@ -1620,17 +1605,60 @@ router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
 });
 
 
+// router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
+//     const { deviceId, deviceName, branchName, schoolName } = req.body; // Values from the request body
+
+//     // Validate required fields
+//     if (!deviceId || !deviceName || !branchName || !schoolName) {
+//       return res.status(400).json({ message: 'deviceId, deviceName, branchName, and schoolName are required' });
+//     }
+
+//     // Check if the manually added deviceId already exists in another device
+//     const existingDevice = await Device.findOne({
+//       deviceId,
+//       _id: { $ne: actualDeviceId } // Exclude the current device from this check
+//     });
+
+//     if (existingDevice) {
+//       return res.status(400).json({ message: 'Device with this deviceId already exists' });
+//     }
+
+//     // Find the device by actualDeviceId (MongoDB _id) and update it
+//     const device = await Device.findById(actualDeviceId);
+//     if (!device) {
+//       return res.status(404).json({ message: 'Device not found' });
+//     }
+
+//     // Update the manually added deviceId, deviceName, branchName, and schoolName
+//     device.deviceId = deviceId; // Manually added deviceId
+//     device.deviceName = deviceName;
+//     device.branchName = branchName;
+//     device.schoolName = schoolName;
+
+//     // Save the updated device
+//     await device.save();
+
+//     // Return success response
+//     res.status(200).json({ message: 'Device updated successfully', device });
+//   } catch (error) {
+//     console.error('Error updating device:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
+// Example route that requires school authentication
 router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
   try {
     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
     const { deviceId, deviceName, branchName, schoolName } = req.body; // Values from the request body
 
     // Validate required fields
-    if (!deviceId || !deviceName || !branchName || !schoolName) {
-      return res.status(400).json({ message: 'deviceId, deviceName, branchName, and schoolName are required' });
+    if (!deviceId || !deviceName || (branchName && !schoolName)) {
+      return res.status(400).json({ message: 'deviceId, deviceName, and optionally branchName and schoolName are required' });
     }
 
-    // Check if the manually added deviceId already exists in another device
+    // Check if the deviceId already exists in another device
     const existingDevice = await Device.findOne({
       deviceId,
       _id: { $ne: actualDeviceId } // Exclude the current device from this check
@@ -1646,16 +1674,33 @@ router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Update the manually added deviceId, deviceName, branchName, and schoolName
-    device.deviceId = deviceId; // Manually added deviceId
+    // Update the device fields
+    device.deviceId = deviceId;
     device.deviceName = deviceName;
-    device.branchName = branchName;
-    device.schoolName = schoolName;
+
+    if (branchName && schoolName) {
+      // Find the school and branch where this device should be updated
+      const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+      if (!school) {
+        return res.status(404).json({ message: 'School not found' });
+      }
+
+      const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+      if (!branch) {
+        return res.status(404).json({ message: 'Branch not found in the specified school' });
+      }
+
+      // Update the branch to include the updated device (if necessary)
+      if (!branch.devices.includes(device._id)) {
+        branch.devices.push(device._id);
+        await branch.save();
+      }
+    }
 
     // Save the updated device
     await device.save();
 
-    // Return success response
+    // Return success response with the updated device data
     res.status(200).json({ message: 'Device updated successfully', device });
   } catch (error) {
     console.error('Error updating device:', error);
