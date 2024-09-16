@@ -823,7 +823,6 @@ router.get("/present-children", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Absent Children
 router.get("/absent-children", branchAuthMiddleware, async (req, res) => {
   try {
@@ -874,7 +873,6 @@ router.get("/absent-children", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
   try {
     const branchId = req.branchId; // Extract the branchId from the request
@@ -972,25 +970,22 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
   }
 });
 
-
-
 router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;
-    const { branchId, schoolId } = req;
 
-    // Find the child within the specified school and branch, and populate related details
-    const child = await Child.findOne({ _id: childId, schoolId, branchId })
+    // Find the child and populate branch, parent, and school details
+    const child = await Child.findOne({ _id: childId })
       .populate({
         path: 'parentId',
         select: 'parentName phone'
       })
       .populate({
-        path: 'branchId',
+        path: 'branchId', // Populate branchId field
         select: 'branchName'
       })
       .populate({
-        path: 'schoolId',
+        path: 'schoolId', // Populate schoolId field
         select: 'schoolName'
       })
       .lean(); // Convert to plain JavaScript object
@@ -1000,6 +995,8 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
     }
 
     const parent = child.parentId;
+    const branch = child.branchId;
+    const school = child.schoolId;
 
     // Fetch the most recent attendance record for the child
     const attendance = await Attendance.findOne({ childId })
@@ -1014,7 +1011,7 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
     // Fetch the supervisor based on deviceId and schoolId
     let supervisor = null;
     if (child.deviceId) {
-      supervisor = await Supervisor.findOne({ deviceId: child.deviceId, schoolId });
+      supervisor = await Supervisor.findOne({ deviceId: child.deviceId, schoolId: child.schoolId });
     }
 
     // Construct the response object only with fields that have data
@@ -1024,8 +1021,8 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
     if (child.class) response.childClass = child.class;
     if (parent && parent.parentName) response.parentName = parent.parentName;
     if (parent && parent.phone) response.parentNumber = parent.phone;
-    if (child.branchId && child.branchId.branchName) response.branchName = child.branchId.branchName;
-    if (child.schoolId && child.schoolId.schoolName) response.schoolName = child.schoolId.schoolName;
+    if (branch && branch.branchName) response.branchName = branch.branchName;
+    if (school && school.schoolName) response.schoolName = school.schoolName;
     if (attendance && attendance.pickup !== undefined) response.pickupStatus = attendance.pickup ? 'Present' : 'Absent';
     if (attendance && attendance.drop !== undefined) response.dropStatus = attendance.drop ? 'Present' : 'Absent';
     if (attendance && attendance.pickupTime) response.pickupTime = attendance.pickupTime;
@@ -1044,18 +1041,12 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
     if (supervisor && supervisor.supervisorName) response.supervisorName = supervisor.supervisorName;
 
     // Send the filtered response
-    res.json(response);
+    res.json({child:response});
   } catch (error) {
     console.error('Error fetching child status:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-
-
-
-
-
 // Get all geofences
 router.get('/geofences', async (req, res) => {
   try {

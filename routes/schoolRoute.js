@@ -1243,7 +1243,7 @@ router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
     if (supervisor && supervisor.supervisorName) response.supervisorName = supervisor.supervisorName;
 
     // Send the filtered response
-    res.json(response);
+    res.json({child:response});
   } catch (error) {
     console.error('Error fetching child status:', error);
     res.status(500).json({ message: 'Server error' });
@@ -1551,8 +1551,6 @@ router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
 // read devices
 router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req; // Assuming schoolId comes from authentication middleware
@@ -1603,8 +1601,6 @@ router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 // router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
 //   try {
 //     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
@@ -1707,8 +1703,6 @@ router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
 router.delete('/delete-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
   try {
     const { actualDeviceId } = req.params;
@@ -1729,9 +1723,6 @@ router.delete('/delete-device/:actualDeviceId', schoolAuthMiddleware, async (req
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
-
 //PUT METHOD
 // Update child information
 router.put('/update-child/:childId', schoolAuthMiddleware, async (req, res) => {
