@@ -1301,9 +1301,7 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
             }
           }),
           ...(supervisor && {
-            supervisor: {
-              supervisorName: supervisor.supervisorName
-            }
+              supervisorName: supervisor.supervisorName           
           })
         };
 
