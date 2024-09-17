@@ -1348,7 +1348,6 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 router.get('/status/:childId', superadminMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;
@@ -1426,9 +1425,6 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-
-
 router.get('/geofences', async (req, res) => {
   try {
     // Fetch all geofences
@@ -1676,9 +1672,6 @@ router.post('/add-device', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
-
 router.get('/read-devices', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -1738,49 +1731,6 @@ router.get('/read-devices', superadminMiddleware, async (req, res) => {
   }
 });
 // edit devices
-// router.put('/edit-device/:actualDeviceId', superadminMiddleware,async (req, res) => {
-//   try {
-//     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
-//     const { deviceId, deviceName, branchName, schoolName } = req.body; // The new values from the request body
-
-//     // Validate that required fields are provided
-//     if (!deviceId || !deviceName || !branchName || !schoolName) {
-//       return res.status(400).json({ message: 'deviceId, deviceName, branchName, and schoolName are required' });
-//     }
-
-//     // Check if the manually added deviceId already exists in another device
-//     const existingDevice = await Device.findOne({
-//       deviceId,
-//       _id: { $ne: actualDeviceId } // Exclude the current device from this check
-//     });
-
-//     if (existingDevice) {
-//       return res.status(400).json({ message: 'Device with this manually added deviceId already exists' });
-//     }
-
-//     // Find the device by actualDeviceId (MongoDB _id) and update it
-//     const updatedDevice = await Device.findByIdAndUpdate(
-//       actualDeviceId,
-//       {
-//         deviceId, // Manually added deviceId
-//         deviceName,
-//         branchName, // Manually provided branch name
-//         schoolName  // Manually provided school name
-//       },
-//       { new: true } // Return the updated document
-//     );
-
-//     if (!updatedDevice) {
-//       return res.status(404).json({ message: 'Device not found' });
-//     }
-
-//     // Return success response with the updated device data
-//     res.status(200).json({ message: 'Device updated successfully', device: updatedDevice });
-//   } catch (error) {
-//     console.error('Error updating device:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// });
 router.put('/edit-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
   try {
     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL

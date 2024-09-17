@@ -1455,53 +1455,7 @@ router.post('/registerStatus/:parentId/', schoolAuthMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // add a new device
-// router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     const { deviceId, deviceName, schoolName, branchName } = req.body;
-
-//     // Validate the required fields
-//     if (!deviceId || !deviceName || !schoolName || !branchName) {
-//       return res.status(400).json({ message: 'All fields (deviceId, deviceName, schoolName, branchName) are required' });
-//     }
-
-//     // Find the school by name
-//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
-//     if (!school) {
-//       return res.status(404).json({ message: 'School not found' });
-//     }
-
-//     // Find the branch by name within the school
-//     const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
-//     if (!branch) {
-//       return res.status(404).json({ message: 'Branch not found in the specified school' });
-//     }
-
-//     // Check if a device with the same ID already exists
-//     const existingDevice = await Device.findOne({ deviceId });
-//     if (existingDevice) {
-//       return res.status(400).json({ message: 'Device with this ID already exists' });
-//     }
-
-//     // Create a new device linked to the school and branch
-//     const newDevice = new Device({
-//       deviceId,
-//       deviceName,
-//       schoolId: school._id,  // Link to the school's ID
-//       branchId: branch._id   // Link to the branch's ID
-//     });
-
-//     // Save the device
-//     await newDevice.save();
-
-//     // Return success response
-//     res.status(201).json({ message: 'Device created successfully', device: newDevice });
-//   } catch (error) {
-//     console.error('Error adding device:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// });
 router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
   try {
     const { deviceId, deviceName, schoolName, branchName } = req.body;
