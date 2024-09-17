@@ -1231,23 +1231,22 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
   }
 });
 // Route to get child status for a superadmin  -- pending want the data schoowise
+
 router.get('/status-of-children', superadminMiddleware, async (req, res) => {
   try {
-    // Fetch all children from all schools and branches
     const children = await Child.find({})
-      .populate('parentId')  // Populate parent details
-      .populate('schoolId')  // Populate school details
+      .populate('parentId')
+      .populate('schoolId')
       .populate({
-        path: 'branchId',     // Populate branch details
+        path: 'branchId',
         select: 'branchName'
       })
-      .lean();  // Convert to plain JavaScript object for easier manipulation
+      .lean();
 
     if (!children || children.length === 0) {
       return res.status(404).json({ message: 'No children found in any school or branch' });
     }
 
-    // Group data by school and then by branch
     const schoolBranchData = {};
 
     for (const child of children) {
@@ -1255,40 +1254,36 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
       const branch = child.branchId;
       const parent = child.parentId;
       const password = parent ? decrypt(parent.password) : 'Unknown Password';
-      // Fetch the most recent attendance record for each child
+
       const attendance = await Attendance.findOne({ childId: child._id })
         .sort({ date: -1 })
         .limit(1)
         .lean();
 
-      // Fetch the most recent request for each child
       const request = await Request.findOne({ childId: child._id })
         .sort({ requestDate: -1 })
         .limit(1)
         .lean();
 
-      // Fetch the supervisor based on deviceId
       let supervisor = null;
       if (child.deviceId) {
         supervisor = await Supervisor.findOne({ deviceId: child.deviceId }).lean();
       }
 
-      // Check if the child has any relevant data
       if (attendance || request) {
-        // Structure the child data
         const childData = {
           childId: child._id,
           childName: child.childName,
           childClass: child.class,
-          childAge:child.childAge,
-          section:child.section,
-          rollno:child.rollno,
-          deviceId:child.deviceId,
-          gender:child.gender,
-          pickupPoint:child.pickupPoint,
+          childAge: child.childAge,
+          section: child.section,
+          rollno: child.rollno,
+          deviceId: child.deviceId,
+          gender: child.gender,
+          pickupPoint: child.pickupPoint,
           parentName: parent ? parent.parentName : 'Unknown Parent',
           parentNumber: parent ? parent.phone : 'Unknown Phone',
-          email:parent ? parent.email :"unknown email",
+          email: parent ? parent.email : 'Unknown email',
           password: password,
           ...(attendance && {
             pickupStatus: attendance.pickup ? 'Present' : 'Absent',
@@ -1298,20 +1293,19 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
             date: attendance.date
           }),
           ...(request && {
-              requestType: request.requestType,
-              startDate: request.startDate,
-              endDate: request.endDate,
-              reason: request.reason,
-              newRoute: request.newRoute,
-              statusOfRequest: request.statusOfRequest,
-              requestDate: formatDateToDDMMYYYY(request.requestDate)
+            requestType: request.requestType,
+            startDate: request.startDate ? formatDateToDDMMYYYY(request.startDate) : 'N/A',
+            endDate: request.endDate ? formatDateToDDMMYYYY(request.endDate) : 'N/A',
+            reason: request.reason,
+            newRoute: request.newRoute,
+            statusOfRequest: request.statusOfRequest,
+            requestDate: request.requestDate ? formatDateToDDMMYYYY(request.requestDate) : 'N/A'
           }),
           ...(supervisor && {
-              supervisorName: supervisor.supervisorName           
+            supervisorName: supervisor.supervisorName
           })
         };
 
-        // Initialize school if not already added
         if (!schoolBranchData[school._id]) {
           schoolBranchData[school._id] = {
             schoolId: school._id.toString(),
@@ -1320,7 +1314,6 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
           };
         }
 
-        // Initialize branch under the school if not already added
         if (!schoolBranchData[school._id].branches[branch._id]) {
           schoolBranchData[school._id].branches[branch._id] = {
             branchId: branch._id.toString(),
@@ -1329,12 +1322,10 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
           };
         }
 
-        // Add the child data to the respective branch under the school
         schoolBranchData[school._id].branches[branch._id].children.push(childData);
       }
     }
 
-    // Convert the schoolBranchData object into a proper array structure
     const responseData = Object.values(schoolBranchData).map(school => ({
       schoolId: school.schoolId,
       schoolName: school.schoolName,
@@ -1345,13 +1336,14 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
       }))
     }));
 
-    // Send the response containing grouped children data
     res.json({ data: responseData });
   } catch (error) {
     console.error('Error fetching children status:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+
 
 router.get('/status/:childId', superadminMiddleware, async (req, res) => {
   try {
