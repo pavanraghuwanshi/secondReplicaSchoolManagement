@@ -1254,7 +1254,7 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
       const school = child.schoolId;
       const branch = child.branchId;
       const parent = child.parentId;
-
+      const password = parent ? decrypt(parent.password) : 'Unknown Password';
       // Fetch the most recent attendance record for each child
       const attendance = await Attendance.findOne({ childId: child._id })
         .sort({ date: -1 })
@@ -1282,9 +1282,13 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
           childClass: child.class,
           childAge:child.childAge,
           section:child.section,
+          rollno:child.rollno,
+          deviceId:child.deviceId,
+          gender:child.gender,
           parentName: parent ? parent.parentName : 'Unknown Parent',
           parentNumber: parent ? parent.phone : 'Unknown Phone',
           email:parent ? parent.email :"unknown email",
+          password: password,
           ...(attendance && {
             pickupStatus: attendance.pickup ? 'Present' : 'Absent',
             dropStatus: attendance.drop ? 'Present' : 'Absent',
@@ -1349,6 +1353,7 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 router.get('/status/:childId', superadminMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;
