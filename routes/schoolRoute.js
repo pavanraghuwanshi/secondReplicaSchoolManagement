@@ -1172,7 +1172,6 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;
@@ -1303,10 +1302,11 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
           childId: child._id,
           childName: child.childName,
           childClass: child.class,
-          parent: {
+          childAge:child.childAge,
+          section:child.section,
             parentName: parent ? parent.parentName : 'Parent not found',
-            parentNumber: parent ? parent.phone : 'Parent not found'
-          },
+            parentNumber: parent ? parent.phone : 'Parent not found',
+            email:parent ? parent.email :"unknown email",
           ...(attendance && {
             pickupStatus: attendance.pickup ? 'Present' : 'Absent',
             dropStatus: attendance.drop ? 'Present' : 'Absent',

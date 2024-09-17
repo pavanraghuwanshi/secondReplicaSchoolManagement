@@ -1280,8 +1280,11 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
           childId: child._id,
           childName: child.childName,
           childClass: child.class,
+          childAge:child.childAge,
+          section:child.section,
           parentName: parent ? parent.parentName : 'Unknown Parent',
           parentNumber: parent ? parent.phone : 'Unknown Phone',
+          email:parent ? parent.email :"unknown email",
           ...(attendance && {
             pickupStatus: attendance.pickup ? 'Present' : 'Absent',
             dropStatus: attendance.drop ? 'Present' : 'Absent',
