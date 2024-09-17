@@ -305,7 +305,7 @@ router.get('/read-children', superadminMiddleware, async (req, res) => {
               parentName: child.parentId.parentName,
               email: child.parentId.email,
               phone: child.parentId.phone,
-              password, // Include decrypted password here
+              password, 
               statusOfRegister: child.parentId.statusOfRegister,
               deviceId: child.deviceId,
               registrationDate: child.registrationDate,
@@ -472,6 +472,7 @@ router.get('/pending-requests', superadminMiddleware, async (req, res) => {
             childName: request.childId.childName,
             requestType: request.requestType,
             deviceId: request.childId.deviceId,
+            deviceName: request.childId.deviceName,
             requestDate: request.requestDate
               ? formatDateToDDMMYYYY(new Date(request.requestDate))
               : null,
@@ -573,6 +574,7 @@ router.get('/approved-requests', superadminMiddleware, async (req, res) => {
             childName: request.childId.childName,
             requestType: request.requestType,
             deviceId: request.childId.deviceId,
+            deviceName:request.childId.deviceName,
             requestDate: request.requestDate
               ? formatDateToDDMMYYYY(new Date(request.requestDate))
               : null,
@@ -657,6 +659,7 @@ router.get('/denied-requests', superadminMiddleware, async (req, res) => {
           childId: request.childId._id,
           childName: request.childId.childName,
           deviceId: request.childId.deviceId,
+          
           class: request.childId.class,
           statusOfRequest: request.statusOfRequest,
           parentName: request.parentId.parentName,
@@ -852,131 +855,131 @@ router.get('/read-supervisors', superadminMiddleware, async (req, res) => {
 });
 
 // Route to get data by deviceId for a superadmin
-router.get('/data-by-deviceId', superadminMiddleware, async (req, res) => {
-  const { deviceId } = req.query;
+// router.get('/data-by-deviceId', superadminMiddleware, async (req, res) => {
+//   const { deviceId } = req.query;
 
-  if (!deviceId) {
-    return res.status(400).json({ error: 'Device ID is required' });
-  }
+//   if (!deviceId) {
+//     return res.status(400).json({ error: 'Device ID is required' });
+//   }
 
-  try {
-    // Fetch all schools
-    const schools = await School.find({}).lean();
+//   try {
+//     // Fetch all schools
+//     const schools = await School.find({}).lean();
 
-    // Initialize an empty array to hold the data by school and branch
-    const dataBySchool = await Promise.all(
-      schools.map(async (school) => {
-        const schoolId = school._id;
-        const schoolName = school.schoolName;
+//     // Initialize an empty array to hold the data by school and branch
+//     const dataBySchool = await Promise.all(
+//       schools.map(async (school) => {
+//         const schoolId = school._id;
+//         const schoolName = school.schoolName;
 
-        // Fetch all branches associated with the current school
-        const branches = await Branch.find({ schoolId }).lean();
+//         // Fetch all branches associated with the current school
+//         const branches = await Branch.find({ schoolId }).lean();
 
-        // Fetch data for each branch
-        const dataByBranch = await Promise.all(
-          branches.map(async (branch) => {
-            const branchId = branch._id;
-            const branchName = branch.branchName;
+//         // Fetch data for each branch
+//         const dataByBranch = await Promise.all(
+//           branches.map(async (branch) => {
+//             const branchId = branch._id;
+//             const branchName = branch.branchName;
 
-            // Fetch Supervisor data for the branch
-            const supervisor = await Supervisor.findOne({ deviceId, schoolId, branchId }).lean();
-            let supervisorData = {};
-            if (supervisor) {
-              try {
-                console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
-                const decryptedPassword = decrypt(supervisor.password);
-                supervisorData = {
-                  id: supervisor._id,
-                  supervisorName: supervisor.supervisorName,
-                  address: supervisor.address,
-                  phone_no: supervisor.phone_no,
-                  email: supervisor.email,
-                  deviceId: supervisor.deviceId,
-                  password: decryptedPassword,
-                  registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)),
-                  schoolName: schoolName,
-                  branchName: branchName
-                };
-              } catch (decryptError) {
-                console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
-              }
-            }
+//             // Fetch Supervisor data for the branch
+//             const supervisor = await Supervisor.findOne({ deviceId, schoolId, branchId }).lean();
+//             let supervisorData = {};
+//             if (supervisor) {
+//               try {
+//                 console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
+//                 const decryptedPassword = decrypt(supervisor.password);
+//                 supervisorData = {
+//                   id: supervisor._id,
+//                   supervisorName: supervisor.supervisorName,
+//                   address: supervisor.address,
+//                   phone_no: supervisor.phone_no,
+//                   email: supervisor.email,
+//                   deviceId: supervisor.deviceId,
+//                   password: decryptedPassword,
+//                   registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)),
+//                   schoolName: schoolName,
+//                   branchName: branchName
+//                 };
+//               } catch (decryptError) {
+//                 console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
+//               }
+//             }
 
-            // Fetch Driver data for the branch
-            const driver = await DriverCollection.findOne({ deviceId, schoolId, branchId }).lean();
-            let driverData = {};
-            if (driver) {
-              try {
-                console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
-                const decryptedPassword = decrypt(driver.password);
-                driverData = {
-                  id: driver._id,
-                  driverName: driver.driverName,
-                  address: driver.address,
-                  phone_no: driver.phone_no,
-                  email: driver.email,
-                  deviceId: driver.deviceId,
-                  password: decryptedPassword,
-                  registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
-                  schoolName: schoolName,
-                  branchName: branchName
-                };
-              } catch (decryptError) {
-                console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
-              }
-            }
+//             // Fetch Driver data for the branch
+//             const driver = await DriverCollection.findOne({ deviceId, schoolId, branchId }).lean();
+//             let driverData = {};
+//             if (driver) {
+//               try {
+//                 console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
+//                 const decryptedPassword = decrypt(driver.password);
+//                 driverData = {
+//                   id: driver._id,
+//                   driverName: driver.driverName,
+//                   address: driver.address,
+//                   phone_no: driver.phone_no,
+//                   email: driver.email,
+//                   deviceId: driver.deviceId,
+//                   password: decryptedPassword,
+//                   registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
+//                   schoolName: schoolName,
+//                   branchName: branchName
+//                 };
+//               } catch (decryptError) {
+//                 console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
+//               }
+//             }
 
-            // Fetch Child data for the branch
-            const children = await Child.find({ deviceId, schoolId, branchId }).lean();
-            const transformedChildren = await Promise.all(
-              children.map(async (child) => {
-                let parentData = {};
-                if (child.parentId) {
-                  const parent = await Parent.findById(child.parentId).lean();
-                  parentData = {
-                    parentName: parent ? parent.parentName : null,
-                    email: parent ? parent.email : null,
-                    phone: parent ? parent.phone : null,
-                    parentId: parent ? parent._id : null,
-                  };
-                }
+//             // Fetch Child data for the branch
+//             const children = await Child.find({ deviceId, schoolId, branchId }).lean();
+//             const transformedChildren = await Promise.all(
+//               children.map(async (child) => {
+//                 let parentData = {};
+//                 if (child.parentId) {
+//                   const parent = await Parent.findById(child.parentId).lean();
+//                   parentData = {
+//                     parentName: parent ? parent.parentName : null,
+//                     email: parent ? parent.email : null,
+//                     phone: parent ? parent.phone : null,
+//                     parentId: parent ? parent._id : null,
+//                   };
+//                 }
 
-                return {
-                  ...child,
-                  ...parentData,
-                  formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-                  schoolName: schoolName,
-                  branchName: branchName
-                };
-              })
-            );
+//                 return {
+//                   ...child,
+//                   ...parentData,
+//                   formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+//                   schoolName: schoolName,
+//                   branchName: branchName
+//                 };
+//               })
+//             );
 
-            return {
-              branchId: branchId,
-              branchName: branchName,
-              supervisor: supervisorData,
-              driver: driverData,
-              children: transformedChildren
-            };
-          })
-        );
+//             return {
+//               branchId: branchId,
+//               branchName: branchName,
+//               supervisor: supervisorData,
+//               driver: driverData,
+//               children: transformedChildren
+//             };
+//           })
+//         );
 
-        return {
-          schoolId: schoolId,
-          schoolName: schoolName,
-          branches: dataByBranch
-        };
-      })
-    );
+//         return {
+//           schoolId: schoolId,
+//           schoolName: schoolName,
+//           branches: dataByBranch
+//         };
+//       })
+//     );
 
-    // Send the formatted data by school and branch
-    res.status(200).json(dataBySchool);
+//     // Send the formatted data by school and branch
+//     res.status(200).json(dataBySchool);
 
-  } catch (error) {
-    console.error('Error fetching data by deviceId:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+//   } catch (error) {
+//     console.error('Error fetching data by deviceId:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 // Route to get attendance data for admin dashboard
 const convertDate = (dateStr) => {
   const dateParts = dateStr.split('-');
@@ -1116,8 +1119,7 @@ router.get("/present-children", superadminMiddleware, async (req, res) => {
                   phone: record.childId.parentId.phone,
                   statusOfRegister: record.childId.statusOfRegister,
                   deviceId: record.childId.deviceId,
-                  registrationDate: record.childId.registrationDate,
-                  formattedRegistrationDate: originalDate,
+                   registrationDate: formatDateToDDMMYYYY(record.childId.registrationDate),
                   pickupStatus: record.pickup,
                   pickupTime: record.pickupTime,
                 };
@@ -1667,7 +1669,7 @@ router.post("/review-request/:requestId", superadminMiddleware, async (req, res)
     res.status(500).json({ error: "Internal server error" });
   }
 });
-router.post('/registerStatus/:parentId/', superadminMiddleware, async (req, res) => {
+router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) => {
   try {
     const { parentId } = req.params;
     const { action } = req.body;

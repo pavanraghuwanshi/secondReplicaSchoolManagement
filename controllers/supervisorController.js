@@ -31,6 +31,43 @@ exports.getSchools =  async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 }
+
+// exports.getDevices = async (req, res) => {
+//   try {
+//     const { schoolName, branchName } = req.query;
+
+//     // Validate that required fields are present
+//     if (!schoolName || !branchName) {
+//       return res.status(400).json({ error: 'School name and branch name are required' });
+//     }
+
+//     // Find the school by name
+//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+//     if (!school) {
+//       return res.status(404).json({ message: 'School not found' });
+//     }
+
+//     // Find the branch by name within the school
+//     const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+//     if (!branch) {
+//       return res.status(404).json({ message: 'Branch not found in the specified school' });
+//     }
+
+//     // Fetch devices linked to the branch
+//     const devices = await Device.find({ branchId: branch._id }).exec();
+
+//     // Format the response
+//     const response = devices.map(device => ({
+//       deviceId: device.deviceId,
+//       deviceName: device.deviceName
+//     }));
+
+//     res.status(200).json({ devices: response });
+//   } catch (error) {
+//     console.error('Error fetching devices:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// }
 exports.getDevices = async (req, res) => {
   try {
     const { schoolName, branchName } = req.query;
@@ -52,11 +89,20 @@ exports.getDevices = async (req, res) => {
       return res.status(404).json({ message: 'Branch not found in the specified school' });
     }
 
-    // Fetch devices linked to the branch
-    const devices = await Device.find({ branchId: branch._id }).exec();
+    // Fetch all devices linked to the branch
+    const devices = await Device.find({ branchId: branch._id }).lean();
 
-    // Format the response
-    const response = devices.map(device => ({
+    // Fetch all supervisors assigned to the branch and their devices
+    const supervisors = await Supervisor.find({ branchId: branch._id }, 'deviceId').lean();
+
+    // Get the deviceIds already assigned to supervisors
+    const assignedDeviceIds = supervisors.map(supervisor => supervisor.deviceId);
+
+    // Filter out devices that have already been assigned
+    const availableDevices = devices.filter(device => !assignedDeviceIds.includes(device.deviceId));
+
+    // Format the response to return only the available devices
+    const response = availableDevices.map(device => ({
       deviceId: device.deviceId,
       deviceName: device.deviceName
     }));
@@ -66,7 +112,7 @@ exports.getDevices = async (req, res) => {
     console.error('Error fetching devices:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}
+};
 exports.registerSupervisor = async (req, res) => {
   try {
     const {

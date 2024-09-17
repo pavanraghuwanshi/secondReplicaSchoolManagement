@@ -154,7 +154,6 @@ router.get('/get-devices', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // Parent Login Route
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;

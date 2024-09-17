@@ -86,6 +86,42 @@ exports.getSchools =  async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 }
+// exports.getDevices = async (req, res) => {
+//   try {
+//     const { schoolName, branchName } = req.query;
+
+//     // Validate that required fields are present
+//     if (!schoolName || !branchName) {
+//       return res.status(400).json({ error: 'School name and branch name are required' });
+//     }
+
+//     // Find the school by name
+//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+//     if (!school) {
+//       return res.status(404).json({ message: 'School not found' });
+//     }
+
+//     // Find the branch by name within the school
+//     const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+//     if (!branch) {
+//       return res.status(404).json({ message: 'Branch not found in the specified school' });
+//     }
+
+//     // Fetch devices linked to the branch
+//     const devices = await Device.find({ branchId: branch._id }).exec();
+
+//     // Format the response
+//     const response = devices.map(device => ({
+//       deviceId: device.deviceId,
+//       deviceName: device.deviceName
+//     }));
+
+//     res.status(200).json({ devices: response });
+//   } catch (error) {
+//     console.error('Error fetching devices:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// }
 exports.getDevices = async (req, res) => {
   try {
     const { schoolName, branchName } = req.query;
@@ -107,11 +143,20 @@ exports.getDevices = async (req, res) => {
       return res.status(404).json({ message: 'Branch not found in the specified school' });
     }
 
-    // Fetch devices linked to the branch
-    const devices = await Device.find({ branchId: branch._id }).exec();
+    // Fetch all devices linked to the branch
+    const devices = await Device.find({ branchId: branch._id }).lean();
+
+    // Fetch all drivers assigned to the branch and their deviceIds
+    const drivers = await DriverCollection.find({ branchId: branch._id }, 'deviceId').lean();
+
+    // Extract deviceIds that are already assigned to drivers
+    const assignedDeviceIds = drivers.map(driver => driver.deviceId);
+
+    // Filter out devices that are already assigned
+    const availableDevices = devices.filter(device => !assignedDeviceIds.includes(device.deviceId));
 
     // Format the response
-    const response = devices.map(device => ({
+    const response = availableDevices.map(device => ({
       deviceId: device.deviceId,
       deviceName: device.deviceName
     }));
@@ -121,7 +166,8 @@ exports.getDevices = async (req, res) => {
     console.error('Error fetching devices:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}
+};
+
 exports.loginDriver = async (req, res) => {
   const { email, password } = req.body;
   
