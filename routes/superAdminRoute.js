@@ -1285,6 +1285,7 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
           rollno:child.rollno,
           deviceId:child.deviceId,
           gender:child.gender,
+          pickupPoint:child.pickupPoint,
           parentName: parent ? parent.parentName : 'Unknown Parent',
           parentNumber: parent ? parent.phone : 'Unknown Phone',
           email:parent ? parent.email :"unknown email",
@@ -1381,7 +1382,7 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     const parent = child.parentId;
     const branch = child.branchId;
     const school = child.schoolId;
-
+    const password = parent ? decrypt(parent.password) : 'Unknown Password';
     // Fetch the most recent attendance record for the child
     const attendance = await Attendance.findOne({ childId })
       .sort({ date: -1 })
@@ -1403,8 +1404,12 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
 
     if (child.childName) response.childName = child.childName;
     if (child.class) response.childClass = child.class;
+    if (child.rollno) response.rollno = child.rollno;
+    if (child.deviceId) response.deviceId = child.deviceId;
+    if (child.gender) response.gender = child.gender;
     if (parent && parent.parentName) response.parentName = parent.parentName;
     if (parent && parent.phone) response.parentNumber = parent.phone;
+    if (parent && parent.password) response.password = parent.password;
     if (branch && branch.branchName) response.branchName = branch.branchName;
     if (school && school.schoolName) response.schoolName = school.schoolName;
     if (attendance && attendance.pickup !== undefined) response.pickupStatus = attendance.pickup ? 'Present' : 'Absent';
