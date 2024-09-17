@@ -1298,7 +1298,6 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
             date: attendance.date
           }),
           ...(request && {
-            request: {
               requestType: request.requestType,
               startDate: request.startDate,
               endDate: request.endDate,
@@ -1306,7 +1305,6 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
               newRoute: request.newRoute,
               statusOfRequest: request.statusOfRequest,
               requestDate: formatDateToDDMMYYYY(request.requestDate)
-            }
           }),
           ...(supervisor && {
               supervisorName: supervisor.supervisorName           
@@ -1363,7 +1361,7 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     const child = await Child.findOne({ _id: childId })
       .populate({
         path: 'parentId',
-        select: 'parentName phone'
+        select: 'parentName phone password email'
       })
       .populate({
         path: 'branchId', // Populate branchId field
@@ -1382,7 +1380,7 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     const parent = child.parentId;
     const branch = child.branchId;
     const school = child.schoolId;
-    const password = parent ? decrypt(parent.password) : 'Unknown Password';
+    const password = parent && parent.password ? decrypt(parent.password) : 'Unknown Password';
     // Fetch the most recent attendance record for the child
     const attendance = await Attendance.findOne({ childId })
       .sort({ date: -1 })
@@ -1407,9 +1405,11 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     if (child.rollno) response.rollno = child.rollno;
     if (child.deviceId) response.deviceId = child.deviceId;
     if (child.gender) response.gender = child.gender;
+    if (child.pickupPoint) response.pickupPoint = child.pickupPoint;
     if (parent && parent.parentName) response.parentName = parent.parentName;
     if (parent && parent.phone) response.parentNumber = parent.phone;
-    if (parent && parent.password) response.password = parent.password;
+    if (parent && parent.email) response.email = parent.email;
+    if (password) response.password = password; 
     if (branch && branch.branchName) response.branchName = branch.branchName;
     if (school && school.schoolName) response.schoolName = school.schoolName;
     if (attendance && attendance.pickup !== undefined) response.pickupStatus = attendance.pickup ? 'Present' : 'Absent';
