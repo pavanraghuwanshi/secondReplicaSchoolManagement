@@ -1018,8 +1018,6 @@ router.get("/pickup-drop-status", async (req, res) => {
             const childrenData = attendanceRecords
               .filter(record => record.childId && record.childId.parentId)
               .map(record => {
-                const { date, originalDate } = convertDate(record.date);
-
                 return {
                   childId: record.childId._id.toString(),
                   childName: record.childId.childName,
@@ -1037,8 +1035,7 @@ router.get("/pickup-drop-status", async (req, res) => {
                   phone: record.childId.parentId.phone,
                   statusOfRegister: record.childId.statusOfRegister,
                   deviceId: record.childId.deviceId,
-                  registrationDate: record.childId.registrationDate,
-                  formattedRegistrationDate: originalDate,
+                  registrationDate: formatDateToDDMMYYYY(record.childId.registrationDate),
                   pickupStatus: record.pickup,
                   pickupTime: record.pickupTime,
                   dropStatus: record.drop,
@@ -1231,6 +1228,127 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
   }
 });
 // Route to get child status for a superadmin  -- pending want the data schoowise
+// router.get('/status-of-children', superadminMiddleware, async (req, res) => {
+//   try {
+//     // Fetch all children from all schools and branches
+//     const children = await Child.find({})
+//       .populate('parentId')  // Populate parent details
+//       .populate('schoolId')  // Populate school details
+//       .populate({
+//         path: 'branchId',     // Populate branch details
+//         select: 'branchName'
+//       })
+//       .lean();  // Convert to plain JavaScript object for easier manipulation
+
+//     if (!children || children.length === 0) {
+//       return res.status(404).json({ message: 'No children found in any school or branch' });
+//     }
+
+//     // Group data by school and then by branch
+//     const schoolBranchData = {};
+
+//     for (const child of children) {
+//       const school = child.schoolId;
+//       const branch = child.branchId;
+//       const parent = child.parentId;
+//       const password = parent ? decrypt(parent.password) : 'Unknown Password';
+//       // Fetch the most recent attendance record for each child
+//       const attendance = await Attendance.findOne({ childId: child._id })
+//         .sort({ date: -1 })
+//         .limit(1)
+//         .lean();
+
+//       // Fetch the most recent request for each child
+//       const request = await Request.findOne({ childId: child._id })
+//         .sort({ requestDate: -1 })
+//         .limit(1)
+//         .lean();
+
+//       // Fetch the supervisor based on deviceId
+//       let supervisor = null;
+//       if (child.deviceId) {
+//         supervisor = await Supervisor.findOne({ deviceId: child.deviceId }).lean();
+//       }
+
+//       // Check if the child has any relevant data
+//       if (attendance || request) {
+//         // Structure the child data
+//         const childData = {
+//           childId: child._id,
+//           childName: child.childName,
+//           childClass: child.class,
+//           childAge:child.childAge,
+//           section:child.section,
+//           rollno:child.rollno,
+//           deviceId:child.deviceId,
+//           gender:child.gender,
+//           pickupPoint:child.pickupPoint,
+//           parentName: parent ? parent.parentName : 'Unknown Parent',
+//           parentNumber: parent ? parent.phone : 'Unknown Phone',
+//           email:parent ? parent.email :"unknown email",
+//           password: password,
+//           ...(attendance && {
+//             pickupStatus: attendance.pickup ? 'Present' : 'Absent',
+//             dropStatus: attendance.drop ? 'Present' : 'Absent',
+//             pickupTime: attendance.pickupTime,
+//             dropTime: attendance.dropTime,
+//             date: attendance.date
+//           }),
+//           ...(request && {
+//               requestType: request.requestType,
+//               startDate:formatDateToDDMMYYYY(request.startDate),
+//               endDate: formatDateToDDMMYYYY(request.endDate),
+//               reason: request.reason,
+//               newRoute: request.newRoute,
+//               statusOfRequest: request.statusOfRequest,
+//               requestDate: formatDateToDDMMYYYY(request.requestDate)
+//           }),
+//           ...(supervisor && {
+//               supervisorName: supervisor.supervisorName           
+//           })
+//         };
+
+//         // Initialize school if not already added
+//         if (!schoolBranchData[school._id]) {
+//           schoolBranchData[school._id] = {
+//             schoolId: school._id.toString(),
+//             schoolName: school.schoolName,
+//             branches: {}
+//           };
+//         }
+
+//         // Initialize branch under the school if not already added
+//         if (!schoolBranchData[school._id].branches[branch._id]) {
+//           schoolBranchData[school._id].branches[branch._id] = {
+//             branchId: branch._id.toString(),
+//             branchName: branch.branchName,
+//             children: []
+//           };
+//         }
+
+//         // Add the child data to the respective branch under the school
+//         schoolBranchData[school._id].branches[branch._id].children.push(childData);
+//       }
+//     }
+
+//     // Convert the schoolBranchData object into a proper array structure
+//     const responseData = Object.values(schoolBranchData).map(school => ({
+//       schoolId: school.schoolId,
+//       schoolName: school.schoolName,
+//       branches: Object.values(school.branches).map(branch => ({
+//         branchId: branch.branchId,
+//         branchName: branch.branchName,
+//         children: branch.children
+//       }))
+//     }));
+
+//     // Send the response containing grouped children data
+//     res.json({ data: responseData });
+//   } catch (error) {
+//     console.error('Error fetching children status:', error);
+//     res.status(500).json({ message: 'Server error' });
+//   }
+// });
 
 router.get('/status-of-children', superadminMiddleware, async (req, res) => {
   try {
@@ -1342,9 +1460,6 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-
-
 router.get('/status/:childId', superadminMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;

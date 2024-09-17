@@ -1181,7 +1181,7 @@ router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
     const child = await Child.findOne({ _id: childId, schoolId })
       .populate({
         path: 'parentId',
-        select: 'parentName phone'
+        select: 'parentName phone password email'
       })
       .populate({
         path: 'branchId', // Populate branchId field
@@ -1198,7 +1198,7 @@ router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
     }
 
     const parent = child.parentId;
-
+    const password = parent ? decrypt(parent.password) : 'Unknown Password';
     // Fetch the most recent attendance record for the child
     const attendance = await Attendance.findOne({ childId })
       .sort({ date: -1 })
@@ -1220,6 +1220,11 @@ router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
 
     if (child.childName) response.childName = child.childName;
     if (child.class) response.childClass = child.class;
+    if (child.rollno) response.rollno = child.rollno;
+    if (child.deviceId) response.deviceId = child.deviceId;
+    if (child.gender) response.gender = child.gender;
+    if (child.pickupPoint) response.pickupPoint = child.pickupPoint;
+    if (password) response.password = password; 
     if (parent && parent.parentName) response.parentName = parent.parentName;
     if (parent && parent.phone) response.parentNumber = parent.phone;
     if (child.branchId && child.branchId.branchName) response.branchName = child.branchId.branchName;
@@ -1256,7 +1261,7 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
     const children = await Child.find({ schoolId })
       .populate({
         path: 'parentId',
-        select: 'parentName phone'
+        select: 'parentName phone email password'
       })
       .populate({
         path: 'branchId',
@@ -1294,7 +1299,7 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
       if (child.deviceId) {
         supervisor = await Supervisor.findOne({ deviceId: child.deviceId, schoolId }).lean();
       }
-
+      const password = parent ? decrypt(parent.password) : 'Unknown Password';
       // Check if the child has any relevant data
       if (attendance || request) {
         // Prepare the child status data
@@ -1304,9 +1309,15 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
           childClass: child.class,
           childAge:child.childAge,
           section:child.section,
+          childAge: child.childAge,
+          rollno: child.rollno,
+          deviceId: child.deviceId,
+          gender: child.gender,
+          pickupPoint: child.pickupPoint,
             parentName: parent ? parent.parentName : 'Parent not found',
             parentNumber: parent ? parent.phone : 'Parent not found',
             email:parent ? parent.email :"unknown email",
+            password: password,
           ...(attendance && {
             pickupStatus: attendance.pickup ? 'Present' : 'Absent',
             dropStatus: attendance.drop ? 'Present' : 'Absent',
@@ -1315,15 +1326,13 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
             date: attendance.date
           }),
           ...(request && {
-            request: {
               requestType: request.requestType,
-              startDate: request.startDate || 'N/A',
-              endDate: request.endDate || 'N/A',
+              startDate: formatDateToDDMMYYYY(request.startDate)|| 'N/A',
+              endDate: formatDateToDDMMYYYY(request.endDate) || 'N/A',
               reason: request.reason || 'N/A',
               newRoute: request.newRoute || 'N/A',
               statusOfRequest: request.statusOfRequest || 'N/A',
-              requestDate: formatDateToDDMMYYYY(request.requestDate) || 'N/A'
-            }
+              requestDate: formatDateToDDMMYYYY(request.requestDate) || 'N/A'            
           }),
           ...(supervisor && {
             supervisorName: supervisor.supervisorName
