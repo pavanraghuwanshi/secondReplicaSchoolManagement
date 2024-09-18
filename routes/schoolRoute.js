@@ -14,9 +14,16 @@ const jwt = require("jsonwebtoken");
 const Branch = require('../models/branch');
 const Geofencing = require("../models/geofence");
 const Device = require('../models/device');
+const convertDate = (dateStr) => {
+  const dateParts = dateStr.split('-');
+  const jsDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);
+  return {
+    date: dateStr,
+    originalDate: jsDate
+  };
+}
 
 
-// Login route for schools
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -54,7 +61,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-// Add a branch to a school (superadmin)
 router.post('/add-branch', schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId, branchName, email, schoolMobile, username, password } = req.body;
@@ -94,7 +100,11 @@ router.post('/add-branch', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// GET Branches
+
+
+
+
+// GET METHOD 
 router.get('/branches', schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req; // Extract schoolId from the request token
@@ -128,9 +138,55 @@ router.get('/branches', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
+  const { schoolId } = req; // Assuming schoolId comes from authentication middleware
 
-// GET METHOD 
-// read chilren
+  try {
+    // Fetch all branches associated with the current school
+    const branches = await Branch.find({ schoolId }).lean();
+
+    // Create a map to group devices by branches
+    const branchesMap = {};
+
+    // Loop through each branch to get devices
+    for (const branch of branches) {
+      const branchId = branch._id;
+
+      // Fetch all devices for the current branch
+      const devices = await Device.find({ schoolId: schoolId, branchId: branchId }).lean();
+
+      // Map over devices and return the relevant details
+      const formattedDevices = devices.map((device) => ({
+        deviceId: device.deviceId, // Manually added deviceId
+        actualDeviceId: device._id, // MongoDB generated _id as actualDeviceId
+        deviceName: device.deviceName,
+      }));
+
+      // Add the branch and its devices to the branchesMap
+      branchesMap[branchId] = {
+        branchId: branchId,
+        branchName: branch.branchName,
+        devices: formattedDevices,
+      };
+    }
+
+    // Convert branchesMap object into an array of branches
+    const branchesArray = Object.values(branchesMap);
+
+    // Prepare the final response data
+    const responseData = {
+      schoolId: schoolId,
+      schoolName: branches.length > 0 ? branches[0].schoolId.schoolName : 'N/A',
+      branches: branchesArray,
+    };
+
+    // Send the formatted devices grouped by branches as a JSON response
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error('Error fetching devices by school:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 router.get('/read-children', schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req; // Extract schoolId from token
@@ -206,7 +262,6 @@ router.get('/read-children', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// get parents
 router.get('/read-parents', schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req; // Extract schoolId from the request token
@@ -277,7 +332,6 @@ router.get('/read-parents', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Get all pending requests
 router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req;
@@ -388,7 +442,6 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
-// Get all approved requests
 router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req;
@@ -492,7 +545,6 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
-// Get all children with denied requests
 router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req;
@@ -576,7 +628,6 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Get all drivers 
 router.get('/read-drivers', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req;
 
@@ -605,6 +656,7 @@ router.get('/read-drivers', schoolAuthMiddleware, async (req, res) => {
           deviceName:driver.deviceName,
           deviceId: driver.deviceId,
           password: decryptedPassword,
+          statusOfRegister:driver.statusOfRegister,
           registrationDate: driver.registrationDate,
           formattedRegistrationDate: driver.registrationDate ? formatDateToDDMMYYYY(new Date(driver.registrationDate)) : null,
           schoolName: driver.schoolId ? driver.schoolId.schoolName : 'N/A', // Include the school name
@@ -647,7 +699,6 @@ router.get('/read-drivers', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Get all supervisor
 router.get('/read-supervisors', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req;
 
@@ -676,6 +727,7 @@ router.get('/read-supervisors', schoolAuthMiddleware, async (req, res) => {
           deviceId: supervisor.deviceId,
           deviceName:supervisor.deviceName,
           password: decryptedPassword,
+          statusOfRegister:supervisor.statusOfRegister,
           registrationDate: supervisor.registrationDate,
           formattedRegistrationDate: supervisor.registrationDate ? formatDateToDDMMYYYY(new Date(supervisor.registrationDate)) : null,
           schoolName: supervisor.schoolId ? supervisor.schoolId.schoolName : 'N/A', // Include school name
@@ -718,125 +770,6 @@ router.get('/read-supervisors', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// // Route to get data by deviceId for a superadmin
-// router.get('/data-by-deviceId', schoolAuthMiddleware, async (req, res) => {
-//   const { deviceId } = req.body;
-//   const { schoolId } = req;
-
-//   if (!deviceId) {
-//     return res.status(400).json({ error: 'Device ID is required' });
-//   }
-
-//   try {
-//     // Fetch all branches associated with the authenticated school
-//     const branches = await Branch.find({ schoolId }).lean();
-
-//     // Initialize a map to hold the branch-wise data
-//     const branchesMap = {};
-
-//     // Fetch data for each branch
-//     await Promise.all(
-//       branches.map(async (branch) => {
-//         const branchId = branch._id;
-//         const branchName = branch.branchName;
-
-//         // Fetch Supervisor data for the branch
-//         const supervisor = await Supervisor.findOne({ deviceId, schoolId, branchId }).lean();
-//         let supervisorData = {};
-//         if (supervisor) {
-//           try {
-//             console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
-//             const decryptedPassword = decrypt(supervisor.password);
-//             supervisorData = {
-//               id: supervisor._id,
-//               supervisorName: supervisor.supervisorName,
-//               address: supervisor.address,
-//               phone_no: supervisor.phone_no,
-//               email: supervisor.email,
-//               deviceId: supervisor.deviceId,
-//               password: decryptedPassword,
-//               registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)),
-//             };
-//           } catch (decryptError) {
-//             console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
-//           }
-//         }
-
-//         // Fetch Driver data for the branch
-//         const driver = await DriverCollection.findOne({ deviceId, schoolId, branchId }).lean();
-//         let driverData = {};
-//         if (driver) {
-//           try {
-//             console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
-//             const decryptedPassword = decrypt(driver.password);
-//             driverData = {
-//               id: driver._id,
-//               driverName: driver.driverName,
-//               address: driver.address,
-//               phone_no: driver.phone_no,
-//               email: driver.email,
-//               deviceId: driver.deviceId,
-//               password: decryptedPassword,
-//               registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
-//             };
-//           } catch (decryptError) {
-//             console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
-//           }
-//         }
-
-//         // Fetch Child data for the branch
-//         const children = await Child.find({ deviceId, schoolId, branchId }).lean();
-//         const transformedChildren = await Promise.all(
-//           children.map(async (child) => {
-//             let parentData = {};
-//             if (child.parentId) {
-//               const parent = await Parent.findById(child.parentId).lean();
-//               parentData = {
-//                 parentName: parent ? parent.parentName : null,
-//                 email: parent ? parent.email : null,
-//                 phone: parent ? parent.phone : null,
-//                 parentId: parent ? parent._id : null,
-//               };
-//             }
-
-//             return {
-//               ...child,
-//               ...parentData,
-//               formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-//             };
-//           })
-//         );
-
-//         // Populate the branch data in the map
-//         if (!branchesMap[branchId]) {
-//           branchesMap[branchId] = {
-//             branchId: branchId,
-//             branchName: branchName,
-//             supervisor: supervisorData,
-//             driver: driverData,
-//             children: transformedChildren
-//           };
-//         }
-//       })
-//     );
-
-//     // Convert the branchesMap object into an array of branches
-//     const branchesData = Object.values(branchesMap);
-
-//     // Prepare the final response data
-//     const responseData = {
-//       schoolId: schoolId,
-//       schoolName: (branches.length > 0 && branches[0].schoolId) ? branches[0].schoolId.schoolName : 'N/A',
-//       branches: branchesData
-//     };
-
-//     // Send the formatted data as a JSON response
-//     res.status(200).json(responseData);
-//   } catch (error) {
-//     console.error('Error fetching data by deviceId:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 router.get('/geofences', async (req, res) => {
   try {
     // Fetch all geofences
@@ -871,7 +804,6 @@ router.get('/geofences', async (req, res) => {
     res.status(500).json({ message: 'Error retrieving geofences', error });
   }
 });
-// Get a specific geofence by deviceId
 router.get("/geofence", async (req, res) => {
   try {
     const deviceId = req.query.deviceId;
@@ -899,15 +831,6 @@ router.get("/geofence", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-const convertDate = (dateStr) => {
-  const dateParts = dateStr.split('-');
-  const jsDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);
-  return {
-    date: dateStr,
-    originalDate: jsDate
-  };
-}
-// pickupdrop 
 router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
   try {
     // Extract the schoolId from the request (set by the schoolAuthMiddleware)
@@ -986,7 +909,6 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// present child during 
 router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
   try {
     // Extract the schoolId from the request (set by the schoolAuthMiddleware)
@@ -1056,59 +978,6 @@ router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     // Extract the schoolId from the request (set by the schoolAuthMiddleware)
-//     const schoolId = req.schoolId;
-
-//     // Fetch attendance records for children absent at pickup and associated with this schoolId
-//     const attendanceRecords = await Attendance.find({ pickup: false })
-//       .populate({
-//         path: "childId",
-//         match: { schoolId }, // Filter children by schoolId
-//         populate: [
-//           { path: "parentId", select: "phone" }, // Populate parentId to get the parent's phone
-//           { path: "branchId", select: "branchName" }, // Populate branchId to get the branch name
-//           { path: "schoolId", select: "schoolName" } // Populate schoolId to get the school name
-//         ]
-//       })
-//       .lean(); // Use lean() to get plain JavaScript objects
-
-//     // Filter and map the data for the response
-//     const childrenData = attendanceRecords
-//       .filter(record => record.childId && record.childId.parentId)
-//       .map(record => {
-//         const { date, originalDate } = convertDate(record.date);
-
-//         return {
-//           _id: record.childId._id,
-//           childName: record.childId.childName,
-//           class: record.childId.class,
-//           rollno: record.childId.rollno,
-//           section: record.childId.section,
-//           parentId: record.childId.parentId._id,
-//           phone: record.childId.parentId.phone,
-//           branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found", // Include branch name
-//           schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found", // Include school name
-//           pickupStatus: record.pickup,
-//           pickupTime: record.pickupTime,
-//           deviceId: record.childId.deviceId,
-//           pickupPoint: record.childId.pickupPoint,
-//           formattedDate: date,
-//           date: originalDate
-//         };
-//       });
-
-//     res.status(200).json({ children: childrenData });
-//   } catch (error) {
-//     console.error("Error fetching absent children data:", error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
-
-
-
-// status
 router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
   try {
     // Extract the schoolId from the request (set by the schoolAuthMiddleware)
@@ -1378,8 +1247,10 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+
+
 // POST METHOD
-//review request
 router.post("/review-request/:requestId",schoolAuthMiddleware,async (req, res) => {
     try {
       const { statusOfRequest } = req.body;
@@ -1442,7 +1313,6 @@ router.post("/review-request/:requestId",schoolAuthMiddleware,async (req, res) =
     }
   }
 );
-// registration status
 router.post('/registerStatus/:parentId/', schoolAuthMiddleware, async (req, res) => {
   try {
     const { parentId } = req.params;
@@ -1472,7 +1342,64 @@ router.post('/registerStatus/:parentId/', schoolAuthMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// add a new device
+router.post('/registerStatus-driver/:driverId/', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { driverId } = req.params;
+    const { action } = req.body;
+    const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
+
+    // Find the driver by ID and check if they belong to the correct school
+    const driver = await DriverCollection.findOne({ _id: driverId, schoolId });
+    if (!driver) {
+      return res.status(404).json({ error: 'driver not found or does not belong to this school' });
+    }
+
+    // Update the registration status based on the action
+    if (action === 'approve') {
+      driver.statusOfRegister = 'approved';
+    } else if (action === 'reject') {
+      driver.statusOfRegister = 'rejected';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    await driver.save();
+
+    res.status(200).json({ message: `Registration ${action}d successfully.` });
+  } catch (error) {
+    console.error('Error during registration status update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.post('/registerStatus-supervisor/:supervisorId/', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { supervisorId } = req.params;
+    const { action } = req.body;
+    const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
+
+    // Find the supervisor by ID and check if they belong to the correct school
+    const supervisor = await Supervisor.findOne({ _id: supervisorId, schoolId });
+    if (!supervisor) {
+      return res.status(404).json({ error: 'supervisor not found or does not belong to this school' });
+    }
+
+    // Update the registration status based on the action
+    if (action === 'approve') {
+      supervisor.statusOfRegister = 'approved';
+    } else if (action === 'reject') {
+      supervisor.statusOfRegister = 'rejected';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    await supervisor.save();
+
+    res.status(200).json({ message: `Registration ${action}d successfully.` });
+  } catch (error) {
+    console.error('Error during registration status update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
   try {
     const { deviceId, deviceName, schoolName, branchName } = req.body;
@@ -1522,102 +1449,193 @@ router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-// read devices
-router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
-  const { schoolId } = req; // Assuming schoolId comes from authentication middleware
+
+
+
+
+//PUT METHOD
+router.put('/update-child/:childId', schoolAuthMiddleware, async (req, res) => {
+  const { childId } = req.params;
+  const { deviceId, ...updateFields } = req.body;
+  const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
 
   try {
-    // Fetch all branches associated with the current school
-    const branches = await Branch.find({ schoolId }).lean();
+    // Find the child by ID and check if they belong to the correct school
+    const child = await Child.findOne({ _id: childId, schoolId });
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found or does not belong to this school' });
+    }
 
-    // Create a map to group devices by branches
-    const branchesMap = {};
+    // Update fields
+    if (deviceId) {
+      child.deviceId = deviceId;
+    }
+    Object.keys(updateFields).forEach((field) => {
+      child[field] = updateFields[field];
+    });
+    await child.save();
 
-    // Loop through each branch to get devices
-    for (const branch of branches) {
-      const branchId = branch._id;
-
-      // Fetch all devices for the current branch
-      const devices = await Device.find({ schoolId: schoolId, branchId: branchId }).lean();
-
-      // Map over devices and return the relevant details
-      const formattedDevices = devices.map((device) => ({
-        deviceId: device.deviceId, // Manually added deviceId
-        actualDeviceId: device._id, // MongoDB generated _id as actualDeviceId
-        deviceName: device.deviceName,
-      }));
-
-      // Add the branch and its devices to the branchesMap
-      branchesMap[branchId] = {
-        branchId: branchId,
-        branchName: branch.branchName,
-        devices: formattedDevices,
+    // Fetch updated child data with parent info
+    const updatedChild = await Child.findById(childId).lean();
+    let parentData = {};
+    if (updatedChild.parentId) {
+      const parent = await Parent.findById(updatedChild.parentId).lean();
+      parentData = {
+        parentName: parent ? parent.parentName : null,
+        email: parent ? parent.email : null,
+        phone: parent ? parent.phone : null,
+        parentId: parent ? parent._id : null,
+      };
+    } else {
+      parentData = {
+        parentName: null,
+        email: null,
+        phone: null,
+        parentId: null,
       };
     }
 
-    // Convert branchesMap object into an array of branches
-    const branchesArray = Object.values(branchesMap);
-
-    // Prepare the final response data
-    const responseData = {
-      schoolId: schoolId,
-      schoolName: branches.length > 0 ? branches[0].schoolId.schoolName : 'N/A',
-      branches: branchesArray,
+    const transformedChild = {
+      ...updatedChild,
+      ...parentData,
+      formattedRegistrationDate: formatDateToDDMMYYYY(new Date(updatedChild.registrationDate)),
     };
 
-    // Send the formatted devices grouped by branches as a JSON response
-    res.status(200).json(responseData);
+    res.status(200).json({ message: 'Child information updated successfully', child: transformedChild });
   } catch (error) {
-    console.error('Error fetching devices by school:', error);
+    console.error('Error updating child information:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
-//     const { deviceId, deviceName, branchName, schoolName } = req.body; // Values from the request body
+router.put('/update-parent/:id', schoolAuthMiddleware, async (req, res) => {
+  const parentId = req.params.id;
+  const { parentName, email, password, phone } = req.body;
+  const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
 
-//     // Validate required fields
-//     if (!deviceId || !deviceName || !branchName || !schoolName) {
-//       return res.status(400).json({ message: 'deviceId, deviceName, branchName, and schoolName are required' });
-//     }
+  try {
+    // Find the parent by ID and check if they belong to the correct school
+    const parent = await Parent.findOne({ _id: parentId, schoolId });
+    
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found or does not belong to this school' });
+    }
 
-//     // Check if the manually added deviceId already exists in another device
-//     const existingDevice = await Device.findOne({
-//       deviceId,
-//       _id: { $ne: actualDeviceId } // Exclude the current device from this check
-//     });
+    // Update only the allowed fields
+    if (parentName) parent.parentName = parentName;
+    if (email) parent.email = email;
+    if (phone) parent.phone = phone;
+    if (password) parent.password = password; // Ensure you handle password encryption properly
 
-//     if (existingDevice) {
-//       return res.status(400).json({ message: 'Device with this deviceId already exists' });
-//     }
+    // Save the updated parent
+    await parent.save();
+    
+    res.status(200).json({
+      message: 'Parent updated successfully',
+      parent: {
+        ...parent.toObject(),
+      },
+    });
+  } catch (error) {
+    console.error('Error updating parent:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.put('/update-driver/:id', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { id: driverId } = req.params;
+    const schoolId = req.schoolId; // Get the schoolId from the middleware
+    const { deviceId, ...updateFields } = req.body;
 
-//     // Find the device by actualDeviceId (MongoDB _id) and update it
-//     const device = await Device.findById(actualDeviceId);
-//     if (!device) {
-//       return res.status(404).json({ message: 'Device not found' });
-//     }
+    // Find the driver by ID and schoolId
+    const driver = await DriverCollection.findOne({ _id: driverId, schoolId });
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
 
-//     // Update the manually added deviceId, deviceName, branchName, and schoolName
-//     device.deviceId = deviceId; // Manually added deviceId
-//     device.deviceName = deviceName;
-//     device.branchName = branchName;
-//     device.schoolName = schoolName;
+    // Update deviceId if provided
+    if (deviceId) {
+      driver.deviceId = deviceId;
+    }
 
-//     // Save the updated device
-//     await device.save();
+    // Update other fields
+    Object.keys(updateFields).forEach((field) => {
+      driver[field] = updateFields[field];
+    });
 
-//     // Return success response
-//     res.status(200).json({ message: 'Device updated successfully', device });
-//   } catch (error) {
-//     console.error('Error updating device:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// });
-// Example route that requires school authentication
+    // Save the updated driver
+    await driver.save();
 
+    // Fetch updated driver data with decrypted password
+    const updatedDriver = await DriverCollection.findById(driverId).lean();
+    let decryptedPassword = '';
+    try {
+      console.log(`Decrypting password for driver: ${updatedDriver.driverName}, encryptedPassword: ${updatedDriver.password}`);
+      decryptedPassword = decrypt(updatedDriver.password);
+    } catch (decryptError) {
+      console.error(`Error decrypting password for driver: ${updatedDriver.driverName}`, decryptError);
+    }
 
+    const transformedDriver = {
+      ...updatedDriver,
+      password: decryptedPassword,
+      registrationDate: formatDateToDDMMYYYY(new Date(updatedDriver.registrationDate))
+    };
 
+    console.log('Updated driver data:', JSON.stringify(transformedDriver, null, 2));
+    res.status(200).json({ message: 'Driver information updated successfully', drivers: transformedDriver });
+  } catch (error) {
+    console.error('Error updating driver:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { id: supervisorId } = req.params;
+    const schoolId = req.schoolId; // Get the schoolId from the middleware
+    const { deviceId, ...updateFields } = req.body;
+
+    // Find the supervisor by ID and schoolId
+    const supervisor = await Supervisor.findOne({ _id: supervisorId, schoolId });
+    if (!supervisor) {
+      return res.status(404).json({ error: 'Supervisor not found' });
+    }
+
+    // Update deviceId if provided
+    if (deviceId) {
+      supervisor.deviceId = deviceId;
+    }
+
+    // Update other fields
+    Object.keys(updateFields).forEach((field) => {
+      supervisor[field] = updateFields[field];
+    });
+
+    // Save the updated supervisor
+    await supervisor.save();
+
+    // Fetch updated supervisor data with decrypted password
+    const updatedSupervisor = await Supervisor.findById(supervisorId).lean();
+    let decryptedPassword = '';
+    try {
+      console.log(`Decrypting password for supervisor: ${updatedSupervisor.supervisorName}, encryptedPassword: ${updatedSupervisor.password}`);
+      decryptedPassword = decrypt(updatedSupervisor.password);
+    } catch (decryptError) {
+      console.error(`Error decrypting password for supervisor: ${updatedSupervisor.supervisorName}`, decryptError);
+    }
+
+    const transformedSupervisor = {
+      ...updatedSupervisor,
+      password: decryptedPassword,
+      registrationDate: formatDateToDDMMYYYY(new Date(updatedSupervisor.registrationDate))
+    };
+
+    console.log('Updated supervisor data:', JSON.stringify(transformedSupervisor, null, 2));
+    res.status(200).json({ message: 'Supervisor information updated successfully', supervisors: transformedSupervisor });
+  } catch (error) {
+    console.error('Error updating supervisor:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
   try {
     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
@@ -1677,218 +1695,11 @@ router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-router.delete('/delete-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
-  try {
-    const { actualDeviceId } = req.params;
 
-    // Find the device by actualDeviceId (which is the MongoDB _id)
-    const device = await Device.findById(actualDeviceId);
-    if (!device) {
-      return res.status(404).json({ message: 'Device not found' });
-    }
-
-    // Delete the device by actualDeviceId (MongoDB _id)
-    await Device.deleteOne({ _id: actualDeviceId });
-
-    // Return success response
-    res.status(200).json({ message: 'Device deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting device:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-//PUT METHOD
-// Update child information
-router.put('/update-child/:childId', schoolAuthMiddleware, async (req, res) => {
-  const { childId } = req.params;
-  const { deviceId, ...updateFields } = req.body;
-  const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
-
-  try {
-    // Find the child by ID and check if they belong to the correct school
-    const child = await Child.findOne({ _id: childId, schoolId });
-    if (!child) {
-      return res.status(404).json({ error: 'Child not found or does not belong to this school' });
-    }
-
-    // Update fields
-    if (deviceId) {
-      child.deviceId = deviceId;
-    }
-    Object.keys(updateFields).forEach((field) => {
-      child[field] = updateFields[field];
-    });
-    await child.save();
-
-    // Fetch updated child data with parent info
-    const updatedChild = await Child.findById(childId).lean();
-    let parentData = {};
-    if (updatedChild.parentId) {
-      const parent = await Parent.findById(updatedChild.parentId).lean();
-      parentData = {
-        parentName: parent ? parent.parentName : null,
-        email: parent ? parent.email : null,
-        phone: parent ? parent.phone : null,
-        parentId: parent ? parent._id : null,
-      };
-    } else {
-      parentData = {
-        parentName: null,
-        email: null,
-        phone: null,
-        parentId: null,
-      };
-    }
-
-    const transformedChild = {
-      ...updatedChild,
-      ...parentData,
-      formattedRegistrationDate: formatDateToDDMMYYYY(new Date(updatedChild.registrationDate)),
-    };
-
-    res.status(200).json({ message: 'Child information updated successfully', child: transformedChild });
-  } catch (error) {
-    console.error('Error updating child information:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-//update the parents
-router.put('/update-parent/:id', schoolAuthMiddleware, async (req, res) => {
-  const parentId = req.params.id;
-  const { parentName, email, password, phone } = req.body;
-  const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
-
-  try {
-    // Find the parent by ID and check if they belong to the correct school
-    const parent = await Parent.findOne({ _id: parentId, schoolId });
-    
-    if (!parent) {
-      return res.status(404).json({ error: 'Parent not found or does not belong to this school' });
-    }
-
-    // Update only the allowed fields
-    if (parentName) parent.parentName = parentName;
-    if (email) parent.email = email;
-    if (phone) parent.phone = phone;
-    if (password) parent.password = password; // Ensure you handle password encryption properly
-
-    // Save the updated parent
-    await parent.save();
-    
-    res.status(200).json({
-      message: 'Parent updated successfully',
-      parent: {
-        ...parent.toObject(),
-      },
-    });
-  } catch (error) {
-    console.error('Error updating parent:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-// update driver
-router.put('/update-driver/:id', schoolAuthMiddleware, async (req, res) => {
-  try {
-    const { id: driverId } = req.params;
-    const schoolId = req.schoolId; // Get the schoolId from the middleware
-    const { deviceId, ...updateFields } = req.body;
-
-    // Find the driver by ID and schoolId
-    const driver = await DriverCollection.findOne({ _id: driverId, schoolId });
-    if (!driver) {
-      return res.status(404).json({ error: 'Driver not found' });
-    }
-
-    // Update deviceId if provided
-    if (deviceId) {
-      driver.deviceId = deviceId;
-    }
-
-    // Update other fields
-    Object.keys(updateFields).forEach((field) => {
-      driver[field] = updateFields[field];
-    });
-
-    // Save the updated driver
-    await driver.save();
-
-    // Fetch updated driver data with decrypted password
-    const updatedDriver = await DriverCollection.findById(driverId).lean();
-    let decryptedPassword = '';
-    try {
-      console.log(`Decrypting password for driver: ${updatedDriver.driverName}, encryptedPassword: ${updatedDriver.password}`);
-      decryptedPassword = decrypt(updatedDriver.password);
-    } catch (decryptError) {
-      console.error(`Error decrypting password for driver: ${updatedDriver.driverName}`, decryptError);
-    }
-
-    const transformedDriver = {
-      ...updatedDriver,
-      password: decryptedPassword,
-      registrationDate: formatDateToDDMMYYYY(new Date(updatedDriver.registrationDate))
-    };
-
-    console.log('Updated driver data:', JSON.stringify(transformedDriver, null, 2));
-    res.status(200).json({ message: 'Driver information updated successfully', drivers: transformedDriver });
-  } catch (error) {
-    console.error('Error updating driver:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-// update the supervsior
-router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
-  try {
-    const { id: supervisorId } = req.params;
-    const schoolId = req.schoolId; // Get the schoolId from the middleware
-    const { deviceId, ...updateFields } = req.body;
-
-    // Find the supervisor by ID and schoolId
-    const supervisor = await Supervisor.findOne({ _id: supervisorId, schoolId });
-    if (!supervisor) {
-      return res.status(404).json({ error: 'Supervisor not found' });
-    }
-
-    // Update deviceId if provided
-    if (deviceId) {
-      supervisor.deviceId = deviceId;
-    }
-
-    // Update other fields
-    Object.keys(updateFields).forEach((field) => {
-      supervisor[field] = updateFields[field];
-    });
-
-    // Save the updated supervisor
-    await supervisor.save();
-
-    // Fetch updated supervisor data with decrypted password
-    const updatedSupervisor = await Supervisor.findById(supervisorId).lean();
-    let decryptedPassword = '';
-    try {
-      console.log(`Decrypting password for supervisor: ${updatedSupervisor.supervisorName}, encryptedPassword: ${updatedSupervisor.password}`);
-      decryptedPassword = decrypt(updatedSupervisor.password);
-    } catch (decryptError) {
-      console.error(`Error decrypting password for supervisor: ${updatedSupervisor.supervisorName}`, decryptError);
-    }
-
-    const transformedSupervisor = {
-      ...updatedSupervisor,
-      password: decryptedPassword,
-      registrationDate: formatDateToDDMMYYYY(new Date(updatedSupervisor.registrationDate))
-    };
-
-    console.log('Updated supervisor data:', JSON.stringify(transformedSupervisor, null, 2));
-    res.status(200).json({ message: 'Supervisor information updated successfully', supervisors: transformedSupervisor });
-  } catch (error) {
-    console.error('Error updating supervisor:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 
 
 // DELETE METHOD
-// Delete child
 router.delete('/delete/child/:childId', schoolAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
   const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
@@ -1938,7 +1749,6 @@ router.delete('/delete/child/:childId', schoolAuthMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// delete parents
 router.delete('/delete-parent/:id', schoolAuthMiddleware, async (req, res) => {
   const parentId = req.params.id;
   const { schoolId } = req;
@@ -1962,7 +1772,6 @@ router.delete('/delete-parent/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// delete driver
 router.delete('/delete-driver/:id', schoolAuthMiddleware, async (req, res) => {
   try {
     const { id: driverId } = req.params;
@@ -1982,7 +1791,6 @@ router.delete('/delete-driver/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// delete supervisor
 router.delete('/delete-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
   try {
     const { id: supervisorId } = req.params;
@@ -2002,7 +1810,6 @@ router.delete('/delete-supervisor/:id', schoolAuthMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// delete branch
 router.delete('/delete-branch/:branchId', schoolAuthMiddleware, async (req, res) => {
   try {
     const { branchId } = req.params;
@@ -2037,5 +1844,26 @@ router.delete('/delete-branch/:branchId', schoolAuthMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.delete('/delete-device/:actualDeviceId', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { actualDeviceId } = req.params;
+
+    // Find the device by actualDeviceId (which is the MongoDB _id)
+    const device = await Device.findById(actualDeviceId);
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Delete the device by actualDeviceId (MongoDB _id)
+    await Device.deleteOne({ _id: actualDeviceId });
+
+    // Return success response
+    res.status(200).json({ message: 'Device deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 
 module.exports = router;

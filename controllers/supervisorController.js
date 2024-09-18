@@ -10,7 +10,6 @@ const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
 const Device = require('../models/device');
 
 
-// Fetch School List Route
 exports.getSchools =  async (req, res) => {
   try {
     // Fetch schools and populate their branches
@@ -31,43 +30,6 @@ exports.getSchools =  async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 }
-
-// exports.getDevices = async (req, res) => {
-//   try {
-//     const { schoolName, branchName } = req.query;
-
-//     // Validate that required fields are present
-//     if (!schoolName || !branchName) {
-//       return res.status(400).json({ error: 'School name and branch name are required' });
-//     }
-
-//     // Find the school by name
-//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
-//     if (!school) {
-//       return res.status(404).json({ message: 'School not found' });
-//     }
-
-//     // Find the branch by name within the school
-//     const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
-//     if (!branch) {
-//       return res.status(404).json({ message: 'Branch not found in the specified school' });
-//     }
-
-//     // Fetch devices linked to the branch
-//     const devices = await Device.find({ branchId: branch._id }).exec();
-
-//     // Format the response
-//     const response = devices.map(device => ({
-//       deviceId: device.deviceId,
-//       deviceName: device.deviceName
-//     }));
-
-//     res.status(200).json({ devices: response });
-//   } catch (error) {
-//     console.error('Error fetching devices:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// }
 exports.getDevices = async (req, res) => {
   try {
     const { schoolName, branchName } = req.query;
@@ -197,13 +159,11 @@ exports.loginSupervisor = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
-
-    // Generate JWT token with supervisor ID, email, schoolId, and branchId
     const token = generateToken({
       id: supervisor._id,
       email: supervisor.email,
-      schoolId: supervisor.schoolId,   // Add schoolId to the token payload
-      branchId: supervisor.branchId    // Add branchId to the token payload
+      schoolId: supervisor.schoolId,  
+      branchId: supervisor.branchId    
     });
 
     // Send success response with token
@@ -217,7 +177,52 @@ exports.loginSupervisor = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-// // get supervisor's data
+// exports.loginSupervisor =  async (req, res) => {
+//   const { email, password } = req.body;
+
+//   try {
+//     // Find the supervisor by email
+//     const supervisor = await Supervisor.findOne({ email });
+
+//     // Check if supervisor exists
+//     if (!supervisor) {
+//       return res.status(400).json({ error: "Invalid email or password" });
+//     }
+
+//     // Compare provided password with stored hashed password
+//     const isMatch = await supervisor.comparePassword(password);
+
+//     // Check if password matches
+//     if (!isMatch) {
+//       return res.status(400).json({ error: "Invalid email or password" });
+//     }
+
+//     // Check if the registration status is approved
+//     if (supervisor.statusOfRegister !== 'approved') {
+//       return res.status(400).json({ error: "Account not approved yet" });
+//     }
+
+//     // Generate JWT token with supervisor ID, email, and schoolId
+//     const token = generateToken({
+//       id: supervisor._id,
+//       email: supervisor.email,
+//       schoolId: supervisor.schoolId,
+//       branchId: supervisor.branchId
+//     });
+
+//     // Send success response with token
+//     res.status(200).json({
+//       success: true,
+//       message: "Login successful",
+//       token: token
+//     });
+//   } catch (err) {
+//     console.error('Error during login:', err);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// }
+
+// get supervisor's data
 exports.getSupervisordata = async (req, res) => {
   try {
     const supervisorId = req.user.id;
@@ -261,7 +266,6 @@ exports.getSupervisordata = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-// update supervisor's data
 exports.updateSupervisor = async (req, res) => {
   try {
     const { supervisorName, address, phone, email } = req.body;
@@ -285,7 +289,6 @@ exports.updateSupervisor = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-// get children
 exports.getallChildren = async (req, res) => {
   try {
     const { deviceId } = req.query;
@@ -318,7 +321,6 @@ exports.getallChildren = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-// //Route for marking pickup attendance
 exports.markPickup = async (req, res) => {
   const { childId, isPresent } = req.body;
   const { schoolId, branchId } = req; // Get the schoolId and branchId from the authenticated request
@@ -371,7 +373,6 @@ exports.markPickup = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-// mark drop
 exports.markDrop = async (req, res) => {
   const { childId, isPresent } = req.body;
   const { schoolId, branchId } = req; // Extract schoolId and branchId from the request (assuming middleware sets it)
@@ -423,7 +424,6 @@ exports.markDrop = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-// Create a new geofencing area
 exports.addGeofence = async (req, res) => {
   try {
     const { name, area, deviceId } = req.body;
@@ -442,7 +442,6 @@ exports.addGeofence = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-// // Delete a geofencing area
 exports.deleteGeofence = async (req, res) => {
   try {
     const { id } = req.params;

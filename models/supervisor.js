@@ -39,7 +39,8 @@ const supervisorSchema = new mongoose.Schema({
   schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
   deviceId:{type: String, required: true},
   deviceName:{type:String, required: true},
-  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  statusOfRegister: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
 });
 
 supervisorSchema.pre('save', async function(next) {

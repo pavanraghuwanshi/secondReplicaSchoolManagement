@@ -15,6 +15,15 @@ const DriverCollection = require('../models/driver');
 const jwt = require("jsonwebtoken");
 const Geofencing = require("../models/geofence");
 const Device = require('../models/device');
+const convertDate = (dateStr) => {
+  const dateParts = dateStr.split('-');
+  const jsDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);
+  return {
+    date: dateStr,
+    originalDate: jsDate
+  };
+}
+
 
 
 router.post('/register', async (req, res) => {
@@ -64,7 +73,6 @@ router.post('/login',async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-// School Registration Route
 router.post('/school-register', superadminMiddleware, async (req, res) => {
   try {
     const { schoolName, username, password, email, schoolMobile, branchName } = req.body;
@@ -113,7 +121,6 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Add a branch route
 router.post('/add-branch', superadminMiddleware, async (req, res) => {
   try {
     const { schoolId, branchName, email, schoolMobile, username, password } = req.body;
@@ -153,57 +160,8 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.get('/getschools', superadminMiddleware, async (req, res) => {
-//   try {
-//     const schools = await School.find({})
-//       .populate({
-//         path: 'branches',
-//         select: 'branchName _id username password email' 
-//       })
-//       .lean();
-//     const transformedSchools = await Promise.all(schools.map(async (school) => {
-//       let decryptedSchoolPassword;
-//       try {
-//         decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password';
-//       } catch (decryptError) {
-//         console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
-//         decryptedSchoolPassword = 'Error decrypting password';
-//       }
-//       const transformedBranches = school.branches.map(branch => {
-//         if (!branch.username || !branch.password) {
-//           return {
-//             _id: branch._id,
-//             branchName: branch.branchName
-//           };
-//         } else {
-//           let decryptedBranchPassword;
-//           try {
-//             decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
-//           } catch (decryptError) {
-//             console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
-//             decryptedBranchPassword = 'Error decrypting password'; 
-//           }
 
-//           return {
-//             ...branch,
-//             password: decryptedBranchPassword 
-//           };
-//         }
-//       });
-//       const branchName = transformedBranches.find(branch => !branch.username || !branch.password)?.branchName || null;
-//       return {
-//         ...school,
-//         password: decryptedSchoolPassword,
-//         branchName: branchName ,
-//         branches: transformedBranches
-//       };
-//     }));
-//     res.status(200).json({ schools: transformedSchools });
-//   } catch (error) {
-//     console.error('Error fetching school list:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
+
 
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
@@ -266,7 +224,64 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.get('/read-devices', superadminMiddleware, async (req, res) => {
+  try {
+    // Fetch all schools
+    const schools = await School.find({}).lean();
 
+    // Prepare an array to hold data grouped by school
+    const dataBySchool = await Promise.all(
+      schools.map(async (school) => {
+        const schoolId = school._id;
+        const schoolName = school.schoolName;
+
+        // Fetch all branches for the current school
+        const branches = await Branch.find({ schoolId: schoolId }).lean();
+
+        // Fetch devices and format the data
+        const devicesByBranch = await Promise.all(
+          branches.map(async (branch) => {
+            const branchId = branch._id;
+            const branchName = branch.branchName;
+
+            // Fetch devices associated with the current branch
+            const devices = await Device.find({ schoolId: schoolId, branchId: branchId }).lean();
+
+            // Map over devices and return the relevant details
+            const rawDevices = devices.map((device) => ({
+              actualDeviceId: device._id, // MongoDB's _id for edit/delete operations
+              deviceId: device.deviceId,   // Schema deviceId for display
+              deviceName: device.deviceName, // Device name as stored in the schema
+              registrationDate: device.registrationDate,
+            }));
+
+            // Return data grouped by branch
+            return {
+              branchId: branchId,
+              branchName: branchName,
+              devices: rawDevices,
+            };
+          })
+        );
+
+        // Return data grouped by school
+        return {
+          schoolId: schoolId,
+          schoolName: schoolName,
+          branches: devicesByBranch,
+        };
+      })
+    );
+
+    // Send response in the desired structure
+    res.status(200).json({
+      data: dataBySchool,
+    });
+  } catch (error) {
+    console.error('Error fetching devices by school:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 router.get('/read-children', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -337,7 +352,6 @@ router.get('/read-children', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Route to get all parents for all schools for the superadmin
 router.get('/read-parents', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -421,7 +435,6 @@ router.get('/read-parents', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Route to get all pending requests for all schools for the superadmin
 router.get('/pending-requests', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -523,7 +536,6 @@ router.get('/pending-requests', superadminMiddleware, async (req, res) => {
     });
   }
 });
-// Route to get all approved requests for all schools for the superadmin
 router.get('/approved-requests', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -621,7 +633,6 @@ router.get('/approved-requests', superadminMiddleware, async (req, res) => {
     });
   }
 });
-// Route to get all denied requests for all schools for the superadmin
 router.get('/denied-requests', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -698,7 +709,6 @@ router.get('/denied-requests', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Route to get all drivers across all schools for the superadmin
 router.get('/read-drivers', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -738,6 +748,7 @@ router.get('/read-drivers', superadminMiddleware, async (req, res) => {
               email: driver.email,
               deviceName: driver.deviceName,
               deviceId: driver.deviceId,
+              statusOfRegister:driver.statusOfRegister,
               schoolName: driver.schoolId ? driver.schoolId.schoolName : 'N/A', // Access the populated schoolName
               branchName: driver.branchId ? driver.branchId.branchName : 'Branch not found', // Include branchName
               registrationDate: driver.registrationDate,
@@ -772,7 +783,6 @@ router.get('/read-drivers', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Route to get all supervisors across all schools for the superadmin
 router.get('/read-supervisors', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -818,6 +828,7 @@ router.get('/read-supervisors', superadminMiddleware, async (req, res) => {
                 phone_no: supervisor.phone_no,
                 email: supervisor.email,
                 deviceId: supervisor.deviceId,
+                statusOfRegister:supervisor.statusOfRegister,
                 deviceName:supervisor.deviceName,
                 schoolName: supervisor.schoolId ? supervisor.schoolId.schoolName : 'N/A', // Access the populated schoolName
                 branchName: supervisor.branchId ? supervisor.branchId.branchName : 'Branch not found', // Include branchName
@@ -854,143 +865,6 @@ router.get('/read-supervisors', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-// Route to get data by deviceId for a superadmin
-// router.get('/data-by-deviceId', superadminMiddleware, async (req, res) => {
-//   const { deviceId } = req.query;
-
-//   if (!deviceId) {
-//     return res.status(400).json({ error: 'Device ID is required' });
-//   }
-
-//   try {
-//     // Fetch all schools
-//     const schools = await School.find({}).lean();
-
-//     // Initialize an empty array to hold the data by school and branch
-//     const dataBySchool = await Promise.all(
-//       schools.map(async (school) => {
-//         const schoolId = school._id;
-//         const schoolName = school.schoolName;
-
-//         // Fetch all branches associated with the current school
-//         const branches = await Branch.find({ schoolId }).lean();
-
-//         // Fetch data for each branch
-//         const dataByBranch = await Promise.all(
-//           branches.map(async (branch) => {
-//             const branchId = branch._id;
-//             const branchName = branch.branchName;
-
-//             // Fetch Supervisor data for the branch
-//             const supervisor = await Supervisor.findOne({ deviceId, schoolId, branchId }).lean();
-//             let supervisorData = {};
-//             if (supervisor) {
-//               try {
-//                 console.log(`Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`);
-//                 const decryptedPassword = decrypt(supervisor.password);
-//                 supervisorData = {
-//                   id: supervisor._id,
-//                   supervisorName: supervisor.supervisorName,
-//                   address: supervisor.address,
-//                   phone_no: supervisor.phone_no,
-//                   email: supervisor.email,
-//                   deviceId: supervisor.deviceId,
-//                   password: decryptedPassword,
-//                   registrationDate: formatDateToDDMMYYYY(new Date(supervisor.registrationDate)),
-//                   schoolName: schoolName,
-//                   branchName: branchName
-//                 };
-//               } catch (decryptError) {
-//                 console.error(`Error decrypting password for supervisor: ${supervisor.supervisorName}`, decryptError);
-//               }
-//             }
-
-//             // Fetch Driver data for the branch
-//             const driver = await DriverCollection.findOne({ deviceId, schoolId, branchId }).lean();
-//             let driverData = {};
-//             if (driver) {
-//               try {
-//                 console.log(`Decrypting password for driver: ${driver.driverName}, encryptedPassword: ${driver.password}`);
-//                 const decryptedPassword = decrypt(driver.password);
-//                 driverData = {
-//                   id: driver._id,
-//                   driverName: driver.driverName,
-//                   address: driver.address,
-//                   phone_no: driver.phone_no,
-//                   email: driver.email,
-//                   deviceId: driver.deviceId,
-//                   password: decryptedPassword,
-//                   registrationDate: formatDateToDDMMYYYY(new Date(driver.registrationDate)),
-//                   schoolName: schoolName,
-//                   branchName: branchName
-//                 };
-//               } catch (decryptError) {
-//                 console.error(`Error decrypting password for driver: ${driver.driverName}`, decryptError);
-//               }
-//             }
-
-//             // Fetch Child data for the branch
-//             const children = await Child.find({ deviceId, schoolId, branchId }).lean();
-//             const transformedChildren = await Promise.all(
-//               children.map(async (child) => {
-//                 let parentData = {};
-//                 if (child.parentId) {
-//                   const parent = await Parent.findById(child.parentId).lean();
-//                   parentData = {
-//                     parentName: parent ? parent.parentName : null,
-//                     email: parent ? parent.email : null,
-//                     phone: parent ? parent.phone : null,
-//                     parentId: parent ? parent._id : null,
-//                   };
-//                 }
-
-//                 return {
-//                   ...child,
-//                   ...parentData,
-//                   formattedRegistrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
-//                   schoolName: schoolName,
-//                   branchName: branchName
-//                 };
-//               })
-//             );
-
-//             return {
-//               branchId: branchId,
-//               branchName: branchName,
-//               supervisor: supervisorData,
-//               driver: driverData,
-//               children: transformedChildren
-//             };
-//           })
-//         );
-
-//         return {
-//           schoolId: schoolId,
-//           schoolName: schoolName,
-//           branches: dataByBranch
-//         };
-//       })
-//     );
-
-//     // Send the formatted data by school and branch
-//     res.status(200).json(dataBySchool);
-
-//   } catch (error) {
-//     console.error('Error fetching data by deviceId:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-// Route to get attendance data for admin dashboard
-const convertDate = (dateStr) => {
-  const dateParts = dateStr.split('-');
-  const jsDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);
-  return {
-    date: dateStr,
-    originalDate: jsDate
-  };
-}
-// Pickup and drop status
 router.get("/pickup-drop-status", async (req, res) => {
   try {
     const schools = await School.find({}).lean();
@@ -1069,7 +943,6 @@ router.get("/pickup-drop-status", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// Route to get present children for a superadmin
 router.get("/present-children", superadminMiddleware, async (req, res) => {
   try {
     const schools = await School.find({}).lean();
@@ -1148,7 +1021,6 @@ router.get("/present-children", superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// Route to get absent children for a superadmin
 router.get("/absent-children", superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -1231,129 +1103,6 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// Route to get child status for a superadmin  -- pending want the data schoowise
-// router.get('/status-of-children', superadminMiddleware, async (req, res) => {
-//   try {
-//     // Fetch all children from all schools and branches
-//     const children = await Child.find({})
-//       .populate('parentId')  // Populate parent details
-//       .populate('schoolId')  // Populate school details
-//       .populate({
-//         path: 'branchId',     // Populate branch details
-//         select: 'branchName'
-//       })
-//       .lean();  // Convert to plain JavaScript object for easier manipulation
-
-//     if (!children || children.length === 0) {
-//       return res.status(404).json({ message: 'No children found in any school or branch' });
-//     }
-
-//     // Group data by school and then by branch
-//     const schoolBranchData = {};
-
-//     for (const child of children) {
-//       const school = child.schoolId;
-//       const branch = child.branchId;
-//       const parent = child.parentId;
-//       const password = parent ? decrypt(parent.password) : 'Unknown Password';
-//       // Fetch the most recent attendance record for each child
-//       const attendance = await Attendance.findOne({ childId: child._id })
-//         .sort({ date: -1 })
-//         .limit(1)
-//         .lean();
-
-//       // Fetch the most recent request for each child
-//       const request = await Request.findOne({ childId: child._id })
-//         .sort({ requestDate: -1 })
-//         .limit(1)
-//         .lean();
-
-//       // Fetch the supervisor based on deviceId
-//       let supervisor = null;
-//       if (child.deviceId) {
-//         supervisor = await Supervisor.findOne({ deviceId: child.deviceId }).lean();
-//       }
-
-//       // Check if the child has any relevant data
-//       if (attendance || request) {
-//         // Structure the child data
-//         const childData = {
-//           childId: child._id,
-//           childName: child.childName,
-//           childClass: child.class,
-//           childAge:child.childAge,
-//           section:child.section,
-//           rollno:child.rollno,
-//           deviceId:child.deviceId,
-//           gender:child.gender,
-//           pickupPoint:child.pickupPoint,
-//           parentName: parent ? parent.parentName : 'Unknown Parent',
-//           parentNumber: parent ? parent.phone : 'Unknown Phone',
-//           email:parent ? parent.email :"unknown email",
-//           password: password,
-//           ...(attendance && {
-//             pickupStatus: attendance.pickup ? 'Present' : 'Absent',
-//             dropStatus: attendance.drop ? 'Present' : 'Absent',
-//             pickupTime: attendance.pickupTime,
-//             dropTime: attendance.dropTime,
-//             date: attendance.date
-//           }),
-//           ...(request && {
-//               requestType: request.requestType,
-//               startDate:formatDateToDDMMYYYY(request.startDate),
-//               endDate: formatDateToDDMMYYYY(request.endDate),
-//               reason: request.reason,
-//               newRoute: request.newRoute,
-//               statusOfRequest: request.statusOfRequest,
-//               requestDate: formatDateToDDMMYYYY(request.requestDate)
-//           }),
-//           ...(supervisor && {
-//               supervisorName: supervisor.supervisorName           
-//           })
-//         };
-
-//         // Initialize school if not already added
-//         if (!schoolBranchData[school._id]) {
-//           schoolBranchData[school._id] = {
-//             schoolId: school._id.toString(),
-//             schoolName: school.schoolName,
-//             branches: {}
-//           };
-//         }
-
-//         // Initialize branch under the school if not already added
-//         if (!schoolBranchData[school._id].branches[branch._id]) {
-//           schoolBranchData[school._id].branches[branch._id] = {
-//             branchId: branch._id.toString(),
-//             branchName: branch.branchName,
-//             children: []
-//           };
-//         }
-
-//         // Add the child data to the respective branch under the school
-//         schoolBranchData[school._id].branches[branch._id].children.push(childData);
-//       }
-//     }
-
-//     // Convert the schoolBranchData object into a proper array structure
-//     const responseData = Object.values(schoolBranchData).map(school => ({
-//       schoolId: school.schoolId,
-//       schoolName: school.schoolName,
-//       branches: Object.values(school.branches).map(branch => ({
-//         branchId: branch.branchId,
-//         branchName: branch.branchName,
-//         children: branch.children
-//       }))
-//     }));
-
-//     // Send the response containing grouped children data
-//     res.json({ data: responseData });
-//   } catch (error) {
-//     console.error('Error fetching children status:', error);
-//     res.status(500).json({ message: 'Server error' });
-//   }
-// });
-
 router.get('/status-of-children', superadminMiddleware, async (req, res) => {
   try {
     const children = await Child.find({})
@@ -1610,6 +1359,10 @@ router.get("/geofence", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
+
+
+// POST METHOD
 router.post("/review-request/:requestId", superadminMiddleware, async (req, res) => {
   try {
     const { statusOfRequest } = req.body;
@@ -1683,7 +1436,6 @@ router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) 
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found' });
     }
-
     // Update the registration status based on the action
     if (action === 'approve') {
       parent.statusOfRegister = 'approved';
@@ -1701,52 +1453,60 @@ router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) 
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.post('/add-device', superadminMiddleware, async (req, res) => {
-//   try {
-//     const { deviceId, deviceName, schoolName, branchName } = req.body;
+router.post('/registerStatus-driver/:driverId', superadminMiddleware, async (req, res) => {
+  try {
+    const { driverId } = req.params;
+    const { action } = req.body;
 
-//     // Validate the required fields
-//     if (!deviceId || !deviceName || !schoolName || !branchName) {
-//       return res.status(400).json({ message: 'All fields (deviceId, deviceName, schoolName, branchName) are required' });
-//     }
+    // Find the driver by ID
+    const driver = await DriverCollection.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ error: 'driver not found' });
+    }
 
-//     // Find the school by name
-//     const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
-//     if (!school) {
-//       return res.status(404).json({ message: 'School not found' });
-//     }
+    // Update the registration status based on the action
+    if (action === 'approve') {
+      driver.statusOfRegister = 'approved';
+    } else if (action === 'reject') {
+      driver.statusOfRegister = 'rejected';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+    await driver.save();
 
-//     // Find the branch by name within the school
-//     const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
-//     if (!branch) {
-//       return res.status(404).json({ message: 'Branch not found in the specified school' });
-//     }
+    res.status(200).json({ message: `Registration ${action}d successfully.` });
+  } catch (error) {
+    console.error('Error during registration status update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.post('/registerStatus-supervisor/:supervisorId', superadminMiddleware, async (req, res) => {
+  try {
+    const { supervisorId } = req.params;
+    const { action } = req.body;
 
-//     // Check if a device with the same ID already exists
-//     const existingDevice = await Device.findOne({ deviceId });
-//     if (existingDevice) {
-//       return res.status(400).json({ message: 'Device with this ID already exists' });
-//     }
+    // Find the supervisor by ID
+    const supervisor = await Supervisor.findById(supervisorId);
+    if (!supervisor) {
+      return res.status(404).json({ error: 'supervisor not found' });
+    }
 
-//     // Create a new device linked to the school and branch
-//     const newDevice = new Device({
-//       deviceId,
-//       deviceName,
-//       schoolId: school._id,  // Link to the school's ID
-//       branchId: branch._id   // Link to the branch's ID
-//     });
+    // Update the registration status based on the action
+    if (action === 'approve') {
+      supervisor.statusOfRegister = 'approved';
+    } else if (action === 'reject') {
+      supervisor.statusOfRegister = 'rejected';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+    await supervisor.save();
 
-//     // Save the device
-//     await newDevice.save();
-
-//     // Return success response
-//     res.status(201).json({ message: 'Device created successfully', device: newDevice });
-//   } catch (error) {
-//     console.error('Error adding device:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// });
-// read devices
+    res.status(200).json({ message: `Registration ${action}d successfully.` });
+  } catch (error) {
+    console.error('Error during registration status update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 router.post('/add-device', superadminMiddleware, async (req, res) => {
   try {
     const { deviceId, deviceName, schoolName, branchName } = req.body;
@@ -1796,65 +1556,11 @@ router.post('/add-device', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-router.get('/read-devices', superadminMiddleware, async (req, res) => {
-  try {
-    // Fetch all schools
-    const schools = await School.find({}).lean();
 
-    // Prepare an array to hold data grouped by school
-    const dataBySchool = await Promise.all(
-      schools.map(async (school) => {
-        const schoolId = school._id;
-        const schoolName = school.schoolName;
 
-        // Fetch all branches for the current school
-        const branches = await Branch.find({ schoolId: schoolId }).lean();
 
-        // Fetch devices and format the data
-        const devicesByBranch = await Promise.all(
-          branches.map(async (branch) => {
-            const branchId = branch._id;
-            const branchName = branch.branchName;
 
-            // Fetch devices associated with the current branch
-            const devices = await Device.find({ schoolId: schoolId, branchId: branchId }).lean();
-
-            // Map over devices and return the relevant details
-            const rawDevices = devices.map((device) => ({
-              actualDeviceId: device._id, // MongoDB's _id for edit/delete operations
-              deviceId: device.deviceId,   // Schema deviceId for display
-              deviceName: device.deviceName, // Device name as stored in the schema
-              registrationDate: device.registrationDate,
-            }));
-
-            // Return data grouped by branch
-            return {
-              branchId: branchId,
-              branchName: branchName,
-              devices: rawDevices,
-            };
-          })
-        );
-
-        // Return data grouped by school
-        return {
-          schoolId: schoolId,
-          schoolName: schoolName,
-          branches: devicesByBranch,
-        };
-      })
-    );
-
-    // Send response in the desired structure
-    res.status(200).json({
-      data: dataBySchool,
-    });
-  } catch (error) {
-    console.error('Error fetching devices by school:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-// edit devices
+// EDIT METHOD
 router.put('/edit-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
   try {
     const { actualDeviceId } = req.params; // The MongoDB _id of the device from the URL
@@ -1912,29 +1618,6 @@ router.put('/edit-device/:actualDeviceId', superadminMiddleware, async (req, res
     res.status(200).json({ message: 'Device updated successfully', device: updatedDevice });
   } catch (error) {
     console.error('Error updating device:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// Example route handler for editing a device
-// delete devices
-router.delete('/delete-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
-  try {
-    const { actualDeviceId } = req.params;
-
-    // Find the device by actualDeviceId (which is the MongoDB _id)
-    const device = await Device.findById(actualDeviceId);
-    if (!device) {
-      return res.status(404).json({ message: 'Device not found' });
-    }
-
-    // Delete the device by actualDeviceId (MongoDB _id)
-    await Device.deleteOne({ _id: actualDeviceId });
-
-    // Return success response
-    res.status(200).json({ message: 'Device deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting device:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -2116,8 +1799,10 @@ router.put('/update-supervisor/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
 // DELETE METHOD
-// Delete child
 router.delete('/delete/child/:childId', superadminMiddleware, async (req, res) => {
   const { childId } = req.params;
 
@@ -2166,7 +1851,6 @@ router.delete('/delete/child/:childId', superadminMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Delete parent and associated children
 router.delete('/delete-parent/:id', superadminMiddleware, async (req, res) => {
   const parentId = req.params.id;
 
@@ -2189,7 +1873,6 @@ router.delete('/delete-parent/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Delete driver
 router.delete('/delete-driver/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id: driverId } = req.params;
@@ -2208,7 +1891,6 @@ router.delete('/delete-driver/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Delete supervisor
 router.delete('/delete-supervisor/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id: supervisorId } = req.params;
@@ -2227,7 +1909,6 @@ router.delete('/delete-supervisor/:id', superadminMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// school delete
 router.delete('/delete-school/:schoolId', superadminMiddleware, async (req, res) => {
   try {
     const { schoolId } = req.params;
@@ -2264,7 +1945,6 @@ router.delete('/delete-school/:schoolId', superadminMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-//branch delete
 router.delete('/delete-branch/:branchId', superadminMiddleware, async (req, res) => {
   try {
     const { branchId } = req.params;
@@ -2297,6 +1977,26 @@ router.delete('/delete-branch/:branchId', superadminMiddleware, async (req, res)
   } catch (error) {
     console.error('Error during branch deletion:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.delete('/delete-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
+  try {
+    const { actualDeviceId } = req.params;
+
+    // Find the device by actualDeviceId (which is the MongoDB _id)
+    const device = await Device.findById(actualDeviceId);
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Delete the device by actualDeviceId (MongoDB _id)
+    await Device.deleteOne({ _id: actualDeviceId });
+
+    // Return success response
+    res.status(200).json({ message: 'Device deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting device:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 

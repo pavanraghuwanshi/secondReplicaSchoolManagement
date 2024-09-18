@@ -10,7 +10,6 @@ router.get("/getschools", driverController.getSchools);
 router.get("/get-devices", driverController.getDevices);
 router.get('/getdriverData', jwtAuthMiddleware, driverController.getDriverData);
 router.put('/update', jwtAuthMiddleware, driverController.updateDriver);
-router.delete('/delete', jwtAuthMiddleware, driverController.deleteDriver);
 
 
 module.exports = router;

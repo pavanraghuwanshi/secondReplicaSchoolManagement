@@ -43,7 +43,8 @@ const driverSchema = new mongoose.Schema({
   },
   deviceId:{type: String, required: true},
   deviceName:{type:String, required: true},
-  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  statusOfRegister: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
 });
 
 driverSchema.pre('save', async function(next) {
