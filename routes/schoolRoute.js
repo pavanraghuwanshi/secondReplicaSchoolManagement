@@ -438,6 +438,8 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
         childName: request.childId.childName,
         requestType: request.requestType,
         requestDate: request.requestDate,
+        deviceId: request.childId.deviceId,
+        deviceName:request.childId.deviceName,
         schoolName: schoolName, // Include schoolName
         branchName: branchName, // Include branchName
         formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
@@ -536,6 +538,8 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
         parentName: request.parentId.parentName,
         email: request.parentId.email,
         phone: request.parentId.phone,
+        deviceId: request.childId.deviceId,
+        deviceName:request.childId.deviceName,
         requestDate: request.requestDate,
         formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null, // Formatted request date
         schoolName: schoolName, // Include schoolName
@@ -946,6 +950,8 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
           pickupPoint: record.childId.pickupPoint,
           dropStatus: record.drop,
           dropTime: record.dropTime,
+          deviceName: record.childId.deviceName,
+          deviceId: record.childId.deviceId,
           formattedDate: date,
           date: originalDate
         };
@@ -1027,6 +1033,7 @@ router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
         pickupTime: record.pickupTime,
         deviceId: record.childId.deviceId,
         pickupPoint: record.childId.pickupPoint,
+        deviceName: record.childId.deviceName,
         formattedDate: convertDate(record.date).date,
         date: convertDate(record.date).originalDate
       };
@@ -1147,6 +1154,7 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
         pickupStatus: record.pickup,
         pickupTime: record.pickupTime,
         deviceId: record.childId.deviceId,
+        deviceName: record.childId.deviceName,
         pickupPoint: record.childId.pickupPoint,
         formattedDate: convertDate(record.date).date,
         date: convertDate(record.date).originalDate
@@ -1220,6 +1228,7 @@ router.get('/status/:childId', schoolAuthMiddleware, async (req, res) => {
     if (child.class) response.childClass = child.class;
     if (child.rollno) response.rollno = child.rollno;
     if (child.deviceId) response.deviceId = child.deviceId;
+    if (child.deviceName) response.deviceName = child.deviceName;
     if (child.gender) response.gender = child.gender;
     if (child.pickupPoint) response.pickupPoint = child.pickupPoint;
     if (password) response.password = password; 
@@ -1310,6 +1319,7 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
           childAge: child.childAge,
           rollno: child.rollno,
           deviceId: child.deviceId,
+          deviceName:child.deviceName,
           gender: child.gender,
           pickupPoint: child.pickupPoint,
             parentName: parent ? parent.parentName : 'Parent not found',

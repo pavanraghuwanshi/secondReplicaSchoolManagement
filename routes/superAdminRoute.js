@@ -204,6 +204,7 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
 //     res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
+
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
     const schools = await School.find({})
@@ -659,7 +660,7 @@ router.get('/denied-requests', superadminMiddleware, async (req, res) => {
           childId: request.childId._id,
           childName: request.childId.childName,
           deviceId: request.childId.deviceId,
-          
+          deviceName: request.childId.deviceName,
           class: request.childId.class,
           statusOfRequest: request.statusOfRequest,
           parentName: request.parentId.parentName,
@@ -1119,7 +1120,7 @@ router.get("/present-children", superadminMiddleware, async (req, res) => {
                   phone: record.childId.parentId.phone,
                   statusOfRegister: record.childId.statusOfRegister,
                   deviceId: record.childId.deviceId,
-                   registrationDate: formatDateToDDMMYYYY(record.childId.registrationDate),
+                  registrationDate: formatDateToDDMMYYYY(record.childId.registrationDate),
                   pickupStatus: record.pickup,
                   pickupTime: record.pickupTime,
                 };
@@ -1201,6 +1202,7 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
               pickupStatus: record.pickup,
               pickupTime: record.pickupTime,
               deviceId: record.childId.deviceId,
+              deviceName: record.childId.deviceName,
               pickupPoint: record.childId.pickupPoint,
               formattedDate: date,
               date: originalDate
@@ -1399,6 +1401,7 @@ router.get('/status-of-children', superadminMiddleware, async (req, res) => {
           section: child.section,
           rollno: child.rollno,
           deviceId: child.deviceId,
+          deviceName:child.deviceName,
           gender: child.gender,
           pickupPoint: child.pickupPoint,
           parentName: parent ? parent.parentName : 'Unknown Parent',
@@ -1513,6 +1516,7 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     if (child.class) response.childClass = child.class;
     if (child.rollno) response.rollno = child.rollno;
     if (child.deviceId) response.deviceId = child.deviceId;
+    if (child.deviceName) response.deviceName = child.deviceName;
     if (child.gender) response.gender = child.gender;
     if (child.pickupPoint) response.pickupPoint = child.pickupPoint;
     if (parent && parent.parentName) response.parentName = parent.parentName;
