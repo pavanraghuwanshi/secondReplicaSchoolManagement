@@ -8,7 +8,8 @@ const { generateToken} = require("../jwt");
 const School = require("../models/school");
 const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
 const Device = require('../models/device');
-
+const Parent = require('../models/Parent');
+const {sendNotification} = require('../services/notifications');
 
 exports.getSchools =  async (req, res) => {
   try {
@@ -424,6 +425,125 @@ exports.markDrop = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
+// exports.markPickup = async (req, res) => {
+//   const { childId, isPresent } = req.body;
+//   const { schoolId, branchId } = req; // Get the schoolId and branchId from the authenticated request
+
+//   if (typeof isPresent !== "boolean") {
+//     return res.status(400).json({ error: "Invalid input" });
+//   }
+
+//   const today = new Date();
+//   const formattedDate = formatDateToDDMMYYYY(today);
+//   const currentTime = formatTime(today); // Automatically converts to IST
+
+//   try {
+//     const child = await Child.findOne({ _id: childId, schoolId, branchId });
+
+//     if (!child) {
+//       return res.status(404).json({ error: "Child not found or does not belong to the current school or branch" });
+//     }
+
+//     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
+
+//     if (!attendanceRecord) {
+//       attendanceRecord = new Attendance({
+//         childId,
+//         date: formattedDate,
+//         pickup: null,
+//         drop: null,
+//         schoolId,
+//         branchId
+//       });
+//     }
+
+//     attendanceRecord.pickup = isPresent;
+//     attendanceRecord.pickupTime = isPresent ? currentTime : null;
+
+//     await attendanceRecord.save();
+
+//     const message = isPresent
+//       ? `Child marked as present for pickup on ${formattedDate} at ${currentTime}`
+//       : `Child marked as absent for pickup`;
+
+//     res.status(200).json({ message });
+
+//     // Send notification to parent
+//     const parent = await Parent.findById(child.parentId);
+//     if (parent && parent.deviceToken) { // Ensure parent has a device token for notifications
+//       const notificationTitle = isPresent ? 'Pickup Notification' : 'Pickup Absent';
+//       const notificationBody = isPresent
+//         ? `Your child was picked up on ${formattedDate} at ${currentTime}`
+//         : `Your child was marked absent for pickup`;
+
+//       await sendNotification(parent.deviceToken, notificationTitle, notificationBody);
+//     }
+
+//   } catch (error) {
+//     console.error(`Error marking child as ${isPresent ? "present" : "absent"} for pickup:`, error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
+// exports.markDrop = async (req, res) => {
+//   const { childId, isPresent } = req.body;
+//   const { schoolId, branchId } = req;
+
+//   if (typeof isPresent !== "boolean") {
+//     return res.status(400).json({ error: "Invalid input" });
+//   }
+
+//   const today = new Date();
+//   const formattedDate = formatDateToDDMMYYYY(today);
+//   const currentTime = formatTime(today);
+
+//   try {
+//     const child = await Child.findOne({ _id: childId, schoolId, branchId });
+//     if (!child) {
+//       return res.status(404).json({ error: "Child not found or does not belong to this school/branch" });
+//     }
+
+//     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
+
+//     if (!attendanceRecord) {
+//       attendanceRecord = new Attendance({
+//         childId,
+//         date: formattedDate,
+//         pickup: null,
+//         drop: null,
+//         schoolId,
+//         branchId
+//       });
+//     }
+
+//     attendanceRecord.drop = isPresent;
+//     attendanceRecord.dropTime = isPresent ? currentTime : null;
+
+//     await attendanceRecord.save();
+
+//     const message = isPresent 
+//       ? `Child marked as present for drop on ${formattedDate} at ${currentTime}`
+//       : `Child marked as absent for drop`;
+
+//     res.status(200).json({ message });
+
+//     // Send notification to parent
+//     const parent = await Parent.findById(child.parentId);
+//     if (parent && parent.deviceToken) {
+//       const notificationTitle = isPresent ? 'Drop Notification' : 'Drop Absent';
+//       const notificationBody = isPresent
+//         ? `Your child was dropped off on ${formattedDate} at ${currentTime}`
+//         : `Your child was marked absent for drop`;
+
+//       await sendNotification(parent.deviceToken, notificationTitle, notificationBody);
+//     }
+
+//   } catch (error) {
+//     console.error(`Error marking child as ${isPresent ? "present" : "absent"} for drop:`, error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 exports.addGeofence = async (req, res) => {
   try {
     const { name, area, deviceId } = req.body;
@@ -459,3 +579,24 @@ exports.deleteGeofence = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+exports.deleteSupervisor = async (req, res) => {
+  try {
+    // Extract supervisorId from the decoded JWT token (assuming it's attached to req.user)
+    const supervisorId = req.user.id; // or req.user.supervisorId if that's how it's stored
+
+    // Find the supervisor by ID
+    const supervisor = await Supervisor.findById(supervisorId);
+    if (!supervisor) {
+      return res.status(404).json({ error: 'Supervisor not found' });
+    }
+
+    // Delete the supervisor
+    await Supervisor.findByIdAndDelete(supervisorId);
+
+    res.status(200).json({ message: 'Supervisor deleted successfully' });
+  } catch (error) {
+    console.error('Error during supervisor deletion:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+

@@ -108,22 +108,18 @@ router.post('/add-branch', schoolAuthMiddleware, async (req, res) => {
 router.get('/branches', schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req; // Extract schoolId from the request token
-
     // Validate school existence
     const school = await School.findById(schoolId);
     if (!school) {
       return res.status(400).json({ error: 'School not found' });
     }
-
     // Decrypt school password if it exists
     let schoolData = school.toObject();
     if (schoolData.password) {
       schoolData.password = decrypt(schoolData.password);
     }
-
     // Fetch branches for the specified school
     let branches = await Branch.find({ schoolId });
-
     // Decrypt branch passwords if they exist
     branches = branches.map(branch => {
       return {
@@ -131,13 +127,14 @@ router.get('/branches', schoolAuthMiddleware, async (req, res) => {
         password: decrypt(branch.password) // Decrypt the password
       };
     });
-
     res.status(200).json({ school: schoolData, branches });
   } catch (error) {
     console.error('Error fetching branches:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req; // Assuming schoolId comes from authentication middleware
 
@@ -875,8 +872,7 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
           dropTime: record.dropTime,
           deviceName: record.childId.deviceName,
           deviceId: record.childId.deviceId,
-          formattedDate: date,
-          date: originalDate
+          date:record.date
         };
 
         // If the branch doesn't exist in the map, add it
@@ -956,8 +952,7 @@ router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
         deviceId: record.childId.deviceId,
         pickupPoint: record.childId.pickupPoint,
         deviceName: record.childId.deviceName,
-        formattedDate: convertDate(record.date).date,
-        date: convertDate(record.date).originalDate
+        date:record.date
       };
 
       branchMap[branchId].children.push(childData);
@@ -1025,8 +1020,7 @@ router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
         deviceId: record.childId.deviceId,
         deviceName: record.childId.deviceName,
         pickupPoint: record.childId.pickupPoint,
-        formattedDate: convertDate(record.date).date,
-        date: convertDate(record.date).originalDate
+        date:record.date
       };
 
       branchMap[branchId].children.push(childData);

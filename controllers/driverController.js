@@ -263,4 +263,25 @@ exports.updateDriver = async (req, res) => {
     res.status(500).json({ error: "Error updating driver details" });
   }
 };
+exports.deleteDriver = async (req, res) => {
+  try {
+    // Extract driverId from the JWT token (assuming it's stored in req.user after JWT verification)
+    const driverId = req.user.id; // or req.user.driverId if it's stored as driverId in the token
+
+    // Find the driver by ID
+    const driver = await DriverCollection.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    // Delete the driver
+    await DriverCollection.findByIdAndDelete(driverId);
+
+    res.status(200).json({ message: 'Driver deleted successfully' });
+  } catch (error) {
+    console.error('Error during driver deletion:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 

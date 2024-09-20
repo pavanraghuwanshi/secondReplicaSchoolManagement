@@ -865,7 +865,7 @@ router.get('/read-supervisors', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.get("/pickup-drop-status", async (req, res) => {
+router.get("/pickup-drop-status",superadminMiddleware, async (req, res) => {
   try {
     const schools = await School.find({}).lean();
 
@@ -894,8 +894,7 @@ router.get("/pickup-drop-status", async (req, res) => {
               .lean();
 
             const childrenData = attendanceRecords
-              .filter(record => record.childId && record.childId.parentId)
-              .map(record => {
+              .filter(record => record.childId && record.childId.parentId).map(record => {
                 return {
                   childId: record.childId._id.toString(),
                   childName: record.childId.childName,
@@ -913,7 +912,7 @@ router.get("/pickup-drop-status", async (req, res) => {
                   phone: record.childId.parentId.phone,
                   statusOfRegister: record.childId.statusOfRegister,
                   deviceId: record.childId.deviceId,
-                  registrationDate: formatDateToDDMMYYYY(record.childId.registrationDate),
+                  date:record.date,
                   pickupStatus: record.pickup,
                   pickupTime: record.pickupTime,
                   dropStatus: record.drop,
@@ -993,7 +992,7 @@ router.get("/present-children", superadminMiddleware, async (req, res) => {
                   phone: record.childId.parentId.phone,
                   statusOfRegister: record.childId.statusOfRegister,
                   deviceId: record.childId.deviceId,
-                  registrationDate: formatDateToDDMMYYYY(record.childId.registrationDate),
+                  date:record.date,
                   pickupStatus: record.pickup,
                   pickupTime: record.pickupTime,
                 };
@@ -1076,8 +1075,7 @@ router.get("/absent-children", superadminMiddleware, async (req, res) => {
               deviceId: record.childId.deviceId,
               deviceName: record.childId.deviceName,
               pickupPoint: record.childId.pickupPoint,
-              formattedDate: date,
-              date: originalDate
+              date:record.date
             };
           });
 

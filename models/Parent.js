@@ -35,8 +35,6 @@ const parentSchema = new mongoose.Schema({
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent' },
 });
-
-
 parentSchema.pre('save', async function(next) {
   if (this.isModified('password')) {
     this.password = encrypt(this.password);
@@ -51,3 +49,4 @@ parentSchema.methods.comparePassword = function(candidatePassword) {
 
 const Parent = mongoose.model('Parent', parentSchema);
 module.exports = Parent;
+

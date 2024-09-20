@@ -29,10 +29,10 @@ router.post('/register', async (req, res) => {
       dateOfBirth,
       childAge,
       gender,
-      fcmToken,
       pickupPoint,
       deviceName,
-      deviceId
+      deviceId,
+      fcmToken 
     } = req.body;
     if (!schoolName || !branchName) {
       return res.status(400).json({ error: 'School name and branch name are required' });
@@ -57,7 +57,7 @@ router.post('/register', async (req, res) => {
       email,
       password, 
       phone,
-      fcmToken,
+      fcmToken ,
       schoolId: school._id,
       branchId: branch._id,
       statusOfRegister: 'pending'
@@ -98,34 +98,30 @@ router.post('/register', async (req, res) => {
   }
 });
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
+  const { email, password ,fcmToken } = req.body;
   try {
-    // Find the parent by email
     const parent = await Parent.findOne({ email });
-
-    // Check if parent exists
     if (!parent) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
-
-    // Compare provided password with stored hashed password
-    const isMatch = await parent.comparePassword(password); // Assuming comparePassword is defined
-
-    // Check if password matches
+    const isMatch = await parent.comparePassword(password); 
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
 
-    // Generate JWT token with parent ID, email, and schoolId
+      // Update the FCM token if provided
+      if (fcmToken) {
+        parent.fcmToken = fcmToken;
+        await parent.save();
+      }
+
+
     const token = generateToken({
       id: parent._id,
       email: parent.email,
-      schoolId: parent.schoolId, // Add schoolId to the token payload
-      branchId: parent.branchId  // Add branchId to the token payload
+      schoolId: parent.schoolId, 
+      branchId: parent.branchId  
     });
-
-    // Send success response with token
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -136,6 +132,7 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
 router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
   try {
     const {
@@ -246,8 +243,6 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
 //     res.status(500).json({ error: "Server error" });
 //   }
 // });
-
-
 
 router.get('/getschools', async (req, res) => {
   try {
@@ -482,8 +477,6 @@ router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
   }
 });
 
-
-
 router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;
@@ -541,6 +534,30 @@ router.put("/update-parent/:parentId", jwtAuthMiddleware, async (req, res) => {
     res.status(200).json({ parent });
   } catch (error) {
     console.error('Error during updating parent:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/delete', jwtAuthMiddleware, async (req, res) => {
+  try {
+    // Extract parentId from the token's decoded data
+    const parentId = req.user.id; // Assuming the decoded token attaches the parent ID to req.user
+
+    // Find the parent by ID
+    const parent = await Parent.findById(parentId);
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    // Delete all children associated with the parent
+    await Child.deleteMany({ parentId: parent._id });
+
+    // Delete the parent
+    await Parent.findByIdAndDelete(parentId);
+
+    res.status(200).json({ message: 'Parent and associated children deleted successfully' });
+  } catch (error) {
+    console.error('Error during deletion:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

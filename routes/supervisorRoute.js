@@ -17,7 +17,7 @@ router.get("/get-devices", supervisorController.getDevices);
 router.delete('/delete-geofence/:id',jwtAuthMiddleware,supervisorController.deleteGeofence);
 // router.put('/geofencing/:id',jwtAuthMiddleware,supervisorController.updateGeofencing);
 // router.put("/update-password",  jwtAuthMiddleware,supervisorController.updatePassword);
-// router.delete("/delete",  jwtAuthMiddleware,supervisorController.deleteSupervisor);
+router.delete("/delete",  jwtAuthMiddleware,supervisorController.deleteSupervisor);
 
 
 module.exports = router;

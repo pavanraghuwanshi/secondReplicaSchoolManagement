@@ -536,8 +536,7 @@ router.get("/pickup-drop-status", branchAuthMiddleware, async (req, res) => {
           pickupPoint: record.childId.pickupPoint,
           dropStatus: record.drop,
           dropTime: record.dropTime,
-          formattedDate: date,
-          date: originalDate
+          date:record.date
         };
       });
 
@@ -581,8 +580,7 @@ router.get("/present-children", branchAuthMiddleware, async (req, res) => {
           pickupPoint: record.childId.pickupPoint,
           branchName: record.childId.branchId ? record.childId.branchId.branchName : 'N/A',
           schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : 'N/A',
-          formattedDate: date,
-          date: originalDate,
+          date:record.date
         };
       });
 
@@ -625,8 +623,7 @@ router.get("/absent-children", branchAuthMiddleware, async (req, res) => {
           pickupPoint: record.childId.pickupPoint,
           branchName: record.childId.branchId ? record.childId.branchId.branchName : 'N/A',
           schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : 'N/A',
-          formattedDate: date,
-          date: originalDate,
+          date:record.date
         };
       });
 
