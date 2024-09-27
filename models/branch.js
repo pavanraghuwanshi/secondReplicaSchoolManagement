@@ -17,8 +17,7 @@ const branchSchema = new mongoose.Schema({
   },
   username:{
     type: String,
-   default: '',
-    unique:true
+   default: ''
   },
   password:{
     type: String,

@@ -1240,6 +1240,51 @@ router.put('/edit-device/:actualDeviceId', branchAuthMiddleware, async (req, res
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+router.put('/edit-branch/:id', branchAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { branchName, email, schoolMobile, username, password } = req.body;
+
+    // Find the branch by ID
+    const existingBranch = await Branch.findById(id);
+    if (!existingBranch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    // Check if the username is already taken by another branch
+    const duplicateBranch = await Branch.findOne({
+      _id: { $ne: id }, 
+      username 
+    });
+    
+    if (duplicateBranch) {
+      return res.status(400).json({ error: 'Username already exists. Please choose a different one.' });
+    }
+
+    // Update the branch details
+    const updatedBranch = await Branch.findByIdAndUpdate(
+      id,
+      {
+        branchName,
+        email,
+        schoolMobile,
+        username,
+        password
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedBranch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    res.status(200).json({ branch: updatedBranch });
+  } catch (error) {
+    console.error('Error editing branch:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 
 // DELETE METHOD
@@ -1376,6 +1421,23 @@ router.delete('/delete-device/:actualDeviceId', branchAuthMiddleware, async (req
   } catch (error) {
     console.error('Error deleting device:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+router.delete('/delete-branch/:id', branchAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the branch by ID and delete it
+    const deletedBranch = await Branch.findByIdAndDelete(id);
+    
+    if (!deletedBranch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    res.status(200).json({ message: 'Branch deleted successfully', branch: deletedBranch });
+  } catch (error) {
+    console.error('Error deleting branch:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

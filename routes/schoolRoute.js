@@ -100,10 +100,6 @@ router.post('/add-branch', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
-
 // GET METHOD 
 router.get('/branches', schoolAuthMiddleware, async (req, res) => {
   try {
@@ -133,8 +129,6 @@ router.get('/branches', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req; // Assuming schoolId comes from authentication middleware
 
@@ -1689,6 +1683,93 @@ router.put('/edit-device/:actualDeviceId', schoolAuthMiddleware, async (req, res
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+router.put('/edit-school/:id', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { schoolName, username, password, email, schoolMobile } = req.body;
+
+    // Check if a school with the new username or email already exists (but not the current school)
+    const existingSchool = await School.findOne({
+      _id: { $ne: id }, 
+      $or: [{ username }, { email }]
+    });
+    
+    if (existingSchool) {
+      return res.status(400).json({ error: 'Username or email already exists' });
+    }
+
+    // Find the school by ID and update the details
+    const updatedSchool = await School.findByIdAndUpdate(
+      id,
+      {
+        schoolName,
+        username,
+        password,
+        email,
+        schoolMobile
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedSchool) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    // Generate a new token if the username has changed (optional, based on your app logic)
+    const payload = { id: updatedSchool._id, username: updatedSchool.username };
+    const token = generateToken(payload);
+
+    // Respond with the updated school details and token
+    res.status(200).json({ response: { ...updatedSchool.toObject(), password: undefined }, token, role: "schooladmin" });
+  } catch (error) {
+    console.error('Error during school update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.put('/edit-branch/:id', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { branchName, email, schoolMobile, username, password } = req.body;
+
+    // Find the branch by ID
+    const existingBranch = await Branch.findById(id);
+    if (!existingBranch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    // Check if the username is already taken by another branch
+    const duplicateBranch = await Branch.findOne({
+      _id: { $ne: id }, 
+      username 
+    });
+    
+    if (duplicateBranch) {
+      return res.status(400).json({ error: 'Username already exists. Please choose a different one.' });
+    }
+
+    // Update the branch details
+    const updatedBranch = await Branch.findByIdAndUpdate(
+      id,
+      {
+        branchName,
+        email,
+        schoolMobile,
+        username,
+        password
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedBranch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    res.status(200).json({ branch: updatedBranch });
+  } catch (error) {
+    console.error('Error editing branch:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 
 
@@ -1801,6 +1882,23 @@ router.delete('/delete-supervisor/:id', schoolAuthMiddleware, async (req, res) =
     res.status(200).json({ message: 'Supervisor deleted successfully' });
   } catch (error) {
     console.error('Error deleting supervisor:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.delete('/delete-school/:id', schoolAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the school by ID and delete it
+    const deletedSchool = await School.findByIdAndDelete(id);
+    
+    if (!deletedSchool) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    res.status(200).json({ message: 'School deleted successfully', school: deletedSchool });
+  } catch (error) {
+    console.error('Error deleting school:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

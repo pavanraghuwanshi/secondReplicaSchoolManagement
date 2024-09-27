@@ -22,8 +22,7 @@ const schoolSchema = new mongoose.Schema({
     required: true
   },
   schoolMobile:{
-    type: String,
-    required: true
+    type: String
   },
   branches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }]
 });

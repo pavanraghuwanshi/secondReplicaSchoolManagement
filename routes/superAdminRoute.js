@@ -96,12 +96,12 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
 
     // Create the initial Branch
     const newBranch = new Branch({
-      branchName,
-      schoolId: savedSchool._id, // Set the schoolId
-      schoolMobile: '', // Default empty value
-      username: '', // Default empty value
-      password: '', // Default empty value
-      email: '' // Default empty value
+      branchName: branchName + "  main-branch",
+      schoolId: savedSchool._id, 
+      schoolMobile: '', 
+      username: '', 
+      password: '', 
+      email: '' 
     });
 
     // Save the branch
@@ -160,8 +160,6 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
@@ -1797,6 +1795,93 @@ router.put('/update-supervisor/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.put('/school-edit/:id', superadminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { schoolName, username, password, email, schoolMobile } = req.body;
+
+    // Check if a school with the new username or email already exists (but not the current school)
+    const existingSchool = await School.findOne({
+      _id: { $ne: id }, 
+      $or: [{ username }, { email }]
+    });
+    
+    if (existingSchool) {
+      return res.status(400).json({ error: 'Username or email already exists' });
+    }
+
+    // Find the school by ID and update the details
+    const updatedSchool = await School.findByIdAndUpdate(
+      id,
+      {
+        schoolName,
+        username,
+        password,
+        email,
+        schoolMobile
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedSchool) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    // Generate a new token if the username has changed (optional, based on your app logic)
+    const payload = { id: updatedSchool._id, username: updatedSchool.username };
+    const token = generateToken(payload);
+
+    // Respond with the updated school details and token
+    res.status(200).json({ response: { ...updatedSchool.toObject(), password: undefined }, token, role: "schooladmin" });
+  } catch (error) {
+    console.error('Error during school update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.put('/edit-branch/:id', superadminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { branchName, email, schoolMobile, username, password } = req.body;
+
+    // Find the branch by ID
+    const existingBranch = await Branch.findById(id);
+    if (!existingBranch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    // Check if the username is already taken by another branch
+    const duplicateUsernameBranch = await Branch.findOne({
+      _id: { $ne: id }, 
+      username 
+    });
+    
+    if (duplicateUsernameBranch) {
+      return res.status(400).json({ error: 'Username already exists. Please choose a different one.' });
+    }
+
+    // Update the branch details
+    const updatedBranch = await Branch.findByIdAndUpdate(
+      id,
+      {
+        branchName,
+        email,
+        schoolMobile,
+        username,
+        password
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedBranch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    res.status(200).json({ branch: updatedBranch });
+  } catch (error) {
+    console.error('Error editing branch:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 
 
@@ -1997,6 +2082,7 @@ router.delete('/delete-device/:actualDeviceId', superadminMiddleware, async (req
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 module.exports = router;
