@@ -109,26 +109,44 @@ router.get('/branches', schoolAuthMiddleware, async (req, res) => {
     if (!school) {
       return res.status(400).json({ error: 'School not found' });
     }
+
     // Decrypt school password if it exists
     let schoolData = school.toObject();
     if (schoolData.password) {
       schoolData.password = decrypt(schoolData.password);
     }
+
     // Fetch branches for the specified school
-    let branches = await Branch.find({ schoolId });
-    // Decrypt branch passwords if they exist
+    let branches = await Branch.find({ schoolId })
+      .populate({
+        path: 'devices',
+        select: 'deviceId deviceName' // Select fields you want from devices
+      });
+    
+    // Map branches to include decrypted password
     branches = branches.map(branch => {
       return {
         ...branch.toObject(), // Convert mongoose document to plain object
-        password: decrypt(branch.password) // Decrypt the password
+        password: decrypt(branch.password), // Decrypt the password,
       };
     });
-    res.status(200).json({ school: schoolData, branches });
+
+    // Structure the response
+    res.status(200).json({
+      school: {
+        ...schoolData,
+        branches // Include branches array in the school object
+      }
+    });
+    
   } catch (error) {
     console.error('Error fetching branches:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
 router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req; // Assuming schoolId comes from authentication middleware
 

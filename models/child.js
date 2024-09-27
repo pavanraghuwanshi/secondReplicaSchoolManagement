@@ -5,7 +5,6 @@ const childSchema = new mongoose.Schema({
   class: { type: String, required: true },
   rollno: { type: String, required: true },
   section: { type: String, required: true },
-  schoolName: { type: String, required: true },
   dateOfBirth: { type: String, required: true },
   childAge: { type: Number, required: true },
   pickupPoint:{type: String},

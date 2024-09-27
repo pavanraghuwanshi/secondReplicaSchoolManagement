@@ -70,7 +70,6 @@ router.post('/register', async (req, res) => {
       class: childClass,
       rollno,
       section,
-      schoolName,
       schoolId: school._id,
       branchId: branch._id, 
       dateOfBirth,
@@ -303,53 +302,46 @@ router.get('/get-devices', async (req, res) => {
 router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
-    const schoolId = req.user.schoolId; // Assuming schoolId is in the JWT payload
-
-    // Fetch the parent data and populate children that match the schoolId
+    const schoolId = req.user.schoolId; 
     const parent = await Parent.findById(parentId).populate({
       path: 'children',
-      match: { schoolId: schoolId }, // Filter children by schoolId
-      populate: {
-        path: 'branchId', // Populate branchId to get branch details
-        select: 'branchName schoolMobile', // Include branchName and schoolMobile fields in the branch document
-      }
-    }).exec(); // Ensure .exec() is used to execute the query
+      match: { schoolId: schoolId }, 
+      populate:[ {
+        path: 'branchId', 
+        select: 'branchName schoolMobile', 
+      },{
+        path: 'schoolId',
+        select: 'schoolName' 
+      }]
+    }).exec();
 
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found' });
     }
-
-    // Extract children with deviceId to query driver collection
     const children = parent.children;
     const deviceIds = children.map(child => child.deviceId);
-
-    // Query driver collection to get driver details for the deviceIds
     const drivers = await DriverCollection.find({ deviceId: { $in: deviceIds } }).select('deviceId driverMobile').exec();
     const driverMap = new Map(drivers.map(driver => [driver.deviceId, driver.driverMobile]));
-
-    // Convert children documents to plain objects and include branch and driver details
     const childrenData = children.map(child => ({
       _id: child._id,
       childName: child.childName,
       class: child.class,
       rollno: child.rollno,
       section: child.section,
-      schoolName: child.schoolName,
+      schoolName: child.schoolId.schoolName,
       dateOfBirth: child.dateOfBirth,
       childAge: child.childAge,
       pickupPoint: child.pickupPoint,
-      schoolId: child.schoolId,
-      branchName: child.branchId?.branchName || "N/A", // Directly include branchName
-      schoolMobile: child.branchId?.schoolMobile || "N/A", // Include schoolMobile
+      schoolId: child.schoolId._id,
+      branchName: child.branchId?.branchName || "N/A",
+      schoolMobile: child.branchId?.schoolMobile || "N/A", 
       deviceName: child.deviceName,
       gender: child.gender,
       parentId: child.parentId,
       deviceId: child.deviceId,
       registrationDate: child.registrationDate,
-      driverMobile: driverMap.get(child.deviceId) || "N/A" // Add driverMobile
+      driverMobile: driverMap.get(child.deviceId) || "N/A" 
     }));
-
-    // Respond with children data including branch and driver information
     res.status(200).json({ children: childrenData });
   } catch (error) {
     console.error('Error fetching child data:', error);
