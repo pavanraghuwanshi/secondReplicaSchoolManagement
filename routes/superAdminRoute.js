@@ -1795,7 +1795,7 @@ router.put('/update-supervisor/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.put('/school-edit/:id', superadminMiddleware, async (req, res) => {
+router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { schoolName, username, password, email, schoolMobile } = req.body;
@@ -1992,7 +1992,7 @@ router.delete('/delete-supervisor/:id', superadminMiddleware, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.delete('/delete-school/:schoolId', superadminMiddleware, async (req, res) => {
+router.delete('/delete-school/:id', superadminMiddleware, async (req, res) => {
   try {
     const { schoolId } = req.params;
 
@@ -2028,7 +2028,7 @@ router.delete('/delete-school/:schoolId', superadminMiddleware, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.delete('/delete-branch/:branchId', superadminMiddleware, async (req, res) => {
+router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
   try {
     const { branchId } = req.params;
 

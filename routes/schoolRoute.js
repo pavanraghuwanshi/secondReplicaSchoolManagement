@@ -1902,7 +1902,7 @@ router.delete('/delete-school/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.delete('/delete-branch/:branchId', schoolAuthMiddleware, async (req, res) => {
+router.delete('/delete-branch/:id', schoolAuthMiddleware, async (req, res) => {
   try {
     const { branchId } = req.params;
 
