@@ -372,64 +372,6 @@ router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
   }
 });
 
-router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
-  try {
-    const parentId = req.user.id;
-    const schoolId = req.user.schoolId; // Get the schoolId from the authenticated user
-
-    // Fetch the parent data along with their children, ensuring the correct school context
-    const parent = await Parent.findOne({ _id: parentId, schoolId }).populate('children', '_id childName');
-    if (!parent) {
-      return res.status(404).json({ error: 'Parent not found or does not belong to the authenticated school' });
-    }
-
-    // Collect all child IDs
-    const childIds = parent.children.map(child => child._id);
-
-    // Fetch all requests for the children, ensuring the requests are within the same school context
-    const requests = await Request.find({ childId: { $in: childIds }, schoolId })
-      .select('requestType startDate endDate reason newRoute childId requestDate')
-      .populate('childId', 'childName');
-
-    // Group the requests
-    const groupedRequests = [];
-    const leaveRequests = {};
-
-    requests.forEach(request => {
-      if (request.requestType === 'leave') {
-        const childId = request.childId._id;
-        if (!leaveRequests[childId]) {
-          leaveRequests[childId] = {
-            childName: request.childId.childName,
-            requestType: 'leave',
-            reason: request.reason,
-            startDate: request.startDate,
-            endDate: request.endDate,
-            requestDate: request.requestDate
-          };
-        }
-      } else {
-        groupedRequests.push({
-          childName: request.childId.childName,
-          date: request.startDate, 
-          requestType: request.requestType,
-          reason: request.reason,
-          newRoute: request.newRoute,
-          requestDate: request.requestDate
-        });
-      }
-    });
-
-    // Include leave requests in the grouped response
-    Object.values(leaveRequests).forEach(leaveRequest => groupedRequests.push(leaveRequest));
-
-    res.status(200).json({ requests: groupedRequests });
-  } catch (error) {
-    console.error('Error fetching requests:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
 //   try {
 //     const parentId = req.user.id;
@@ -451,22 +393,25 @@ router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
 
 //     // Group the requests
 //     const groupedRequests = [];
+//     const leaveRequests = {};
 
 //     requests.forEach(request => {
 //       if (request.requestType === 'leave') {
-//         // Handle leave requests by storing them as an array for each child
-//         groupedRequests.push({
-//           childName: request.childId.childName,
-//           requestType: 'leave',
-//           reason: request.reason,
-//           startDate: request.startDate,
-//           endDate: request.endDate,
-//           requestDate: request.requestDate
-//         });
+//         const childId = request.childId._id;
+//         if (!leaveRequests[childId]) {
+//           leaveRequests[childId] = {
+//             childName: request.childId.childName,
+//             requestType: 'leave',
+//             reason: request.reason,
+//             startDate: request.startDate,
+//             endDate: request.endDate,
+//             requestDate: request.requestDate
+//           };
+//         }
 //       } else {
-//         // Handle changeRoute requests
 //         groupedRequests.push({
 //           childName: request.childId.childName,
+//           date: request.startDate, 
 //           requestType: request.requestType,
 //           reason: request.reason,
 //           newRoute: request.newRoute,
@@ -475,12 +420,67 @@ router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
 //       }
 //     });
 
+//     // Include leave requests in the grouped response
+//     Object.values(leaveRequests).forEach(leaveRequest => groupedRequests.push(leaveRequest));
+
 //     res.status(200).json({ requests: groupedRequests });
 //   } catch (error) {
 //     console.error('Error fetching requests:', error);
 //     res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
+
+router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
+  try {
+    const parentId = req.user.id;
+    const schoolId = req.user.schoolId; // Get the schoolId from the authenticated user
+
+    // Fetch the parent data along with their children, ensuring the correct school context
+    const parent = await Parent.findOne({ _id: parentId, schoolId }).populate('children', '_id childName');
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found or does not belong to the authenticated school' });
+    }
+
+    // Collect all child IDs
+    const childIds = parent.children.map(child => child._id);
+
+    // Fetch all requests for the children, ensuring the requests are within the same school context
+    const requests = await Request.find({ childId: { $in: childIds }, schoolId })
+      .select('requestType startDate endDate reason newRoute childId requestDate')
+      .populate('childId', 'childName');
+
+    // Group the requests
+    const groupedRequests = [];
+
+    requests.forEach(request => {
+      if (request.requestType === 'leave') {
+        // Handle leave requests by storing them as an array for each child
+        groupedRequests.push({
+          childName: request.childId.childName,
+          requestType: 'leave',
+          reason: request.reason,
+          startDate: request.startDate,
+          endDate: request.endDate,
+          requestDate: request.requestDate
+        });
+      } else {
+        // Handle changeRoute requests
+        groupedRequests.push({
+          childName: request.childId.childName,
+          requestType: request.requestType,
+          reason: request.reason,
+          newRoute: request.newRoute,
+          requestDate: request.requestDate
+        });
+      }
+    });
+
+    res.status(200).json({ requests: groupedRequests });
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
   const parentId = req.user.id;
