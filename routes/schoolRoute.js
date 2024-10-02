@@ -779,40 +779,115 @@ router.get('/read-supervisors', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.get('/geofences', async (req, res) => {
+
+// router.get('/geofences', schoolAuthMiddleware,async (req, res) => {
+//   try {
+//     // Fetch all geofences
+//     const geofences = await Geofencing.find();
+
+//     // Group geofences by deviceId and include "deviceId" as a key
+//     const groupedGeofences = geofences.reduce((acc, geofence) => {
+//       const deviceId = geofence.deviceId.toString(); // Ensure deviceId is a string for consistency
+//       if (!acc[deviceId]) {
+//         acc[deviceId] = [];
+//       }
+//       acc[deviceId].push({
+//         _id: geofence._id,
+//         name: geofence.name,
+//         area: geofence.area,
+//         isCrossed: geofence.isCrossed,
+//         deviceId: geofence.deviceId,
+//         __v: geofence.__v
+//       });
+//       return acc;
+//     }, {});
+
+//     // Transform groupedGeofences to include "deviceId" key in the format required
+//     const transformedResponse = Object.entries(groupedGeofences).reduce((acc, [deviceId, geofences]) => {
+//       acc[`deviceId: ${deviceId}`] = geofences;
+//       return acc;
+//     }, {});
+
+//     // Respond with the transformed geofences
+//     res.status(200).json(transformedResponse);
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error retrieving geofences', error });
+//   }
+// });
+router.get('/geofences', schoolAuthMiddleware, async (req, res) => {
+  const { schoolId } = req; // Extract schoolId from the authenticated request
+
   try {
-    // Fetch all geofences
-    const geofences = await Geofencing.find();
+    // Fetch the school name based on schoolId
+    const school = await School.findById(schoolId).select('schoolName');
+    if (!school) {
+      return res.status(404).json({ message: 'School not found' });
+    }
 
-    // Group geofences by deviceId and include "deviceId" as a key
-    const groupedGeofences = geofences.reduce((acc, geofence) => {
-      const deviceId = geofence.deviceId.toString(); // Ensure deviceId is a string for consistency
-      if (!acc[deviceId]) {
-        acc[deviceId] = [];
+    // Fetch branches associated with the logged-in school
+    const branches = await Branch.find({ schoolId }).select('_id branchName'); // Get branch IDs and branch names
+
+    // Get deviceIds for the branches
+    const devices = await Device.find({ branchId: { $in: branches.map(branch => branch._id) } })
+      .select('deviceId branchId'); // Fetch the deviceId and branchId associated with the devices
+
+    // Extract deviceIds to search geofences
+    const deviceIds = devices.map(device => device.deviceId);
+
+    // Fetch geofences for the retrieved deviceIds
+    const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });
+
+    // Group geofences by branch based on device
+    const branchesMap = {};
+    geofences.forEach(geofence => {
+      // Find the device for the current geofence
+      const device = devices.find(device => device.deviceId.toString() === geofence.deviceId.toString());
+
+      if (device) {
+        // Find the branch associated with the device
+        const branch = branches.find(branch => branch._id.toString() === device.branchId.toString());
+
+        if (!branch) return; // If no branch is found, skip this geofence
+
+        // Initialize the branch in the map if not already present
+        if (!branchesMap[branch._id]) {
+          branchesMap[branch._id] = {
+            branchId: branch._id,
+            branchName: branch.branchName,
+            geofences: []
+          };
+        }
+
+        // Add geofence to the respective branch, including school and branch names
+        branchesMap[branch._id].geofences.push({
+          _id: geofence._id,
+          name: geofence.name,
+          area: geofence.area,
+          isCrossed: geofence.isCrossed,
+          deviceId: geofence.deviceId,
+          schoolName: school.schoolName, // Include schoolName
+          branchName: branch.branchName, // Include branchName
+          __v: geofence.__v
+        });
       }
-      acc[deviceId].push({
-        _id: geofence._id,
-        name: geofence.name,
-        area: geofence.area,
-        isCrossed: geofence.isCrossed,
-        deviceId: geofence.deviceId,
-        __v: geofence.__v
-      });
-      return acc;
-    }, {});
+    });
 
-    // Transform groupedGeofences to include "deviceId" key in the format required
-    const transformedResponse = Object.entries(groupedGeofences).reduce((acc, [deviceId, geofences]) => {
-      acc[`deviceId: ${deviceId}`] = geofences;
-      return acc;
-    }, {});
+    // Convert the branchesMap object into an array of branches with geofences
+    const responseBranches = Object.values(branchesMap);
 
-    // Respond with the transformed geofences
-    res.status(200).json(transformedResponse);
+    // Respond with the grouped geofences by branches, including the schoolId
+    res.status(200).json({
+      schoolId: schoolId,
+      branches: responseBranches
+    });
   } catch (error) {
+    console.error('Error fetching geofences:', error);
     res.status(500).json({ message: 'Error retrieving geofences', error });
   }
 });
+
+
+
 router.get("/geofence", async (req, res) => {
   try {
     const deviceId = req.query.deviceId;

@@ -1294,65 +1294,89 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+// router.get('/geofences', async (req, res) => {
+//   try {
+//     // Fetch all geofences
+//     const geofences = await Geofencing.find();
+
+//     // Group geofences by deviceId and include "deviceId" as a key
+//     const groupedGeofences = geofences.reduce((acc, geofence) => {
+//       const deviceId = geofence.deviceId.toString(); // Ensure deviceId is a string for consistency
+//       if (!acc[deviceId]) {
+//         acc[deviceId] = [];
+//       }
+//       acc[deviceId].push({
+//         _id: geofence._id,
+//         name: geofence.name,
+//         area: geofence.area,
+//         isCrossed: geofence.isCrossed,
+//         deviceId: geofence.deviceId,
+        
+//         __v: geofence.__v
+//       });
+//       return acc;
+//     }, {});
+
+//     // Transform groupedGeofences to include "deviceId" key in the format required
+//     const transformedResponse = Object.entries(groupedGeofences).reduce((acc, [deviceId, geofences]) => {
+//       acc[`deviceId: ${deviceId}`] = geofences;
+//       return acc;
+//     }, {});
+
+//     // Respond with the transformed geofences
+//     res.status(200).json(transformedResponse);
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error retrieving geofences', error });
+//   }
+// });
+
 router.get('/geofences', async (req, res) => {
   try {
-    // Fetch all geofences
-    const geofences = await Geofencing.find();
+    // Fetch all geofences with only deviceId and area
+    const geofences = await Geofencing.find().select('deviceId area name isCrossed');
 
-    // Group geofences by deviceId and include "deviceId" as a key
-    const groupedGeofences = geofences.reduce((acc, geofence) => {
-      const deviceId = geofence.deviceId.toString(); // Ensure deviceId is a string for consistency
-      if (!acc[deviceId]) {
-        acc[deviceId] = [];
+    // Fetch all devices with populated schoolId and branchId
+    const devices = await Device.find()
+      .populate('schoolId', 'schoolName') // Populate only the schoolName
+      .populate('branchId', 'branchName'); // Populate only the branchName
+
+    // Create a map of deviceId to school and branch names
+    const deviceMap = {};
+    devices.forEach(device => {
+      deviceMap[device.deviceId] = {
+        schoolName: device.schoolId ? device.schoolId.schoolName : 'Unknown School',
+        branchName: device.branchId ? device.branchId.branchName : 'Unknown Branch',
+      };
+    });
+
+    // Create a grouped response
+    const response = {};
+    
+    geofences.forEach(geofence => {
+      const deviceId = geofence.deviceId; // Directly use deviceId
+      
+      // Initialize the deviceId key in the response if it doesn't exist
+      if (!response[`deviceId: ${deviceId}`]) {
+        response[`deviceId: ${deviceId}`] = [];
       }
-      acc[deviceId].push({
+
+      // Push the geofence data along with school and branch names
+      response[`deviceId: ${deviceId}`].push({
         _id: geofence._id,
         name: geofence.name,
         area: geofence.area,
         isCrossed: geofence.isCrossed,
-        deviceId: geofence.deviceId,
-        __v: geofence.__v
+        deviceId: deviceId,
+        schoolName: deviceMap[deviceId]?.schoolName || 'Unknown School',
+        branchName: deviceMap[deviceId]?.branchName || 'Unknown Branch',
+        __v: geofence.__v // Ensure to include __v if needed
       });
-      return acc;
-    }, {});
+    });
 
-    // Transform groupedGeofences to include "deviceId" key in the format required
-    const transformedResponse = Object.entries(groupedGeofences).reduce((acc, [deviceId, geofences]) => {
-      acc[`deviceId: ${deviceId}`] = geofences;
-      return acc;
-    }, {});
-
-    // Respond with the transformed geofences
-    res.status(200).json(transformedResponse);
+    // Respond with the structured response
+    res.status(200).json(response);
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving geofences', error });
-  }
-});
-router.get("/geofence", async (req, res) => {
-  try {
-    const deviceId = req.query.deviceId;
-    const geofencingData = await Geofencing.find({ deviceId });
-
-    if (!geofencingData || geofencingData.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No geofencing data found for this deviceId" });
-    }
-
-    // Restructure the response to have deviceId on top with nested geofencing data
-    const response = {
-      deviceId: deviceId,
-      geofences: geofencingData.map((data) => ({
-        _id: data._id,
-        name: data.name,
-        area: data.area,
-        isCrossed: data.isCrossed,
-      })),
-    };
-
-    res.json(response);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 

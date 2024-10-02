@@ -546,14 +546,15 @@ exports.markDrop = async (req, res) => {
 // };
 exports.addGeofence = async (req, res) => {
   try {
-    const { name, area, deviceId } = req.body;
+    const { name, area, deviceId, busStopTime} = req.body;
     if (!name || !area || !deviceId) {
       return res.status(400).json({ error: "Name, area, and device ID are required" });
     }
     const newGeofencing = new Geofencing({
       name,
       area,
-      deviceId
+      deviceId,
+      busStopTime
     });
     const savedGeofencing = await newGeofencing.save();
     res.status(201).json({ message: "Geofencing area created successfully", geofencing: savedGeofencing });
