@@ -544,6 +544,7 @@ exports.markDrop = async (req, res) => {
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // };
+
 exports.addGeofence = async (req, res) => {
   try {
     const { name, area, deviceId, busStopTime} = req.body;

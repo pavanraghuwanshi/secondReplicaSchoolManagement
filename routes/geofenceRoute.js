@@ -23,7 +23,9 @@ router.get("/", async (req, res) => {
         name: data.name,
         area: data.area,
         isCrossed: data.isCrossed,
-        busStopTime:data.busStopTime
+        busStopTime:data.busStopTime,
+        arrivalTime:data.arrivalTime,
+        departureTime:data.departureTime
       })),
     };
 
@@ -33,61 +35,25 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.put("/isCrossed/", async (req, res) => {
-  try {
-    const deviceId = req.query.deviceId;
-    const { isCrossed } = req.body;
-
-    if (!deviceId) {
-      return res
-        .status(400)
-        .json({ message: "deviceId query parameter is required" });
-    }
-
-    if (typeof isCrossed !== "boolean") {
-      return res
-        .status(400)
-        .json({ message: "isCrossed must be a boolean value" });
-    }
-
-    const updatedGeofence = await Geofencing.findOneAndUpdate(
-      { deviceId },
-      { isCrossed },
-      { new: true }
-    );
-
-    if (!updatedGeofence) {
-      return res
-        .status(404)
-        .json({ message: "No geofencing data found for this deviceId" });
-    }
-
-    res.json({
-      message: "isCrossed field updated successfully",
-      data: updatedGeofence,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// router.put("/isCrossed", async (req, res) => {
+// router.put("/isCrossed/", async (req, res) => {
 //   try {
-//     const { geofenceId } = req.query; // geofenceId directly, since geofences are individual documents
-//     const { isCrossed } = req.body;
+//     const deviceId = req.query.deviceId;
+//     const { isCrossed , arrivalTime ,departureTime} = req.body;
 
-//     // Validate inputs
-//     if (!geofenceId) {
-//       return res.status(400).json({ message: "geofenceId is required" });
+//     if (!deviceId) {
+//       return res
+//         .status(400)
+//         .json({ message: "deviceId query parameter is required" });
 //     }
 
 //     if (typeof isCrossed !== "boolean") {
-//       return res.status(400).json({ message: "isCrossed must be a boolean value" });
+//       return res
+//         .status(400)
+//         .json({ message: "isCrossed must be a boolean value" });
 //     }
 
-//     // Find and update the geofence by geofenceId
-//     const updatedGeofence = await Geofencing.findByIdAndUpdate(
-//       geofenceId,
+//     const updatedGeofence = await Geofencing.findOneAndUpdate(
+//       { deviceId },
 //       { isCrossed },
 //       { new: true }
 //     );
@@ -95,7 +61,7 @@ router.put("/isCrossed/", async (req, res) => {
 //     if (!updatedGeofence) {
 //       return res
 //         .status(404)
-//         .json({ message: "No geofence data found for this geofenceId" });
+//         .json({ message: "No geofencing data found for this deviceId" });
 //     }
 
 //     res.json({
@@ -106,6 +72,56 @@ router.put("/isCrossed/", async (req, res) => {
 //     res.status(500).json({ message: "Server error", error: error.message });
 //   }
 // });
+
+router.put("/isCrossed/", async (req, res) => {
+  try {
+    const deviceId = req.query.deviceId;
+    const { isCrossed, arrivalTime, departureTime } = req.body;
+
+    // Validate deviceId query parameter
+    if (!deviceId) {
+      return res
+        .status(400)
+        .json({ message: "deviceId query parameter is required" });
+    }
+
+    // Validate isCrossed field
+    if (typeof isCrossed !== "boolean") {
+      return res
+        .status(400)
+        .json({ message: "isCrossed must be a boolean value" });
+    }
+
+    // Build update object dynamically based on the received fields
+    const updateData = { isCrossed };
+    if (arrivalTime) updateData.arrivalTime = arrivalTime;
+    if (departureTime) updateData.departureTime = departureTime;
+
+    // Find the document by deviceId and update it
+    const updatedGeofence = await Geofencing.findOneAndUpdate(
+      { deviceId },
+      updateData,
+      { new: true }
+    );
+
+    // Check if the document exists
+    if (!updatedGeofence) {
+      return res
+        .status(404)
+        .json({ message: "No geofencing data found for this deviceId" });
+    }
+
+    // Respond with success and the updated document
+    res.json({
+      message: "Geofencing data updated successfully",
+      data: updatedGeofence,
+    });
+  } catch (error) {
+    // Handle server errors
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 
 
 module.exports = router;

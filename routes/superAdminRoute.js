@@ -55,6 +55,7 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 router.post('/login',async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -1329,11 +1330,10 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
 //     res.status(500).json({ message: 'Error retrieving geofences', error });
 //   }
 // });
-
 router.get('/geofences', async (req, res) => {
   try {
     // Fetch all geofences with only deviceId and area
-    const geofences = await Geofencing.find().select('deviceId area name isCrossed');
+    const geofences = await Geofencing.find().select('deviceId area name isCrossed busStopTime');
 
     // Fetch all devices with populated schoolId and branchId
     const devices = await Device.find()
@@ -1365,6 +1365,7 @@ router.get('/geofences', async (req, res) => {
         _id: geofence._id,
         name: geofence.name,
         area: geofence.area,
+        busStopTime:geofence.busStopTime,
         isCrossed: geofence.isCrossed,
         deviceId: deviceId,
         schoolName: deviceMap[deviceId]?.schoolName || 'Unknown School',

@@ -57,7 +57,6 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 // GET METHOD
 router.get('/read-devices', branchAuthMiddleware, async (req, res) => {
   const { branchId } = req;
@@ -778,133 +777,87 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-router.get('/geofences', async (req, res) => {
-  try {
-    const geofences = await Geofencing.find();
-    const groupedGeofences = geofences.reduce((acc, geofence) => {
-      const deviceId = geofence.deviceId.toString();
-      if (!acc[deviceId]) {
-        acc[deviceId] = [];
-      }
-      acc[deviceId].push({
-        _id: geofence._id,
-        name: geofence.name,
-        area: geofence.area,
-        isCrossed: geofence.isCrossed,
-        deviceId: geofence.deviceId,
-        __v: geofence.__v
-      });
-      return acc;
-    }, {});
-    const transformedResponse = Object.entries(groupedGeofences).reduce((acc, [deviceId, geofences]) => {
-      acc[`deviceId: ${deviceId}`] = geofences;
-      return acc;
-    }, {});
-    res.status(200).json(transformedResponse);
-  } catch (error) {
-    res.status(500).json({ message: 'Error retrieving geofences', error });
-  }
-});
-
-
-// router.get('/geofences', branchAuthMiddleware, async (req, res) => {
+// router.get('/geofences', async (req, res) => {
 //   try {
-//     // Extract branchId from the token (provided by branchAuthMiddleware)
-//     const { branchId } = req;
-
-//     // Fetch devices that belong to the given branchId
-//     const devices = await Device.find({ branchId }).select('deviceId branchId schoolId');
-//     if (!devices || devices.length === 0) {
-//       return res.status(404).json({ message: 'No devices found for this branch' });
-//     }
-
-//     // Extract unique schoolId from the devices list
-//     const schoolId = devices[0].schoolId; // Assuming all devices belong to the same school under a branch
-
-//     // Fetch the branch and school names
-//     const branch = await Branch.findById(branchId).select('branchName');
-//     const school = await School.findById(schoolId).select('schoolName');
-
-//     if (!branch || !school) {
-//       return res.status(404).json({ message: 'Branch or School not found' });
-//     }
-
-//     // Extract deviceIds from the devices list
-//     const deviceIds = devices.map(device => device.deviceId);
-
-//     // Fetch geofences for the devices under this branch
-//     const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });
-//     if (!geofences || geofences.length === 0) {
-//       return res.status(404).json({ message: 'No geofences found for the devices in this branch' });
-//     }
-
-//     // Group geofences by deviceId and include schoolName and branchName
+//     const geofences = await Geofencing.find();
 //     const groupedGeofences = geofences.reduce((acc, geofence) => {
 //       const deviceId = geofence.deviceId.toString();
-
 //       if (!acc[deviceId]) {
 //         acc[deviceId] = [];
 //       }
-
 //       acc[deviceId].push({
 //         _id: geofence._id,
 //         name: geofence.name,
 //         area: geofence.area,
 //         isCrossed: geofence.isCrossed,
 //         deviceId: geofence.deviceId,
-//         schoolName: school.schoolName, // Add schoolName from the School collection
-//         branchName: branch.branchName, // Add branchName from the Branch collection
 //         __v: geofence.__v
 //       });
-
 //       return acc;
 //     }, {});
-
-//     // Transform the response to include deviceId as keys
 //     const transformedResponse = Object.entries(groupedGeofences).reduce((acc, [deviceId, geofences]) => {
 //       acc[`deviceId: ${deviceId}`] = geofences;
 //       return acc;
 //     }, {});
-
-//     // Send the final grouped response
 //     res.status(200).json(transformedResponse);
 //   } catch (error) {
-//     console.error('Error retrieving geofences:', error);
 //     res.status(500).json({ message: 'Error retrieving geofences', error });
 //   }
 // });
 
 
 
-router.get("/geofence", async (req, res) => {
+// POST METHOD
+router.get("/geofences", branchAuthMiddleware, async (req, res) => {
+  const { branchId } = req;
+
   try {
-    const deviceId = req.query.deviceId;
-    const geofencingData = await Geofencing.find({ deviceId });
-
-    if (!geofencingData || geofencingData.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No geofencing data found for this deviceId" });
+    // Fetch the branch associated with the branchId
+    const branch = await Branch.findById(branchId).select('branchName');
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
     }
-    const response = {
-      deviceId: deviceId,
-      geofences: geofencingData.map((data) => ({
-        _id: data._id,
-        name: data.name,
-        area: data.area,
-        isCrossed: data.isCrossed,
-      })),
-    };
 
-    res.json(response);
+    // Fetch the devices associated with the logged-in branch
+    const devices = await Device.find({ branchId }).select('deviceId branchId');
+
+    if (devices.length === 0) {
+      return res.status(404).json({ message: "No devices found for this branch" });
+    }
+
+    // Extract deviceIds to search geofences
+    const deviceIds = devices.map(device => device.deviceId);
+
+    // Fetch geofences that are associated with these deviceIds
+    const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });
+
+    if (geofences.length === 0) {
+      return res.status(404).json({ message: "No geofences found for the devices of this branch" });
+    }
+
+    // Group geofences by their deviceId
+    const geofencesByDevice = deviceIds.map(deviceId => {
+      return {
+        deviceId: deviceId,
+        geofences: geofences.filter(geofence => geofence.deviceId.toString() === deviceId.toString())
+      };
+    });
+
+    // Respond with geofences for each device
+    res.status(200).json({
+      branchId: branchId,
+      branchName: branch.branchName,
+      devices: geofencesByDevice
+    });
+
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error('Error fetching geofences:', error);
+    res.status(500).json({ message: "Error retrieving geofences", error });
   }
 });
 
 
 
-// POST METHOD
 router.post("/review-request/:requestId",branchAuthMiddleware,async (req, res) => {
     try {
       const { statusOfRequest } = req.body;

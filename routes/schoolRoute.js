@@ -863,6 +863,7 @@ router.get('/geofences', schoolAuthMiddleware, async (req, res) => {
           _id: geofence._id,
           name: geofence.name,
           area: geofence.area,
+          busStopTime:geofence.busStopTime,
           isCrossed: geofence.isCrossed,
           deviceId: geofence.deviceId,
           schoolName: school.schoolName, // Include schoolName
@@ -886,35 +887,6 @@ router.get('/geofences', schoolAuthMiddleware, async (req, res) => {
   }
 });
 
-
-
-router.get("/geofence", async (req, res) => {
-  try {
-    const deviceId = req.query.deviceId;
-    const geofencingData = await Geofencing.find({ deviceId });
-
-    if (!geofencingData || geofencingData.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No geofencing data found for this deviceId" });
-    }
-
-    // Restructure the response to have deviceId on top with nested geofencing data
-    const response = {
-      deviceId: deviceId,
-      geofences: geofencingData.map((data) => ({
-        _id: data._id,
-        name: data.name,
-        area: data.area,
-        isCrossed: data.isCrossed,
-      })),
-    };
-
-    res.json(response);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
 router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
   try {
     // Extract the schoolId from the request (set by the schoolAuthMiddleware)

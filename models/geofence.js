@@ -20,6 +20,12 @@ const geofencingSchema = new mongoose.Schema({
   busStopTime:{
     type: String,
     required: true
+  },
+  arrivalTime:{
+    type: String
+  },
+  departureTime:{
+    type: String
   }
 });
 
