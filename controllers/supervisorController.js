@@ -4,12 +4,11 @@ const Attendance = require('../models/attendence');
 const Geofencing = require('../models/geofence');
 const Branch = require('../models/branch');
 const { generateToken} = require("../jwt");
-// const sendNotification = require("../utils/sendNotification");
 const School = require("../models/school");
 const { formatDateToDDMMYYYY,formatTime } = require('../utils/dateUtils');
 const Device = require('../models/device');
 const Parent = require('../models/Parent');
-const {sendNotification} = require('../services/notifications');
+const { sendNotificationToParent } = require('../utils/notificationsUtils'); 
 
 exports.getSchools =  async (req, res) => {
   try {
@@ -322,111 +321,7 @@ exports.getallChildren = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-exports.markPickup = async (req, res) => {
-  const { childId, isPresent } = req.body;
-  const { schoolId, branchId } = req; // Get the schoolId and branchId from the authenticated request
-
-  if (typeof isPresent !== "boolean") {
-    return res.status(400).json({ error: "Invalid input" });
-  }
-
-  const today = new Date();
-  const formattedDate = formatDateToDDMMYYYY(today);
-  const currentTime = formatTime(today); // Automatically converts to IST
-
-  try {
-    // Check if the child belongs to the current school and branch
-    const child = await Child.findOne({ _id: childId, schoolId, branchId });
-
-    if (!child) {
-      return res.status(404).json({ error: "Child not found or does not belong to the current school or branch" });
-    }
-
-    // Find or create the attendance record for the child on the current date
-    let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
-
-    if (!attendanceRecord) {
-      attendanceRecord = new Attendance({
-        childId,
-        date: formattedDate,
-        pickup: null,
-        drop: null,
-        schoolId,
-        branchId // Include branchId in the attendance record
-      });
-    }
-
-    // Update the pickup status and time
-    attendanceRecord.pickup = isPresent;
-    attendanceRecord.pickupTime = isPresent ? currentTime : null; // Set pickupTime if present, otherwise null
-
-    // Save the attendance record
-    await attendanceRecord.save();
-
-    const message = isPresent
-      ? `Child marked as present for pickup on ${formattedDate} at ${currentTime}`
-      : `Child marked as absent for pickup`;
-
-    res.status(200).json({ message });
-
-  } catch (error) {
-    console.error(`Error marking child as ${isPresent ? "present" : "absent"} for pickup:`, error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-exports.markDrop = async (req, res) => {
-  const { childId, isPresent } = req.body;
-  const { schoolId, branchId } = req; // Extract schoolId and branchId from the request (assuming middleware sets it)
-
-  if (typeof isPresent !== "boolean") {
-    return res.status(400).json({ error: "Invalid input" });
-  }
-
-  const today = new Date();
-  const formattedDate = formatDateToDDMMYYYY(today);
-  const currentTime = formatTime(today);
-
-  try {
-    // Ensure the child belongs to the correct school and branch
-    const child = await Child.findOne({ _id: childId, schoolId, branchId });
-    if (!child) {
-      return res.status(404).json({ error: "Child not found or does not belong to this school/branch" });
-    }
-
-    // Find or create the attendance record for the child on the current date
-    let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
-
-    if (!attendanceRecord) {
-      attendanceRecord = new Attendance({
-        childId,
-        date: formattedDate,
-        pickup: null,
-        drop: null,
-        schoolId,
-        branchId // Include branchId in the attendance record
-      });
-    }
-
-    // Update the drop status and time
-    attendanceRecord.drop = isPresent;
-    attendanceRecord.dropTime = isPresent ? currentTime : null;
-
-    // Save the attendance record
-    await attendanceRecord.save();
-
-    const message = isPresent 
-      ? `Child marked as present for drop on ${formattedDate} at ${currentTime}`
-      : `Child marked as absent for drop`;
-
-    res.status(200).json({ message });
-
-  } catch (error) {
-    console.error(`Error marking child as ${isPresent ? "present" : "absent"} for drop:`, error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-
+// 4-10-2024 - commented
 // exports.markPickup = async (req, res) => {
 //   const { childId, isPresent } = req.body;
 //   const { schoolId, branchId } = req; // Get the schoolId and branchId from the authenticated request
@@ -440,12 +335,14 @@ exports.markDrop = async (req, res) => {
 //   const currentTime = formatTime(today); // Automatically converts to IST
 
 //   try {
+//     // Check if the child belongs to the current school and branch
 //     const child = await Child.findOne({ _id: childId, schoolId, branchId });
 
 //     if (!child) {
 //       return res.status(404).json({ error: "Child not found or does not belong to the current school or branch" });
 //     }
 
+//     // Find or create the attendance record for the child on the current date
 //     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
 
 //     if (!attendanceRecord) {
@@ -455,13 +352,15 @@ exports.markDrop = async (req, res) => {
 //         pickup: null,
 //         drop: null,
 //         schoolId,
-//         branchId
+//         branchId // Include branchId in the attendance record
 //       });
 //     }
 
+//     // Update the pickup status and time
 //     attendanceRecord.pickup = isPresent;
-//     attendanceRecord.pickupTime = isPresent ? currentTime : null;
+//     attendanceRecord.pickupTime = isPresent ? currentTime : null; // Set pickupTime if present, otherwise null
 
+//     // Save the attendance record
 //     await attendanceRecord.save();
 
 //     const message = isPresent
@@ -470,17 +369,6 @@ exports.markDrop = async (req, res) => {
 
 //     res.status(200).json({ message });
 
-//     // Send notification to parent
-//     const parent = await Parent.findById(child.parentId);
-//     if (parent && parent.deviceToken) { // Ensure parent has a device token for notifications
-//       const notificationTitle = isPresent ? 'Pickup Notification' : 'Pickup Absent';
-//       const notificationBody = isPresent
-//         ? `Your child was picked up on ${formattedDate} at ${currentTime}`
-//         : `Your child was marked absent for pickup`;
-
-//       await sendNotification(parent.deviceToken, notificationTitle, notificationBody);
-//     }
-
 //   } catch (error) {
 //     console.error(`Error marking child as ${isPresent ? "present" : "absent"} for pickup:`, error);
 //     res.status(500).json({ error: "Internal server error" });
@@ -488,7 +376,7 @@ exports.markDrop = async (req, res) => {
 // };
 // exports.markDrop = async (req, res) => {
 //   const { childId, isPresent } = req.body;
-//   const { schoolId, branchId } = req;
+//   const { schoolId, branchId } = req; // Extract schoolId and branchId from the request (assuming middleware sets it)
 
 //   if (typeof isPresent !== "boolean") {
 //     return res.status(400).json({ error: "Invalid input" });
@@ -499,11 +387,13 @@ exports.markDrop = async (req, res) => {
 //   const currentTime = formatTime(today);
 
 //   try {
+//     // Ensure the child belongs to the correct school and branch
 //     const child = await Child.findOne({ _id: childId, schoolId, branchId });
 //     if (!child) {
 //       return res.status(404).json({ error: "Child not found or does not belong to this school/branch" });
 //     }
 
+//     // Find or create the attendance record for the child on the current date
 //     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
 
 //     if (!attendanceRecord) {
@@ -513,13 +403,15 @@ exports.markDrop = async (req, res) => {
 //         pickup: null,
 //         drop: null,
 //         schoolId,
-//         branchId
+//         branchId // Include branchId in the attendance record
 //       });
 //     }
 
+//     // Update the drop status and time
 //     attendanceRecord.drop = isPresent;
 //     attendanceRecord.dropTime = isPresent ? currentTime : null;
 
+//     // Save the attendance record
 //     await attendanceRecord.save();
 
 //     const message = isPresent 
@@ -528,23 +420,11 @@ exports.markDrop = async (req, res) => {
 
 //     res.status(200).json({ message });
 
-//     // Send notification to parent
-//     const parent = await Parent.findById(child.parentId);
-//     if (parent && parent.deviceToken) {
-//       const notificationTitle = isPresent ? 'Drop Notification' : 'Drop Absent';
-//       const notificationBody = isPresent
-//         ? `Your child was dropped off on ${formattedDate} at ${currentTime}`
-//         : `Your child was marked absent for drop`;
-
-//       await sendNotification(parent.deviceToken, notificationTitle, notificationBody);
-//     }
-
 //   } catch (error) {
 //     console.error(`Error marking child as ${isPresent ? "present" : "absent"} for drop:`, error);
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // };
-
 exports.addGeofence = async (req, res) => {
   try {
     const { name, area, deviceId, busStopTime} = req.body;
@@ -602,3 +482,117 @@ exports.deleteSupervisor = async (req, res) => {
   }
 };
 
+exports.markPickup = async (req, res) => {
+  const { childId, isPresent } = req.body;
+  const { schoolId, branchId } = req; // Get schoolId and branchId from the request
+
+  if (typeof isPresent !== "boolean") {
+    return res.status(400).json({ error: "Invalid input" });
+  }
+
+  const today = new Date();
+  const formattedDate = formatDateToDDMMYYYY(today);
+  const currentTime = formatTime(today);
+
+  try {
+    const child = await Child.findOne({ _id: childId, schoolId, branchId });
+
+    if (!child) {
+      return res.status(404).json({ error: "Child not found or does not belong to the current school/branch" });
+    }
+
+    // Find or create the attendance record for the child
+    let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
+
+    if (!attendanceRecord) {
+      attendanceRecord = new Attendance({
+        childId,
+        date: formattedDate,
+        pickup: null,
+        drop: null,
+        schoolId,
+        branchId,
+      });
+    }
+
+    attendanceRecord.pickup = isPresent;
+    attendanceRecord.pickupTime = isPresent ? currentTime : null;
+    await attendanceRecord.save();
+
+    const message = isPresent
+      ? `Child marked as present for pickup on ${formattedDate} at ${currentTime}`
+      : `Child marked as absent for pickup`;
+
+    // Fetch parent info and send notification
+    const parent = await Parent.findById(child.parentId);
+    if (parent && parent.fcmToken) {
+      const notificationMessage = isPresent
+        ? `Your child has been picked up from school at ${currentTime}`
+        : `Your child was marked absent for pickup today.`;
+
+      // Send notification using the parent's FCM token
+      await sendNotificationToParent(parent.fcmToken, "Pickup Status", notificationMessage);
+    }
+
+    res.status(200).json({ message });
+  } catch (error) {
+    console.error(`Error marking child for pickup:`, error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+exports.markDrop = async (req, res) => {
+  const { childId, isPresent } = req.body;
+  const { schoolId, branchId } = req; // Extract schoolId and branchId
+
+  if (typeof isPresent !== "boolean") {
+    return res.status(400).json({ error: "Invalid input" });
+  }
+
+  const today = new Date();
+  const formattedDate = formatDateToDDMMYYYY(today);
+  const currentTime = formatTime(today);
+
+  try {
+    const child = await Child.findOne({ _id: childId, schoolId, branchId });
+    if (!child) {
+      return res.status(404).json({ error: "Child not found or does not belong to this school/branch" });
+    }
+
+    let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
+
+    if (!attendanceRecord) {
+      attendanceRecord = new Attendance({
+        childId,
+        date: formattedDate,
+        pickup: null,
+        drop: null,
+        schoolId,
+        branchId,
+      });
+    }
+
+    attendanceRecord.drop = isPresent;
+    attendanceRecord.dropTime = isPresent ? currentTime : null;
+    await attendanceRecord.save();
+
+    const message = isPresent
+      ? `Child marked as present for drop on ${formattedDate} at ${currentTime}`
+      : `Child marked as absent for drop`;
+
+    // Fetch parent info and send notification
+    const parent = await Parent.findById(child.parentId);
+    if (parent && parent.fcmToken) {
+      const notificationMessage = isPresent
+        ? `Your child has been dropped off at ${currentTime}`
+        : `Your child was marked absent for drop today.`;
+
+      // Send notification using the parent's FCM token
+      await sendNotificationToParent(parent.fcmToken, "Drop Status", notificationMessage);
+    }
+
+    res.status(200).json({ message });
+  } catch (error) {
+    console.error(`Error marking child for drop:`, error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};

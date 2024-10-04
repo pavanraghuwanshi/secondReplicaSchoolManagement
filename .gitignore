@@ -6,7 +6,10 @@ node_modules/
 # Environment variables
 .env
 
-# Firebase service account key (sensitive file)
-firebaseServiceAccountKey.json
 
 /test.txt
+
+# Ignore Firebase service account key file
+config/parenteye.adminsdk.json
+# Ignore Firebase service account keys
+config/firebaseconfig.js
