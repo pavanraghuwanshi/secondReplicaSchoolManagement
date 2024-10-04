@@ -9,7 +9,5 @@ node_modules/
 
 /test.txt
 
-# Ignore Firebase service account key file
-config/parenteye.adminsdk.json
-# Ignore Firebase service account keys
+
 
