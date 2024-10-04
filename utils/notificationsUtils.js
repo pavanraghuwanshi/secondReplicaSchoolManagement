@@ -1,5 +1,4 @@
-const admin = require("firebase-admin"); // Assuming you've set up Firebase Admin SDK
-
+const admin = require('../config/firebaseadmin'); 
 // Initialize Firebase Admin SDK if not done already
 // Make sure to initialize with service account credentials
 const sendNotificationToParent = async (fcmToken, title, body) => {

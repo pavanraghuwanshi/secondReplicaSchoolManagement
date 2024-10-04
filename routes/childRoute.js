@@ -131,7 +131,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
   try {
     const {

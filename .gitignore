@@ -12,4 +12,4 @@ node_modules/
 # Ignore Firebase service account key file
 config/parenteye.adminsdk.json
 # Ignore Firebase service account keys
-config/firebaseconfig.js
+config/firebaseadmin.js
