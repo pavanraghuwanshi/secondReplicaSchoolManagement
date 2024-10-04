@@ -18,8 +18,12 @@ const formatDateToDDMMYYYY = (date) => {
  * @param {number} offset 
  * @returns {string}
  */
+// const formatTime = (date) => {
+//   return moment(date).tz('Asia/Kolkata').format('HH:mm:ss');
+// };
+
 const formatTime = (date) => {
-  return moment(date).tz('Asia/Kolkata').format('HH:mm:ss');
+  return moment(date).tz('Asia/Kolkata').format('hh:mm A');
 };
 
 module.exports = { formatDateToDDMMYYYY, formatTime };
