@@ -179,7 +179,7 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
         }));
 
         return {
-          _id: parent._id,
+          parentId : parent._id,
           parentName: parent.parentName,
           email: parent.email,
           password: decryptedPassword,
@@ -694,8 +694,8 @@ router.get("/status-of-children", branchAuthMiddleware, async (req, res) => {
             dropTime: attendance ? attendance.dropTime : null,
             date: attendance ? attendance.date : null,
             requestType: request ? request.requestType : null,
-            startDate: request ? request.startDate || null : null,
-            endDate: request ? request.endDate || null : null,
+            startDate:null,
+            endDate: null,
             reason: request ? request.reason || null : null,
             newRoute: request ? request.newRoute || null : null,
             statusOfRequest: request ? request.statusOfRequest : null,
@@ -911,7 +911,7 @@ router.post("/review-request/:requestId",branchAuthMiddleware,async (req, res) =
     }
   }
 );
-router.post("/registerStatus/:parentId/",branchAuthMiddleware,async (req, res) => {
+router.post("/registerStatus/:parentId",branchAuthMiddleware,async (req, res) => {
     try {
       const { parentId } = req.params;
       const { action } = req.body;

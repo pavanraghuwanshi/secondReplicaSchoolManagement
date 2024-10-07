@@ -197,6 +197,32 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.put('/update-fcm-token',jwtAuthMiddleware, async (req, res) => {
+  try {
+    const { parentId, fcmToken } = req.body;
+
+    if (!parentId || !fcmToken) {
+      return res.status(400).json({ error: 'Parent ID and FCM token are required' });
+    }
+
+    // Find the parent by ID
+    const parent = await Parent.findById(parentId);
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    // Update the FCM token
+    parent.fcmToken = fcmToken;
+    await parent.save();
+
+    res.status(200).json({ message: 'FCM token updated successfully', parent });
+  } catch (error) {
+    console.error('Error updating FCM token:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 // router.post('/login', async (req, res) => {
 //   const { email, password } = req.body;
 
@@ -580,6 +606,7 @@ router.put("/update-parent/:parentId", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 router.delete('/delete', jwtAuthMiddleware, async (req, res) => {
   try {
     // Extract parentId from the token's decoded data
