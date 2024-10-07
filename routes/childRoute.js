@@ -197,7 +197,7 @@ router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.put('/update-fcm-token',jwtAuthMiddleware, async (req, res) => {
+router.put('/update-fcm-token', async (req, res) => {
   try {
     const { parentId, fcmToken } = req.body;
 
