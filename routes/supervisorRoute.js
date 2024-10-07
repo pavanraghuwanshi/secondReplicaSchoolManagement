@@ -18,6 +18,6 @@ router.delete('/delete-geofence/:id',jwtAuthMiddleware,supervisorController.dele
 // router.put('/geofencing/:id',jwtAuthMiddleware,supervisorController.updateGeofencing);
 // router.put("/update-password",  jwtAuthMiddleware,supervisorController.updatePassword);
 router.delete("/delete",  jwtAuthMiddleware,supervisorController.deleteSupervisor);
-
+router.get("/pickup-drop-status",jwtAuthMiddleware, supervisorController.getAttendanceRecord)
 
 module.exports = router;

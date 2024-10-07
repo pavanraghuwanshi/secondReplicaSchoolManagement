@@ -425,6 +425,8 @@ exports.getallChildren = async (req, res) => {
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // };
+
+
 exports.addGeofence = async (req, res) => {
   try {
     const { name, area, deviceId, busStopTime} = req.body;
@@ -596,3 +598,36 @@ exports.markDrop = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+exports.getAttendanceRecord = async (req, res) => {
+  const { childId } = req.body; // Get childId from the route parameters
+  const { schoolId, branchId } = req; // Extract schoolId and branchId from the request
+  const dateParam = req.query.date; // Get date from query parameters
+
+  // Format the date if provided, or use today's date
+  const today = new Date();
+  const formattedDate = dateParam ? dateParam : formatDateToDDMMYYYY(today);
+
+  try {
+    const child = await Child.findOne({ _id: childId, schoolId, branchId });
+    if (!child) {
+      return res.status(404).json({ error: "Child not found or does not belong to this school/branch" });
+    }
+
+    // Find the attendance record for the child on the specified date
+    const attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
+
+    if (!attendanceRecord) {
+      return res.status(404).json({ message: "No attendance record found for this date" });
+    }
+
+    res.status(200).json({
+      childId: attendanceRecord.childId,
+      pickup: attendanceRecord.pickup,
+      drop: attendanceRecord.drop,
+    });
+  } catch (error) {
+    console.error(`Error fetching attendance record:`, error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+

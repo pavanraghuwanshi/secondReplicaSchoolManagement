@@ -255,7 +255,7 @@ router.get("/pending-requests", branchAuthMiddleware, async (req, res) => {
         branchName: request.childId.branchId?.branchName || null, 
         schoolName: request.childId.schoolId?.schoolName || null,
         requestType: request.requestType,
-        rquestDate: request.requestDate
+        requestDate: request.requestDate
           ? formatDateToDDMMYYYY(new Date(request.requestDate))
           : null,
       };

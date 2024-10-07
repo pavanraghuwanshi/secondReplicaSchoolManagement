@@ -144,9 +144,6 @@ router.get('/branches', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
 router.get('/read-devices', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req; // Assuming schoolId comes from authentication middleware
 
@@ -362,7 +359,7 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
           path: "schoolId branchId",
           select: "schoolName branchName", // Only include the names
         },
-        select: "childName class schoolId branchId deviceId", // Ensure we get the schoolId and branchId
+        select: "childName class schoolId branchId deviceId deviceName", // Ensure we get the schoolId and branchId
       })
       .populate("parentId", "parentName email phone password parentRegistrationDate")
       .lean();
@@ -378,6 +375,7 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     validRequests.forEach(request => {
       const branchId = request.childId.branchId?._id.toString();
       const branchName = request.childId.branchId?.branchName || "Unknown Branch";
+      const schoolName = school.schoolName; 
 
       const formattedRequest = {
         requestId: request._id,
@@ -393,11 +391,13 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
         requestType: request.requestType,
         deviceName: request.childId.deviceName,
         deviceId:request.childId.deviceId,
+        deviceName:request.childId.deviceName,
         requestDate: request.requestDate,
-        deviceId: request.childId.deviceId,
         requestDate: request.requestDate
           ? formatDateToDDMMYYYY(new Date(request.requestDate))
           : null,
+          branchName: branchName,
+       schoolName : schoolName
       };
 
       // Add fields conditionally based on the request type
@@ -451,6 +451,109 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
+// router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const { schoolId } = req;
+
+//     // Fetch the school details
+//     const school = await School.findById(schoolId).lean();
+//     if (!school) {
+//       return res.status(404).json({ error: 'School not found' });
+//     }
+
+//     const schoolName = school.schoolName;
+
+//     // Fetch all approved requests for the specific school
+//     const requests = await Request.find({ statusOfRequest: "approved", schoolId })
+//       .populate("parentId", "parentName email phone password parentRegistrationDate")
+//       .populate({
+//         path: "childId",
+//         populate: {
+//           path: "branchId",
+//           select: "branchName", // Populate branchName
+//         },
+//         select: "childName class branchId",
+//       })
+//       .lean();
+
+//     // Filter out requests where the parent or child does not exist
+//     const validRequests = requests.filter(request => request.parentId && request.childId);
+
+//     // Group requests by branch
+//     const branchesMap = {};
+
+//     // Fetch branch details and format requests
+//     await Promise.all(validRequests.map(async (request) => {
+//       const branch = await Branch.findById(request.childId.branchId).lean();
+//       const branchName = branch ? branch.branchName : "Unknown Branch";
+
+//       const formattedRequest = {
+//         requestId: request._id,
+//         reason: request.reason,
+//         class: request.childId.class,
+//         statusOfRequest: request.statusOfRequest,
+//         parentId: request.parentId._id,
+//         parentName: request.parentId.parentName,
+//         phone: request.parentId.phone,
+//         email: request.parentId.email,
+//         childId: request.childId._id,
+//         childName: request.childId.childName,
+//         requestType: request.requestType,
+//         requestDate: request.requestDate,
+//         deviceId: request.childId.deviceId,
+//         deviceName:request.childId.deviceName,
+//         schoolName: schoolName, // Include schoolName
+//         branchName: branchName, // Include branchName
+//         formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+//       };
+
+//       // Add fields conditionally based on the request type
+//       if (request.requestType === 'leave') {
+//         formattedRequest.startDate = request.startDate || null;
+//         formattedRequest.endDate = request.endDate || null;
+//         formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
+//       } else if (request.requestType === 'changeRoute') {
+//         formattedRequest.newRoute = request.newRoute || null;
+//         formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
+//         formattedRequest.endDate = null;
+//       } else {
+//         formattedRequest.startDate = null;
+//         formattedRequest.endDate = null;
+//         formattedRequest.newRoute = null;
+//       }
+
+//       // If the branch does not exist in the map, add it
+//       if (!branchesMap[request.childId.branchId]) {
+//         branchesMap[request.childId.branchId] = {
+//           branchId: request.childId.branchId,
+//           branchName: branchName,
+//           requests: [],
+//         };
+//       }
+
+//       // Add the request to the respective branch
+//       branchesMap[request.childId.branchId].requests.push(formattedRequest);
+//     }));
+
+//     // Convert the branchesMap object into an array of branches
+//     const branches = Object.values(branchesMap);
+
+//     // Prepare the final response data
+//     const responseData = {
+//       schoolId: school._id,
+//       schoolName: school.schoolName,
+//       branches,
+//     };
+
+//     // Send the formatted requests as a JSON response
+//     res.status(200).json(responseData);
+//   } catch (error) {
+//     console.error("Error fetching requests:", error);
+//     res.status(500).json({
+//       error: "Internal server error",
+//     });
+//   }
+// });
 router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req;
@@ -472,7 +575,7 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
           path: "branchId",
           select: "branchName", // Populate branchName
         },
-        select: "childName class branchId",
+        select: "childName class branchId deviceId deviceName",
       })
       .lean();
 
@@ -482,10 +585,10 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
     // Group requests by branch
     const branchesMap = {};
 
-    // Fetch branch details and format requests
-    await Promise.all(validRequests.map(async (request) => {
-      const branch = await Branch.findById(request.childId.branchId).lean();
-      const branchName = branch ? branch.branchName : "Unknown Branch";
+    // Format requests and organize them by branch
+    validRequests.forEach((request) => {
+      const branchId = request.childId.branchId._id;
+      const branchName = request.childId.branchId.branchName;
 
       const formattedRequest = {
         requestId: request._id,
@@ -499,41 +602,40 @@ router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
         childId: request.childId._id,
         childName: request.childId.childName,
         requestType: request.requestType,
-        requestDate: request.requestDate,
-        deviceId: request.childId.deviceId,
+        deviceId:request.childId.deviceId,
         deviceName:request.childId.deviceName,
-        schoolName: schoolName, // Include schoolName
-        branchName: branchName, // Include branchName
-        formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+        schoolName: schoolName,
+        branchName: branchName,
+        requestDate : request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+        startDate: null,
+        endDate: null,
+        newRoute: null
       };
 
       // Add fields conditionally based on the request type
       if (request.requestType === 'leave') {
-        formattedRequest.startDate = request.startDate || null;
-        formattedRequest.endDate = request.endDate || null;
-        formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
+        formattedRequest.startDate = request.startDate
+        ? formatDateToDDMMYYYY(new Date(request.startDate))
+        : null;
+        formattedRequest.endDate = request.endDate
+        ? formatDateToDDMMYYYY(new Date(request.endDate))
+        : null;
       } else if (request.requestType === 'changeRoute') {
         formattedRequest.newRoute = request.newRoute || null;
-        formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
-        formattedRequest.endDate = null;
-      } else {
-        formattedRequest.startDate = null;
-        formattedRequest.endDate = null;
-        formattedRequest.newRoute = null;
       }
 
       // If the branch does not exist in the map, add it
-      if (!branchesMap[request.childId.branchId]) {
-        branchesMap[request.childId.branchId] = {
-          branchId: request.childId.branchId,
+      if (!branchesMap[branchId]) {
+        branchesMap[branchId] = {
+          branchId: branchId,
           branchName: branchName,
           requests: [],
         };
       }
 
       // Add the request to the respective branch
-      branchesMap[request.childId.branchId].requests.push(formattedRequest);
-    }));
+      branchesMap[branchId].requests.push(formattedRequest);
+    });
 
     // Convert the branchesMap object into an array of branches
     const branches = Object.values(branchesMap);
@@ -575,7 +677,7 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
           path: 'branchId',
           select: 'branchName', // Populate branchName
         },
-        select: 'childName deviceId class branchId',
+        select: 'childName deviceId class branchId deviceName',
       })
       .lean();
 
@@ -585,40 +687,58 @@ router.get('/denied-requests', schoolAuthMiddleware, async (req, res) => {
     // Group requests by branch
     const branchesMap = {};
 
-    // Format requests and group by branch
-    await Promise.all(validRequests.map(async request => {
-      const branch = await Branch.findById(request.childId.branchId).lean();
-      const branchName = branch ? branch.branchName : "Unknown Branch";
+    // Format requests and organize them by branch
+    validRequests.forEach((request) => {
+      const branchId = request.childId.branchId._id;
+      const branchName = request.childId.branchId.branchName;
 
       const formattedRequest = {
+        requestId: request._id, // Assuming you want to keep track of the requestId
+        statusOfRequest: request.statusOfRequest,
+        parentId: request.parentId._id,
+        parentName: request.parentId.parentName,
+        phone: request.parentId.phone,
+        email: request.parentId.email,
         childId: request.childId._id,
         childName: request.childId.childName,
-        deviceId: request.childId.deviceId,
         class: request.childId.class,
-        statusOfRequest: request.statusOfRequest,
-        parentName: request.parentId.parentName,
-        email: request.parentId.email,
-        phone: request.parentId.phone,
         deviceId: request.childId.deviceId,
-        deviceName:request.childId.deviceName,
-        requestDate: request.requestDate,
-        formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null, // Formatted request date
-        schoolName: schoolName, // Include schoolName
-        branchName: branchName, // Include branchName
+        deviceName: request.childId.deviceName,
+        schoolName: schoolName,
+        branchName: branchName,
+        requestType:request.requestType,
+        requestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
+        startDate: null,
+        endDate: null,
+        newRoute: null
       };
+    // Add fields conditionally based on the request type
+    if (request.requestType === 'leave') {
+      formattedRequest.startDate = request.startDate
+      ? formatDateToDDMMYYYY(new Date(request.startDate))
+      : null;
+      formattedRequest.endDate = request.endDate
+      ? formatDateToDDMMYYYY(new Date(request.endDate))
+      : null;
+    } else if (request.requestType === 'changeRoute') {
+      formattedRequest.newRoute = request.newRoute || null;
+    }
+
+
+
 
       // If the branch does not exist in the map, add it
-      if (!branchesMap[request.childId.branchId]) {
-        branchesMap[request.childId.branchId] = {
-          branchId: request.childId.branchId,
+      if (!branchesMap[branchId]) {
+        branchesMap[branchId] = {
+          branchId: branchId,
           branchName: branchName,
           requests: [],
         };
       }
 
       // Add the request to the respective branch
-      branchesMap[request.childId.branchId].requests.push(formattedRequest);
-    }));
+      branchesMap[branchId].requests.push(formattedRequest);
+    });
 
     // Convert the branchesMap object into an array of branches
     const branches = Object.values(branchesMap);
@@ -779,7 +899,6 @@ router.get('/read-supervisors', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // router.get('/geofences', schoolAuthMiddleware,async (req, res) => {
 //   try {
 //     // Fetch all geofences

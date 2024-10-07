@@ -161,7 +161,6 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
     const schools = await School.find({})
@@ -489,7 +488,6 @@ router.get('/pending-requests', superadminMiddleware, async (req, res) => {
             requestDate: request.requestDate
               ? formatDateToDDMMYYYY(new Date(request.requestDate))
               : null,
-            // Add schoolName and branchName to each request
             schoolName: schoolName,
             branchName: branchName
           };
