@@ -848,7 +848,7 @@ router.get('/read-supervisors', schoolAuthMiddleware, async (req, res) => {
         const decryptedPassword = decrypt(supervisor.password);
         
         const formattedSupervisor = {
-          id: supervisor._id,
+          id : supervisor._id,
           supervisorName: supervisor.supervisorName,
           address: supervisor.address,
           phone_no: supervisor.phone_no,

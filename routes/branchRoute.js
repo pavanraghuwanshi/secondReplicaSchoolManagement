@@ -467,7 +467,7 @@ router.get("/read-supervisors", branchAuthMiddleware, async (req, res) => {
         );
         const decryptedPassword = decrypt(supervisor.password);
         return {
-          id: supervisor._id,
+          id : supervisor._id,
           supervisorName: supervisor.supervisorName,
           address: supervisor.address,
           phone_no: supervisor.phone_no,
@@ -855,6 +855,7 @@ router.get("/geofences", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: "Error retrieving geofences", error });
   }
 });
+
 
 router.post("/review-request/:requestId",branchAuthMiddleware,async (req, res) => {
     try {

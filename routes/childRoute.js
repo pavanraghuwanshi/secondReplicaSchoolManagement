@@ -96,41 +96,41 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.post('/login', async (req, res) => {
-  const { email, password ,fcmToken } = req.body;
-  try {
-    const parent = await Parent.findOne({ email });
-    if (!parent) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-    const isMatch = await parent.comparePassword(password); 
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
+// router.post('/login', async (req, res) => {
+//   const { email, password ,fcmToken } = req.body;
+//   try {
+//     const parent = await Parent.findOne({ email });
+//     if (!parent) {
+//       return res.status(400).json({ error: "Invalid email or password" });
+//     }
+//     const isMatch = await parent.comparePassword(password); 
+//     if (!isMatch) {
+//       return res.status(400).json({ error: "Invalid email or password" });
+//     }
 
-      // Update the FCM token if provided
-      if (fcmToken) {
-        parent.fcmToken = fcmToken;
-        await parent.save();
-      }
+//       // Update the FCM token if provided
+//       if (fcmToken) {
+//         parent.fcmToken = fcmToken;
+//         await parent.save();
+//       }
 
 
-    const token = generateToken({
-      id: parent._id,
-      email: parent.email,
-      schoolId: parent.schoolId, 
-      branchId: parent.branchId  
-    });
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      token: token
-    });
-  } catch (err) {
-    console.error('Error during login:', err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+//     const token = generateToken({
+//       id: parent._id,
+//       email: parent.email,
+//       schoolId: parent.schoolId, 
+//       branchId: parent.branchId  
+//     });
+//     res.status(200).json({
+//       success: true,
+//       message: "Login successful",
+//       token: token
+//     });
+//   } catch (err) {
+//     console.error('Error during login:', err);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// });
 router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
   try {
     const {
@@ -223,50 +223,50 @@ router.put('/update-fcm-token', async (req, res) => {
 });
 
 
-// router.post('/login', async (req, res) => {
-//   const { email, password } = req.body;
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
 
-//   try {
-//     // Find the parent by email
-//     const parent = await Parent.findOne({ email });
+  try {
+    // Find the parent by email
+    const parent = await Parent.findOne({ email });
 
-//     // Check if parent exists
-//     if (!parent) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
+    // Check if parent exists
+    if (!parent) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
 
-//     // Compare provided password with stored hashed password
-//     const isMatch = await parent.comparePassword(password);
+    // Compare provided password with stored hashed password
+    const isMatch = await parent.comparePassword(password);
 
-//     // Check if password matches
-//     if (!isMatch) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
+    // Check if password matches
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
 
-//     // Check if the registration status is approved
-//     if (parent.statusOfRegister !== 'approved') {
-//       return res.status(400).json({ error: "Account not approved yet" });
-//     }
+    // Check if the registration status is approved
+    if (parent.statusOfRegister !== 'approved') {
+      return res.status(400).json({ error: "Account not approved yet" });
+    }
 
-//     // Generate JWT token with parent ID, email, and schoolId
-//     const token = generateToken({
-//       id: parent._id,
-//       email: parent.email,
-//       schoolId: parent.schoolId,
-//       branchId: parent.branchId
-//     });
+    // Generate JWT token with parent ID, email, and schoolId
+    const token = generateToken({
+      id: parent._id,
+      email: parent.email,
+      schoolId: parent.schoolId,
+      branchId: parent.branchId
+    });
 
-//     // Send success response with token
-//     res.status(200).json({
-//       success: true,
-//       message: "Login successful",
-//       token: token
-//     });
-//   } catch (err) {
-//     console.error('Error during login:', err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// });
+    // Send success response with token
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token: token
+    });
+  } catch (err) {
+    console.error('Error during login:', err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 router.get('/getschools', async (req, res) => {
   try {

@@ -1472,7 +1472,6 @@ router.post("/review-request/:requestId", superadminMiddleware, async (req, res)
 //   }
 // });
 
-
 router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) => {
   try {
     const { parentId } = req.params;
