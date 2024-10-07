@@ -544,7 +544,7 @@ exports.markPickup = async (req, res) => {
 };
 exports.markDrop = async (req, res) => {
   const { childId, isPresent } = req.body;
-  const { schoolId, branchId } = req; // Extract schoolId and branchId
+  const { schoolId, branchId } = req;
 
   if (typeof isPresent !== "boolean") {
     return res.status(400).json({ error: "Invalid input" });
@@ -598,11 +598,13 @@ exports.markDrop = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
 exports.getAttendanceRecord = async (req, res) => {
-  const { childId } = req.body; // Get childId from the route parameters
+  const { childId } = req.params; // Get childId from the route parameters
   const { schoolId, branchId } = req; // Extract schoolId and branchId from the request
   const dateParam = req.query.date; // Get date from query parameters
-
+  
   // Format the date if provided, or use today's date
   const today = new Date();
   const formattedDate = dateParam ? dateParam : formatDateToDDMMYYYY(today);
