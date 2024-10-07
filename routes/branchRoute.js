@@ -856,8 +856,6 @@ router.get("/geofences", branchAuthMiddleware, async (req, res) => {
   }
 });
 
-
-
 router.post("/review-request/:requestId",branchAuthMiddleware,async (req, res) => {
     try {
       const { statusOfRequest } = req.body;

@@ -1444,6 +1444,35 @@ router.post("/review-request/:requestId", superadminMiddleware, async (req, res)
     res.status(500).json({ error: "Internal server error" });
   }
 });
+// router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) => {
+//   try {
+//     const { parentId } = req.params;
+//     const { action } = req.body;
+
+//     // Find the parent by ID
+//     const parent = await Parent.findById(parentId);
+//     if (!parent) {
+//       return res.status(404).json({ error: 'Parent not found' });
+//     }
+//     // Update the registration status based on the action
+//     if (action === 'approve') {
+//       parent.statusOfRegister = 'approved';
+//     } else if (action === 'reject') {
+//       parent.statusOfRegister = 'rejected';
+//     } else {
+//       return res.status(400).json({ error: 'Invalid action' });
+//     }
+
+//     await parent.save();
+
+//     res.status(200).json({ message: `Registration ${action}d successfully.` });
+//   } catch (error) {
+//     console.error('Error during registration status update:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
+
 router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) => {
   try {
     const { parentId } = req.params;
@@ -1454,6 +1483,12 @@ router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) 
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found' });
     }
+
+    // Prevent updating the status if it's already been set to approved or rejected
+    if (parent.statusOfRegister === 'approved' || parent.statusOfRegister === 'rejected') {
+      return res.status(400).json({ error: 'Registration status has already been set and cannot be changed.' });
+    }
+
     // Update the registration status based on the action
     if (action === 'approve') {
       parent.statusOfRegister = 'approved';
@@ -1471,6 +1506,8 @@ router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) 
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 router.post('/registerStatus-driver/:driverId', superadminMiddleware, async (req, res) => {
   try {
     const { driverId } = req.params;
