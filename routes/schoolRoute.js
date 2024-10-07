@@ -886,7 +886,6 @@ router.get('/geofences', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Error retrieving geofences', error });
   }
 });
-
 router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
   try {
     // Extract the schoolId from the request (set by the schoolAuthMiddleware)
@@ -953,7 +952,7 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
     // Prepare the final response
     const responseData = {
       schoolId: schoolId,
-      schoolName: attendanceRecords.length > 0 ? attendanceRecords[0].childId.schoolId.schoolName : 'N/A',
+      schoolName: schoolId.schoolName,
       branches
     };
 
@@ -966,63 +965,63 @@ router.get("/pickup-drop-status", schoolAuthMiddleware, async (req, res) => {
 });
 router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
   try {
-    // Extract the schoolId from the request (set by the schoolAuthMiddleware)
     const schoolId = req.schoolId;
 
-    // Fetch attendance records for children present at pickup and associated with this schoolId
     const attendanceRecords = await Attendance.find({ pickup: true })
       .populate({
         path: "childId",
-        match: { schoolId }, // Filter children by schoolId
+        match: { schoolId },
         populate: [
-          { path: "parentId", select: "phone" }, // Populate parentId to get the parent's phone
-          { path: "branchId", select: "branchName" }, // Populate branchId to get the branch name
-          { path: "schoolId", select: "schoolName" } // Populate schoolId to get the school name
+          { path: "parentId", select: "phone" },
+          { path: "branchId", select: "branchName" },
+          { path: "schoolId", select: "schoolName" }
         ]
       })
-      .lean(); // Use lean() to get plain JavaScript objects
+      .lean();
 
-    // Group data by branches
     const branchMap = {};
 
     attendanceRecords.forEach(record => {
-      const branchId = record.childId.branchId ? record.childId.branchId._id : 'unknown';
-      
-      if (!branchMap[branchId]) {
-        branchMap[branchId] = {
-          branchId: branchId,
-          branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found",
-          children: []
+      // Ensure childId and branchId are not null or undefined
+      if (record.childId && record.childId.branchId) {
+        const branchId = record.childId.branchId._id || 'unknown';
+
+        if (!branchMap[branchId]) {
+          branchMap[branchId] = {
+            branchId: branchId,
+            branchName: record.childId.branchId.branchName || "Branch not found",
+            children: []
+          };
+        }
+
+        const childData = {
+          _id: record.childId._id,
+          childName: record.childId.childName,
+          class: record.childId.class,
+          rollno: record.childId.rollno,
+          section: record.childId.section,
+          parentId: record.childId.parentId ? record.childId.parentId._id : null,
+          phone: record.childId.parentId ? record.childId.parentId.phone : null,
+          branchName: record.childId.branchId.branchName || "Branch not found",
+          schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found",
+          pickupStatus: record.pickup,
+          pickupTime: record.pickupTime,
+          deviceId: record.childId.deviceId,
+          pickupPoint: record.childId.pickupPoint,
+          deviceName: record.childId.deviceName,
+          date: record.date
         };
+
+        branchMap[branchId].children.push(childData);
       }
-
-      const childData = {
-        _id: record.childId._id,
-        childName: record.childId.childName,
-        class: record.childId.class,
-        rollno: record.childId.rollno,
-        section: record.childId.section,
-        parentId: record.childId.parentId ? record.childId.parentId._id : null,
-        phone: record.childId.parentId ? record.childId.parentId.phone : null,
-        branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found",
-        schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found",
-        pickupStatus: record.pickup,
-        pickupTime: record.pickupTime,
-        deviceId: record.childId.deviceId,
-        pickupPoint: record.childId.pickupPoint,
-        deviceName: record.childId.deviceName,
-        date:record.date
-      };
-
-      branchMap[branchId].children.push(childData);
     });
 
-    // Format the final response
     const branches = Object.values(branchMap);
+    const school = await School.findById(schoolId).lean();
 
     const responseData = {
       schoolId: schoolId,
-      schoolName: (await School.findById(schoolId)).schoolName,
+      schoolName: school ? school.schoolName : "School not found",
       branches: branches
     };
 
@@ -1034,63 +1033,63 @@ router.get("/present-children", schoolAuthMiddleware, async (req, res) => {
 });
 router.get("/absent-children", schoolAuthMiddleware, async (req, res) => {
   try {
-    // Extract the schoolId from the request (set by the schoolAuthMiddleware)
     const schoolId = req.schoolId;
 
-    // Fetch attendance records for children absent at pickup and associated with this schoolId
     const attendanceRecords = await Attendance.find({ pickup: false })
       .populate({
         path: "childId",
-        match: { schoolId }, // Filter children by schoolId
+        match: { schoolId },
         populate: [
-          { path: "parentId", select: "phone" }, // Populate parentId to get the parent's phone
-          { path: "branchId", select: "branchName" }, // Populate branchId to get the branch name
-          { path: "schoolId", select: "schoolName" } // Populate schoolId to get the school name
+          { path: "parentId", select: "phone" },
+          { path: "branchId", select: "branchName" },
+          { path: "schoolId", select: "schoolName" }
         ]
       })
-      .lean(); // Use lean() to get plain JavaScript objects
+      .lean();
 
-    // Group data by branches
     const branchMap = {};
 
     attendanceRecords.forEach(record => {
-      const branchId = record.childId.branchId ? record.childId.branchId._id : 'unknown';
-      
-      if (!branchMap[branchId]) {
-        branchMap[branchId] = {
-          branchId: branchId,
-          branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found",
-          children: []
+      // Ensure childId and branchId are not null or undefined
+      if (record.childId && record.childId.branchId) {
+        const branchId = record.childId.branchId._id || 'unknown';
+
+        if (!branchMap[branchId]) {
+          branchMap[branchId] = {
+            branchId: branchId,
+            branchName: record.childId.branchId.branchName || "Branch not found",
+            children: []
+          };
+        }
+
+        const childData = {
+          _id: record.childId._id,
+          childName: record.childId.childName,
+          class: record.childId.class,
+          rollno: record.childId.rollno,
+          section: record.childId.section,
+          parentId: record.childId.parentId ? record.childId.parentId._id : null,
+          phone: record.childId.parentId ? record.childId.parentId.phone : null,
+          branchName: record.childId.branchId.branchName || "Branch not found",
+          schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found",
+          pickupStatus: record.pickup,
+          pickupTime: record.pickupTime,
+          deviceId: record.childId.deviceId,
+          deviceName: record.childId.deviceName,
+          pickupPoint: record.childId.pickupPoint,
+          date: record.date
         };
+
+        branchMap[branchId].children.push(childData);
       }
-
-      const childData = {
-        _id: record.childId._id,
-        childName: record.childId.childName,
-        class: record.childId.class,
-        rollno: record.childId.rollno,
-        section: record.childId.section,
-        parentId: record.childId.parentId ? record.childId.parentId._id : null,
-        phone: record.childId.parentId ? record.childId.parentId.phone : null,
-        branchName: record.childId.branchId ? record.childId.branchId.branchName : "Branch not found",
-        schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found",
-        pickupStatus: record.pickup,
-        pickupTime: record.pickupTime,
-        deviceId: record.childId.deviceId,
-        deviceName: record.childId.deviceName,
-        pickupPoint: record.childId.pickupPoint,
-        date:record.date
-      };
-
-      branchMap[branchId].children.push(childData);
     });
 
-    // Format the final response
     const branches = Object.values(branchMap);
+    const school = await School.findById(schoolId).lean();
 
     const responseData = {
       schoolId: schoolId,
-      schoolName: (await School.findById(schoolId)).schoolName,
+      schoolName: school ? school.schoolName : "School not found",
       branches: branches
     };
 
@@ -1300,6 +1299,7 @@ router.get('/status-of-children', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 
 
