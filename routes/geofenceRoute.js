@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Geofencing = require("../models/geofence");
 require("dotenv").config();
+const cron = require("node-cron");
+
 
 // GET route to retrieve geofencing data by deviceId
 router.get("/", async (req, res) => {
@@ -34,45 +36,6 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-
-// router.put("/isCrossed/", async (req, res) => {
-//   try {
-//     const deviceId = req.query.deviceId;
-//     const { isCrossed , arrivalTime ,departureTime} = req.body;
-
-//     if (!deviceId) {
-//       return res
-//         .status(400)
-//         .json({ message: "deviceId query parameter is required" });
-//     }
-
-//     if (typeof isCrossed !== "boolean") {
-//       return res
-//         .status(400)
-//         .json({ message: "isCrossed must be a boolean value" });
-//     }
-
-//     const updatedGeofence = await Geofencing.findOneAndUpdate(
-//       { deviceId },
-//       { isCrossed },
-//       { new: true }
-//     );
-
-//     if (!updatedGeofence) {
-//       return res
-//         .status(404)
-//         .json({ message: "No geofencing data found for this deviceId" });
-//     }
-
-//     res.json({
-//       message: "isCrossed field updated successfully",
-//       data: updatedGeofence,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// });
-
 router.put("/isCrossed/", async (req, res) => {
   try {
     const deviceId = req.query.deviceId;
@@ -121,7 +84,24 @@ router.put("/isCrossed/", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-
-
+// Cron job to reset geofencing data to its original form at 12 AM every day
+cron.schedule("0 0 * * *", async () => {
+  try {
+    await Geofencing.updateMany(
+      {}, // Update all records
+      {
+        $set: {
+          isCrossed: false, // Reset 'isCrossed' field to false
+          busStopTime: null, // Reset 'busStopTime'
+          arrivalTime: null, // Reset 'arrivalTime'
+          departureTime: null, // Reset 'departureTime'
+        },
+      }
+    );
+    console.log("Geofencing data reset to original form at 12 AM");
+  } catch (error) {
+    console.error("Error resetting geofencing data:", error);
+  }
+});
 
 module.exports = router;

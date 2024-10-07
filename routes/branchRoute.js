@@ -179,7 +179,7 @@ router.get("/read-parents", branchAuthMiddleware, async (req, res) => {
         }));
 
         return {
-          parentId : parent._id,
+          id : parent._id,
           parentName: parent.parentName,
           email: parent.email,
           password: decryptedPassword,
