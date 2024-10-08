@@ -777,34 +777,53 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-// router.get('/geofences', async (req, res) => {
+// router.get("/geofences", branchAuthMiddleware, async (req, res) => {
+//   const { branchId } = req;
+
 //   try {
-//     const geofences = await Geofencing.find();
-//     const groupedGeofences = geofences.reduce((acc, geofence) => {
-//       const deviceId = geofence.deviceId.toString();
-//       if (!acc[deviceId]) {
-//         acc[deviceId] = [];
-//       }
-//       acc[deviceId].push({
-//         _id: geofence._id,
-//         name: geofence.name,
-//         area: geofence.area,
-//         isCrossed: geofence.isCrossed,
-//         deviceId: geofence.deviceId,
-//         __v: geofence.__v
-//       });
-//       return acc;
-//     }, {});
-//     const transformedResponse = Object.entries(groupedGeofences).reduce((acc, [deviceId, geofences]) => {
-//       acc[`deviceId: ${deviceId}`] = geofences;
-//       return acc;
-//     }, {});
-//     res.status(200).json(transformedResponse);
+//     // Fetch the branch associated with the branchId
+//     const branch = await Branch.findById(branchId).select('branchName');
+//     if (!branch) {
+//       return res.status(404).json({ message: "Branch not found" });
+//     }
+
+//     // Fetch the devices associated with the logged-in branch
+//     const devices = await Device.find({ branchId }).select('deviceId branchId');
+
+//     if (devices.length === 0) {
+//       return res.status(404).json({ message: "No devices found for this branch" });
+//     }
+
+//     // Extract deviceIds to search geofences
+//     const deviceIds = devices.map(device => device.deviceId);
+
+//     // Fetch geofences that are associated with these deviceIds
+//     const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });
+
+//     if (geofences.length === 0) {
+//       return res.status(404).json({ message: "No geofences found for the devices of this branch" });
+//     }
+
+//     // Group geofences by their deviceId
+//     const geofencesByDevice = deviceIds.map(deviceId => {
+//       return {
+//         deviceId: deviceId,
+//         geofences: geofences.filter(geofence => geofence.deviceId.toString() === deviceId.toString())
+//       };
+//     });
+
+//     // Respond with geofences for each device
+//     res.status(200).json({
+//       branchId: branchId,
+//       branchName: branch.branchName,
+//       devices: geofencesByDevice
+//     });
+
 //   } catch (error) {
-//     res.status(500).json({ message: 'Error retrieving geofences', error });
+//     console.error('Error fetching geofences:', error);
+//     res.status(500).json({ message: "Error retrieving geofences", error });
 //   }
 // });
-
 
 
 // POST METHOD
@@ -818,8 +837,8 @@ router.get("/geofences", branchAuthMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Branch not found" });
     }
 
-    // Fetch the devices associated with the logged-in branch
-    const devices = await Device.find({ branchId }).select('deviceId branchId');
+    // Fetch the devices associated with the logged-in branch and include deviceName
+    const devices = await Device.find({ branchId }).select('deviceId branchId deviceName');
 
     if (devices.length === 0) {
       return res.status(404).json({ message: "No devices found for this branch" });
@@ -835,11 +854,12 @@ router.get("/geofences", branchAuthMiddleware, async (req, res) => {
       return res.status(404).json({ message: "No geofences found for the devices of this branch" });
     }
 
-    // Group geofences by their deviceId
-    const geofencesByDevice = deviceIds.map(deviceId => {
+    // Group geofences by their deviceId and include deviceName
+    const geofencesByDevice = devices.map(device => {
       return {
-        deviceId: deviceId,
-        geofences: geofences.filter(geofence => geofence.deviceId.toString() === deviceId.toString())
+        deviceId: device.deviceId,
+        deviceName: device.deviceName, // Include deviceName in the response
+        geofences: geofences.filter(geofence => geofence.deviceId.toString() === device.deviceId.toString())
       };
     });
 

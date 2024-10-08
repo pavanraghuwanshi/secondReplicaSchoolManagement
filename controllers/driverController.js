@@ -131,81 +131,81 @@ exports.registerDriver = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-exports.loginDriver = async (req, res) => {
-  const { email, password } = req.body;
-  
-  try {
-    const driver = await DriverCollection.findOne({ email });
-    if (!driver) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-    // Check if the password matches
-    const isMatch = await driver.comparePassword(password); 
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-    // Generate a JWT token with driverId, email, and schoolId
-    const token = generateToken({ 
-      id: driver._id, 
-      email: driver.email, 
-      schoolId: driver.schoolId, 
-      branchId: driver.branchId   
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      token
-    });
-  } catch (err) {
-    console.error("Error during login:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-};
-// exports.loginDriver =  async (req, res) => {
+// exports.loginDriver = async (req, res) => {
 //   const { email, password } = req.body;
-
+  
 //   try {
-//     // Find the driver by email
 //     const driver = await DriverCollection.findOne({ email });
-
-//     // Check if driver exists
 //     if (!driver) {
 //       return res.status(400).json({ error: "Invalid email or password" });
 //     }
-
-//     // Compare provided password with stored hashed password
-//     const isMatch = await driver.comparePassword(password);
-
-//     // Check if password matches
+//     // Check if the password matches
+//     const isMatch = await driver.comparePassword(password); 
 //     if (!isMatch) {
 //       return res.status(400).json({ error: "Invalid email or password" });
 //     }
-
-//     // Check if the registration status is approved
-//     if (driver.statusOfRegister !== 'approved') {
-//       return res.status(400).json({ error: "Account not approved yet" });
-//     }
-
-//     // Generate JWT token with driver ID, email, and schoolId
-//     const token = generateToken({
-//       id: driver._id,
-//       email: driver.email,
-//       schoolId: driver.schoolId,
-//       branchId: driver.branchId
+//     // Generate a JWT token with driverId, email, and schoolId
+//     const token = generateToken({ 
+//       id: driver._id, 
+//       email: driver.email, 
+//       schoolId: driver.schoolId, 
+//       branchId: driver.branchId   
 //     });
 
-//     // Send success response with token
 //     res.status(200).json({
 //       success: true,
 //       message: "Login successful",
-//       token: token
+//       token
 //     });
 //   } catch (err) {
-//     console.error('Error during login:', err);
+//     console.error("Error during login:", err);
 //     res.status(500).json({ error: "Server error" });
 //   }
-// }
+// };
+exports.loginDriver =  async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Find the driver by email
+    const driver = await DriverCollection.findOne({ email });
+
+    // Check if driver exists
+    if (!driver) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
+    // Compare provided password with stored hashed password
+    const isMatch = await driver.comparePassword(password);
+
+    // Check if password matches
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
+    // Check if the registration status is approved
+    if (driver.statusOfRegister !== 'approved') {
+      return res.status(400).json({ error: "Account not approved yet" });
+    }
+
+    // Generate JWT token with driver ID, email, and schoolId
+    const token = generateToken({
+      id: driver._id,
+      email: driver.email,
+      schoolId: driver.schoolId,
+      branchId: driver.branchId
+    });
+
+    // Send success response with token
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token: token
+    });
+  } catch (err) {
+    console.error('Error during login:', err);
+    res.status(500).json({ error: "Server error" });
+  }
+}
 exports.getDriverData = async (req, res) => {
   try {
     const driverId = req.user.id;

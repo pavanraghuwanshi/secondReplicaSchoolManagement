@@ -1292,57 +1292,24 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-// router.get('/geofences', async (req, res) => {
-//   try {
-//     // Fetch all geofences
-//     const geofences = await Geofencing.find();
 
-//     // Group geofences by deviceId and include "deviceId" as a key
-//     const groupedGeofences = geofences.reduce((acc, geofence) => {
-//       const deviceId = geofence.deviceId.toString(); // Ensure deviceId is a string for consistency
-//       if (!acc[deviceId]) {
-//         acc[deviceId] = [];
-//       }
-//       acc[deviceId].push({
-//         _id: geofence._id,
-//         name: geofence.name,
-//         area: geofence.area,
-//         isCrossed: geofence.isCrossed,
-//         deviceId: geofence.deviceId,
-        
-//         __v: geofence.__v
-//       });
-//       return acc;
-//     }, {});
-
-//     // Transform groupedGeofences to include "deviceId" key in the format required
-//     const transformedResponse = Object.entries(groupedGeofences).reduce((acc, [deviceId, geofences]) => {
-//       acc[`deviceId: ${deviceId}`] = geofences;
-//       return acc;
-//     }, {});
-
-//     // Respond with the transformed geofences
-//     res.status(200).json(transformedResponse);
-//   } catch (error) {
-//     res.status(500).json({ message: 'Error retrieving geofences', error });
-//   }
-// });
 router.get('/geofences', async (req, res) => {
   try {
     // Fetch all geofences with only deviceId and area
     const geofences = await Geofencing.find().select('deviceId area name isCrossed busStopTime');
 
-    // Fetch all devices with populated schoolId and branchId
-    const devices = await Device.find()
+    // Fetch all devices with populated schoolId, branchId, and deviceName
+    const devices = await Device.find() // Removed .select() here to ensure all fields are fetched
       .populate('schoolId', 'schoolName') // Populate only the schoolName
       .populate('branchId', 'branchName'); // Populate only the branchName
 
-    // Create a map of deviceId to school and branch names
+    // Create a map of deviceId to school, branch, and device names
     const deviceMap = {};
     devices.forEach(device => {
       deviceMap[device.deviceId] = {
         schoolName: device.schoolId ? device.schoolId.schoolName : 'Unknown School',
         branchName: device.branchId ? device.branchId.branchName : 'Unknown Branch',
+        deviceName: device.deviceName || 'Unknown Device', // Add deviceName
       };
     });
 
@@ -1357,16 +1324,17 @@ router.get('/geofences', async (req, res) => {
         response[`deviceId: ${deviceId}`] = [];
       }
 
-      // Push the geofence data along with school and branch names
+      // Push the geofence data along with school, branch, and device names
       response[`deviceId: ${deviceId}`].push({
         _id: geofence._id,
         name: geofence.name,
         area: geofence.area,
-        busStopTime:geofence.busStopTime,
+        busStopTime: geofence.busStopTime,
         isCrossed: geofence.isCrossed,
         deviceId: deviceId,
         schoolName: deviceMap[deviceId]?.schoolName || 'Unknown School',
         branchName: deviceMap[deviceId]?.branchName || 'Unknown Branch',
+        deviceName: deviceMap[deviceId]?.deviceName || 'Unknown Device', // Add deviceName to the response
         __v: geofence.__v // Ensure to include __v if needed
       });
     });
@@ -1377,7 +1345,6 @@ router.get('/geofences', async (req, res) => {
     res.status(500).json({ message: 'Error retrieving geofences', error });
   }
 });
-
 
 
 // POST METHOD
@@ -1471,7 +1438,6 @@ router.post("/review-request/:requestId", superadminMiddleware, async (req, res)
 //     res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
-
 router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) => {
   try {
     const { parentId } = req.params;
@@ -1505,8 +1471,6 @@ router.post('/registerStatus/:parentId', superadminMiddleware, async (req, res) 
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 router.post('/registerStatus-driver/:driverId', superadminMiddleware, async (req, res) => {
   try {
     const { driverId } = req.params;

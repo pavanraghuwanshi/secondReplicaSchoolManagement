@@ -140,48 +140,11 @@ exports.registerSupervisor = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-exports.loginSupervisor = async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    // Find supervisor by email
-    const supervisor = await Supervisor.findOne({ email });
-
-    // Check if supervisor exists
-    if (!supervisor) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-
-    // Compare provided password with stored hashed password
-    const isMatch = await supervisor.comparePassword(password);
-
-    // Check if password matches
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-    const token = generateToken({
-      id: supervisor._id,
-      email: supervisor.email,
-      schoolId: supervisor.schoolId,  
-      branchId: supervisor.branchId    
-    });
-
-    // Send success response with token
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      token: token,
-    });
-  } catch (err) {
-    console.error("Error during login:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-};
-// exports.loginSupervisor =  async (req, res) => {
+// exports.loginSupervisor = async (req, res) => {
 //   const { email, password } = req.body;
 
 //   try {
-//     // Find the supervisor by email
+//     // Find supervisor by email
 //     const supervisor = await Supervisor.findOne({ email });
 
 //     // Check if supervisor exists
@@ -196,31 +159,68 @@ exports.loginSupervisor = async (req, res) => {
 //     if (!isMatch) {
 //       return res.status(400).json({ error: "Invalid email or password" });
 //     }
-
-//     // Check if the registration status is approved
-//     if (supervisor.statusOfRegister !== 'approved') {
-//       return res.status(400).json({ error: "Account not approved yet" });
-//     }
-
-//     // Generate JWT token with supervisor ID, email, and schoolId
 //     const token = generateToken({
 //       id: supervisor._id,
 //       email: supervisor.email,
-//       schoolId: supervisor.schoolId,
-//       branchId: supervisor.branchId
+//       schoolId: supervisor.schoolId,  
+//       branchId: supervisor.branchId    
 //     });
 
 //     // Send success response with token
 //     res.status(200).json({
 //       success: true,
 //       message: "Login successful",
-//       token: token
+//       token: token,
 //     });
 //   } catch (err) {
-//     console.error('Error during login:', err);
+//     console.error("Error during login:", err);
 //     res.status(500).json({ error: "Server error" });
 //   }
-// }
+// };
+exports.loginSupervisor =  async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Find the supervisor by email
+    const supervisor = await Supervisor.findOne({ email });
+
+    // Check if supervisor exists
+    if (!supervisor) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
+    // Compare provided password with stored hashed password
+    const isMatch = await supervisor.comparePassword(password);
+
+    // Check if password matches
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
+    // Check if the registration status is approved
+    if (supervisor.statusOfRegister !== 'approved') {
+      return res.status(400).json({ error: "Account not approved yet" });
+    }
+
+    // Generate JWT token with supervisor ID, email, and schoolId
+    const token = generateToken({
+      id: supervisor._id,
+      email: supervisor.email,
+      schoolId: supervisor.schoolId,
+      branchId: supervisor.branchId
+    });
+
+    // Send success response with token
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token: token
+    });
+  } catch (err) {
+    console.error('Error during login:', err);
+    res.status(500).json({ error: "Server error" });
+  }
+}
 
 // get supervisor's data
 exports.getSupervisordata = async (req, res) => {
