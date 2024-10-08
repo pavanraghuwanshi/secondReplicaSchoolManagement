@@ -26,6 +26,10 @@ const geofencingSchema = new mongoose.Schema({
   },
   departureTime:{
     type: String
+  },
+  lastUpdated: {
+    type: Date,
+    default: Date.now, // Track the last update time
   }
 });
 
