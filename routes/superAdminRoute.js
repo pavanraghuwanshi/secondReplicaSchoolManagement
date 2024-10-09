@@ -1292,7 +1292,6 @@ router.get('/status/:childId', superadminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 router.get('/geofences', async (req, res) => {
   try {
     // Fetch all geofences with only deviceId and area
@@ -1902,6 +1901,30 @@ router.put('/edit-branch/:id', superadminMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error editing branch:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// PUT route to update the name of a geofence
+router.put('/geofences/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+
+  try {
+    // Find the geofence by id and update only the name
+    const updatedGeofence = await Geofencing.findByIdAndUpdate(
+      id,
+      { name }, // Only update the name field
+      { new: true, runValidators: true } // Return the updated document and run validators
+    );
+
+    // If no geofence found with the given id
+    if (!updatedGeofence) {
+      return res.status(404).json({ message: 'Geofence not found' });
+    }
+
+    // Respond with the updated geofence
+    res.status(200).json(updatedGeofence);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating geofence', error });
   }
 });
 

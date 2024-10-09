@@ -1993,6 +1993,51 @@ router.put('/edit-branch/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// PUT route to update the name of a geofence within a specific school
+router.put('/geofences/:id', schoolAuthMiddleware, async (req, res) => {
+  const { schoolId } = req; // Extract schoolId from the authenticated request
+  const { name } = req.body; // Get the new name from the request body
+  const { id: geofenceId } = req.params; // Get geofence id from the route parameters
+
+  try {
+    // Fetch the school and check if it exists
+    const school = await School.findById(schoolId).select('schoolName');
+    if (!school) {
+      return res.status(404).json({ message: 'School not found' });
+    }
+
+    // Fetch branches associated with the school
+    const branches = await Branch.find({ schoolId }).select('_id');
+
+    // Get the devices associated with the school's branches
+    const devices = await Device.find({ branchId: { $in: branches.map(branch => branch._id) } })
+      .select('deviceId');
+
+    // Extract deviceIds for searching geofences
+    const deviceIds = devices.map(device => device.deviceId);
+
+    // Find the geofence by its ID and ensure it's associated with the school's devices
+    const geofence = await Geofencing.findOne({ _id: geofenceId, deviceId: { $in: deviceIds } });
+    if (!geofence) {
+      return res.status(404).json({ message: 'Geofence not found or unauthorized' });
+    }
+
+    // Update only the 'name' field of the geofence
+    geofence.name = name;
+
+    // Save the updated geofence
+    const updatedGeofence = await geofence.save();
+
+    // Respond with the updated geofence details
+    res.status(200).json({
+      message: 'Geofence updated successfully',
+      geofence: updatedGeofence
+    });
+  } catch (error) {
+    console.error('Error updating geofence:', error);
+    res.status(500).json({ message: 'Error updating geofence', error });
+  }
+});
 
 
 

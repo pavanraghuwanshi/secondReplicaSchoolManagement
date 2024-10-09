@@ -4,48 +4,46 @@ const Geofencing = require("../models/geofence");
 require("dotenv").config();
 const { formatDateToDDMMYYYY } = require("../utils/dateUtils");
 
+// router.get("/", async (req, res) => {
+//   try {
+//     const deviceId = req.query.deviceId;
+//     const geofencingData = await Geofencing.find({ deviceId });
 
-// GET route to retrieve geofencing data by deviceId
-router.get("/", async (req, res) => {
-  try {
-    const deviceId = req.query.deviceId;
-    const geofencingData = await Geofencing.find({ deviceId });
+//     if (!geofencingData || geofencingData.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ message: "No geofencing data found for this deviceId" });
+//     }
 
-    if (!geofencingData || geofencingData.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No geofencing data found for this deviceId" });
-    }
+//     // Restructure the response to have deviceId on top with nested geofencing data
+//     const response = {
+//       deviceId: deviceId,
+//       geofences: geofencingData.map((data) => ({
+//         _id: data._id,
+//         name: data.name,
+//         area: data.area,
+//         isCrossed: data.isCrossed,
+//         busStopTime:data.busStopTime,
+//         arrivalTime:data.arrivalTime,
+//         departureTime:data.departureTime
+//       })),
+//     };
 
-    // Restructure the response to have deviceId on top with nested geofencing data
-    const response = {
-      deviceId: deviceId,
-      geofences: geofencingData.map((data) => ({
-        _id: data._id,
-        name: data.name,
-        area: data.area,
-        isCrossed: data.isCrossed,
-        busStopTime:data.busStopTime,
-        arrivalTime:data.arrivalTime,
-        departureTime:data.departureTime
-      })),
-    };
-
-    res.json(response);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
+//     res.json(response);
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// });
 router.put("/isCrossed/", async (req, res) => {
   try {
-    const deviceId = req.query.deviceId;
+    const { geofenceId } = req.query; // Extract geofenceId from query
     const { isCrossed, arrivalTime, departureTime } = req.body;
 
-    // Validate deviceId query parameter
-    if (!deviceId) {
+    // Validate geofenceId query parameter
+    if (!geofenceId) {
       return res
         .status(400)
-        .json({ message: "deviceId query parameter is required" });
+        .json({ message: "geofenceId query parameter is required" });
     }
 
     // Validate isCrossed field
@@ -55,23 +53,23 @@ router.put("/isCrossed/", async (req, res) => {
         .json({ message: "isCrossed must be a boolean value" });
     }
 
-    // Build update object dynamically based on the received fields
+    // Build the update object dynamically based on the received fields
     const updateData = { isCrossed };
     if (arrivalTime) updateData.arrivalTime = arrivalTime;
     if (departureTime) updateData.departureTime = departureTime;
 
-    // Find the document by deviceId and update it
-    const updatedGeofence = await Geofencing.findOneAndUpdate(
-      { deviceId },
-      updateData,
-      { new: true }
+    // Find the geofence by its _id and update it
+    const updatedGeofence = await Geofencing.findByIdAndUpdate(
+      geofenceId,       // Find by _id
+      { $set: updateData },  // Set the new data
+      { new: true }          // Return the updated document
     );
 
-    // Check if the document exists
+    // Check if the geofence exists
     if (!updatedGeofence) {
       return res
         .status(404)
-        .json({ message: "No geofencing data found for this deviceId" });
+        .json({ message: "No geofencing data found for this geofenceId" });
     }
 
     // Respond with success and the updated document
@@ -84,53 +82,55 @@ router.put("/isCrossed/", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+router.get("/", async (req, res) => {
+  try {
+    const deviceId = req.query.deviceId;
+    
+    const now = new Date();  // Get the current date and time
+    const currentDate = now.toDateString();  // Convert the date to a string like "Tue Oct 10 2024"
 
-// router.get("/", async (req, res) => {
-//   try {
-//     const deviceId = req.query.deviceId;
-//     const currentDate = formatDateToDDMMYYYY(new Date());
+    // Fetch geofencing data based on deviceId
+    const geofencingData = await Geofencing.find({ deviceId });
 
-//     // Fetch geofencing data based on deviceId
-//     const geofencingData = await Geofencing.find({ deviceId });
+    if (!geofencingData || geofencingData.length === 0) {
+      return res.status(404).json({ message: "No geofencing data found for this deviceId" });
+    }
 
-//     if (!geofencingData || geofencingData.length === 0) {
-//       return res
-//         .status(404)
-//         .json({ message: "No geofencing data found for this deviceId" });
-//     }
+    const updatedGeofencingData = await Promise.all(
+      geofencingData.map(async (data) => {
+        const lastUpdatedDate = new Date(data.lastUpdated).toDateString(); // Get the date part of lastUpdated
 
-//     const updatedGeofencingData = geofencingData.map((data) => {
-//       // If lastUpdated date is not today, reset isCrossed, arrivalTime, and departureTime
-//       if (data.lastUpdated !== currentDate) {
-//         data.isCrossed = false;
-//         data.arrivalTime = "";
-//         data.departureTime = "";
-//         data.lastUpdated = currentDate; // Update lastUpdated to today
+        // If the lastUpdated date is not today (after 12 AM), reset the fields
+        if (lastUpdatedDate !== currentDate) {
+          data.isCrossed = false;
+          data.arrivalTime = "";
+          data.departureTime = "";
+          data.lastUpdated = now;  // Update lastUpdated to the current time
 
-//         // Save changes to the database
-//         data.save();
-//       }
+          // Save the updated data back to the database
+          await data.save();
+        }
 
-//       // Return the updated or existing fields
-//       return {
-//         _id: data._id,
-//         name: data.name,
-//         area: data.area,
-//         isCrossed: data.isCrossed,
-//         busStopTime: data.busStopTime,
-//         arrivalTime: data.arrivalTime,
-//         departureTime: data.departureTime,
-//       };
-//     });
+        // Return the updated or existing fields
+        return {
+          _id: data._id,
+          name: data.name,
+          area: data.area,
+          isCrossed: data.isCrossed,
+          busStopTime: data.busStopTime,
+          arrivalTime: data.arrivalTime,
+          departureTime: data.departureTime,
+        };
+      })
+    );
 
-//     // Send the response with updated data
-//     res.json({
-//       deviceId: deviceId,
-//       geofences: updatedGeofencingData,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// });
-
+    // Send the response with the updated data
+    res.json({
+      deviceId: deviceId,
+      geofences: updatedGeofencingData,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
 module.exports = router;
