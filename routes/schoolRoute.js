@@ -451,109 +451,6 @@ router.get("/pending-requests", schoolAuthMiddleware, async (req, res) => {
     });
   }
 });
-// router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
-//   try {
-//     const { schoolId } = req;
-
-//     // Fetch the school details
-//     const school = await School.findById(schoolId).lean();
-//     if (!school) {
-//       return res.status(404).json({ error: 'School not found' });
-//     }
-
-//     const schoolName = school.schoolName;
-
-//     // Fetch all approved requests for the specific school
-//     const requests = await Request.find({ statusOfRequest: "approved", schoolId })
-//       .populate("parentId", "parentName email phone password parentRegistrationDate")
-//       .populate({
-//         path: "childId",
-//         populate: {
-//           path: "branchId",
-//           select: "branchName", // Populate branchName
-//         },
-//         select: "childName class branchId",
-//       })
-//       .lean();
-
-//     // Filter out requests where the parent or child does not exist
-//     const validRequests = requests.filter(request => request.parentId && request.childId);
-
-//     // Group requests by branch
-//     const branchesMap = {};
-
-//     // Fetch branch details and format requests
-//     await Promise.all(validRequests.map(async (request) => {
-//       const branch = await Branch.findById(request.childId.branchId).lean();
-//       const branchName = branch ? branch.branchName : "Unknown Branch";
-
-//       const formattedRequest = {
-//         requestId: request._id,
-//         reason: request.reason,
-//         class: request.childId.class,
-//         statusOfRequest: request.statusOfRequest,
-//         parentId: request.parentId._id,
-//         parentName: request.parentId.parentName,
-//         phone: request.parentId.phone,
-//         email: request.parentId.email,
-//         childId: request.childId._id,
-//         childName: request.childId.childName,
-//         requestType: request.requestType,
-//         requestDate: request.requestDate,
-//         deviceId: request.childId.deviceId,
-//         deviceName:request.childId.deviceName,
-//         schoolName: schoolName, // Include schoolName
-//         branchName: branchName, // Include branchName
-//         formattedRequestDate: request.requestDate ? formatDateToDDMMYYYY(new Date(request.requestDate)) : null,
-//       };
-
-//       // Add fields conditionally based on the request type
-//       if (request.requestType === 'leave') {
-//         formattedRequest.startDate = request.startDate || null;
-//         formattedRequest.endDate = request.endDate || null;
-//         formattedRequest.newRoute = null; // Ensure newRoute is not included for leave requests
-//       } else if (request.requestType === 'changeRoute') {
-//         formattedRequest.newRoute = request.newRoute || null;
-//         formattedRequest.startDate = null; // Ensure startDate and endDate are not included for changeRoute requests
-//         formattedRequest.endDate = null;
-//       } else {
-//         formattedRequest.startDate = null;
-//         formattedRequest.endDate = null;
-//         formattedRequest.newRoute = null;
-//       }
-
-//       // If the branch does not exist in the map, add it
-//       if (!branchesMap[request.childId.branchId]) {
-//         branchesMap[request.childId.branchId] = {
-//           branchId: request.childId.branchId,
-//           branchName: branchName,
-//           requests: [],
-//         };
-//       }
-
-//       // Add the request to the respective branch
-//       branchesMap[request.childId.branchId].requests.push(formattedRequest);
-//     }));
-
-//     // Convert the branchesMap object into an array of branches
-//     const branches = Object.values(branchesMap);
-
-//     // Prepare the final response data
-//     const responseData = {
-//       schoolId: school._id,
-//       schoolName: school.schoolName,
-//       branches,
-//     };
-
-//     // Send the formatted requests as a JSON response
-//     res.status(200).json(responseData);
-//   } catch (error) {
-//     console.error("Error fetching requests:", error);
-//     res.status(500).json({
-//       error: "Internal server error",
-//     });
-//   }
-// });
 router.get("/approved-requests", schoolAuthMiddleware, async (req, res) => {
   try {
     const { schoolId } = req;
@@ -899,78 +796,6 @@ router.get('/read-supervisors', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.get('/geofences', schoolAuthMiddleware, async (req, res) => {
-//   const { schoolId } = req; // Extract schoolId from the authenticated request
-
-//   try {
-//     // Fetch the school name based on schoolId
-//     const school = await School.findById(schoolId).select('schoolName');
-//     if (!school) {
-//       return res.status(404).json({ message: 'School not found' });
-//     }
-
-//     // Fetch branches associated with the logged-in school
-//     const branches = await Branch.find({ schoolId }).select('_id branchName'); // Get branch IDs and branch names
-
-//     // Get deviceIds for the branches
-//     const devices = await Device.find({ branchId: { $in: branches.map(branch => branch._id) } })
-//       .select('deviceId branchId'); // Fetch the deviceId and branchId associated with the devices
-
-//     // Extract deviceIds to search geofences
-//     const deviceIds = devices.map(device => device.deviceId);
-
-//     // Fetch geofences for the retrieved deviceIds
-//     const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });
-
-//     // Group geofences by branch based on device
-//     const branchesMap = {};
-//     geofences.forEach(geofence => {
-//       // Find the device for the current geofence
-//       const device = devices.find(device => device.deviceId.toString() === geofence.deviceId.toString());
-
-//       if (device) {
-//         // Find the branch associated with the device
-//         const branch = branches.find(branch => branch._id.toString() === device.branchId.toString());
-
-//         if (!branch) return; // If no branch is found, skip this geofence
-
-//         // Initialize the branch in the map if not already present
-//         if (!branchesMap[branch._id]) {
-//           branchesMap[branch._id] = {
-//             branchId: branch._id,
-//             branchName: branch.branchName,
-//             geofences: []
-//           };
-//         }
-
-//         // Add geofence to the respective branch, including school and branch names
-//         branchesMap[branch._id].geofences.push({
-//           _id: geofence._id,
-//           name: geofence.name,
-//           area: geofence.area,
-//           busStopTime:geofence.busStopTime,
-//           isCrossed: geofence.isCrossed,
-//           deviceId: geofence.deviceId,
-//           schoolName: school.schoolName, // Include schoolName
-//           branchName: branch.branchName, // Include branchName
-//           __v: geofence.__v
-//         });
-//       }
-//     });
-
-//     // Convert the branchesMap object into an array of branches with geofences
-//     const responseBranches = Object.values(branchesMap);
-
-//     // Respond with the grouped geofences by branches, including the schoolId
-//     res.status(200).json({
-//       schoolId: schoolId,
-//       branches: responseBranches
-//     });
-//   } catch (error) {
-//     console.error('Error fetching geofences:', error);
-//     res.status(500).json({ message: 'Error retrieving geofences', error });
-//   }
-// });
 router.get('/geofences', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req; // Extract schoolId from the authenticated request
 
@@ -1665,26 +1490,120 @@ router.post('/add-device', schoolAuthMiddleware, async (req, res) => {
 
 
 //PUT METHOD
+// router.put('/update-child/:childId', schoolAuthMiddleware, async (req, res) => {
+//   const { childId } = req.params;
+//   const { deviceId, ...updateFields } = req.body;
+//   const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
+
+//   try {
+//     // Find the child by ID and check if they belong to the correct school
+//     const child = await Child.findOne({ _id: childId, schoolId });
+//     if (!child) {
+//       return res.status(404).json({ error: 'Child not found or does not belong to this school' });
+//     }
+
+//     // Update fields
+//     if (deviceId) {
+//       child.deviceId = deviceId;
+//     }
+//     Object.keys(updateFields).forEach((field) => {
+//       child[field] = updateFields[field];
+//     });
+//     await child.save();
+
+//     // Fetch updated child data with parent info
+//     const updatedChild = await Child.findById(childId).lean();
+//     let parentData = {};
+//     if (updatedChild.parentId) {
+//       const parent = await Parent.findById(updatedChild.parentId).lean();
+//       parentData = {
+//         parentName: parent ? parent.parentName : null,
+//         email: parent ? parent.email : null,
+//         phone: parent ? parent.phone : null,
+//         parentId: parent ? parent._id : null,
+//       };
+//     } else {
+//       parentData = {
+//         parentName: null,
+//         email: null,
+//         phone: null,
+//         parentId: null,
+//       };
+//     }
+
+//     const transformedChild = {
+//       ...updatedChild,
+//       ...parentData,
+//       formattedRegistrationDate: formatDateToDDMMYYYY(new Date(updatedChild.registrationDate)),
+//     };
+
+//     res.status(200).json({ message: 'Child information updated successfully', child: transformedChild });
+//   } catch (error) {
+//     console.error('Error updating child information:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.put('/update-child/:childId', schoolAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
-  const { deviceId, ...updateFields } = req.body;
-  const { schoolId } = req; // Assuming schoolId is added to req by schoolAuthMiddleware
+  const { schoolName, branchName, parentName, email, phone, password, deviceId, deviceName, ...updateFields } = req.body; // Include device info
 
   try {
-    // Find the child by ID and check if they belong to the correct school
-    const child = await Child.findOne({ _id: childId, schoolId });
+    // Find the child by ID
+    const child = await Child.findById(childId);
     if (!child) {
-      return res.status(404).json({ error: 'Child not found or does not belong to this school' });
+      return res.status(404).json({ error: 'Child not found' });
     }
 
-    // Update fields
+    // Update school and branch if provided
+    if (schoolName && branchName) {
+      // Find the school by name
+      const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+      if (!school) {
+        return res.status(400).json({ error: 'School not found' });
+      }
+
+      // Find the branch by name within the found school
+      const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+      if (!branch) {
+        return res.status(400).json({ error: 'Branch not found in the specified school' });
+      }
+
+      // Update the child's school and branch references
+      child.schoolId = school._id;
+      child.branchId = branch._id;
+    }
+
+    // Update deviceId and deviceName if provided
     if (deviceId) {
       child.deviceId = deviceId;
     }
+    if (deviceName) {
+      child.deviceName = deviceName;
+    }
+
+    // Update other child fields
     Object.keys(updateFields).forEach((field) => {
       child[field] = updateFields[field];
     });
-    await child.save();
+
+    // Update parent information if provided
+    if (child.parentId) {
+      const parent = await Parent.findById(child.parentId);
+      if (parent) {
+        if (parentName) parent.parentName = parentName;
+        if (email) parent.email = email;
+        if (phone) parent.phone = phone;
+
+        // Directly update password if provided (will be hashed on save)
+        if (password) {
+          parent.password = password; // Save the plain password, it will be hashed in schema
+        }
+
+        await parent.save(); // Save updated parent data
+      }
+    }
+
+    await child.save(); // Save updated child data
 
     // Fetch updated child data with parent info
     const updatedChild = await Child.findById(childId).lean();
@@ -1800,15 +1719,33 @@ router.put('/update-driver/:id', schoolAuthMiddleware, async (req, res) => {
   }
 });
 router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
-  try {
-    const { id: supervisorId } = req.params;
-    const schoolId = req.schoolId; // Get the schoolId from the middleware
-    const { deviceId, ...updateFields } = req.body;
+  const { id: supervisorId } = req.params;
+  const { schoolName, branchName, deviceId, ...updateFields } = req.body;
 
-    // Find the supervisor by ID and schoolId
-    const supervisor = await Supervisor.findOne({ _id: supervisorId, schoolId });
+  try {
+    // Find the supervisor by ID
+    const supervisor = await Supervisor.findById(supervisorId);
     if (!supervisor) {
       return res.status(404).json({ error: 'Supervisor not found' });
+    }
+
+    // Update school and branch if provided
+    if (schoolName && branchName) {
+      // Find the school by name
+      const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+      if (!school) {
+        return res.status(400).json({ error: 'School not found' });
+      }
+
+      // Find the branch by name within the found school
+      const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+      if (!branch) {
+        return res.status(400).json({ error: 'Branch not found in the specified school' });
+      }
+
+      // Update the supervisor's school and branch references
+      supervisor.schoolId = school._id;
+      supervisor.branchId = branch._id;
     }
 
     // Update deviceId if provided
@@ -1841,7 +1778,7 @@ router.put('/update-supervisor/:id', schoolAuthMiddleware, async (req, res) => {
     };
 
     console.log('Updated supervisor data:', JSON.stringify(transformedSupervisor, null, 2));
-    res.status(200).json({ message: 'Supervisor information updated successfully', supervisors: transformedSupervisor });
+    res.status(200).json({ message: 'Supervisor information updated successfully', supervisor: transformedSupervisor });
   } catch (error) {
     console.error('Error updating supervisor:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1993,7 +1930,6 @@ router.put('/edit-branch/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// PUT route to update the name of a geofence within a specific school
 router.put('/geofences/:id', schoolAuthMiddleware, async (req, res) => {
   const { schoolId } = req; // Extract schoolId from the authenticated request
   const { name } = req.body; // Get the new name from the request body
@@ -2222,6 +2158,28 @@ router.delete('/delete-device/:actualDeviceId', schoolAuthMiddleware, async (req
   } catch (error) {
     console.error('Error deleting device:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+router.delete('/geofences/:id',schoolAuthMiddleware, async (req, res) => {
+  const { id: geofenceId } = req.params; // Get geofence id from the route parameters
+
+  try {
+    // Find the geofence by its ID and delete it
+    const deletedGeofence = await Geofencing.findByIdAndDelete(geofenceId);
+
+    // Check if the geofence was found and deleted
+    if (!deletedGeofence) {
+      return res.status(404).json({ message: 'Geofence not found' });
+    }
+
+    // Respond with a success message
+    res.status(200).json({
+      message: 'Geofence deleted successfully',
+      deletedGeofence: deletedGeofence // Optional: include the deleted geofence details
+    });
+  } catch (error) {
+    console.error('Error deleting geofence:', error);
+    res.status(500).json({ message: 'Error deleting geofence', error });
   }
 });
 

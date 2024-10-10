@@ -14,8 +14,7 @@ const childSchema = new mongoose.Schema({
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', required: true },
   deviceId:{type: String, required: true},
   deviceName:{type:String, required: true},
-  registrationDate: { type: Date, default: Date.now },
-  // statusOfRegister: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  registrationDate: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('Child', childSchema);

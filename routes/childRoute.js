@@ -221,8 +221,6 @@ router.put('/update-fcm-token', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -267,7 +265,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 router.get('/getschools', async (req, res) => {
   try {
     // Fetch schools and populate their branches
@@ -396,65 +393,6 @@ router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-// router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
-//   try {
-//     const parentId = req.user.id;
-//     const schoolId = req.user.schoolId; // Get the schoolId from the authenticated user
-
-//     // Fetch the parent data along with their children, ensuring the correct school context
-//     const parent = await Parent.findOne({ _id: parentId, schoolId }).populate('children', '_id childName');
-//     if (!parent) {
-//       return res.status(404).json({ error: 'Parent not found or does not belong to the authenticated school' });
-//     }
-
-//     // Collect all child IDs
-//     const childIds = parent.children.map(child => child._id);
-
-//     // Fetch all requests for the children, ensuring the requests are within the same school context
-//     const requests = await Request.find({ childId: { $in: childIds }, schoolId })
-//       .select('requestType startDate endDate reason newRoute childId requestDate')
-//       .populate('childId', 'childName');
-
-//     // Group the requests
-//     const groupedRequests = [];
-//     const leaveRequests = {};
-
-//     requests.forEach(request => {
-//       if (request.requestType === 'leave') {
-//         const childId = request.childId._id;
-//         if (!leaveRequests[childId]) {
-//           leaveRequests[childId] = {
-//             childName: request.childId.childName,
-//             requestType: 'leave',
-//             reason: request.reason,
-//             startDate: request.startDate,
-//             endDate: request.endDate,
-//             requestDate: request.requestDate
-//           };
-//         }
-//       } else {
-//         groupedRequests.push({
-//           childName: request.childId.childName,
-//           date: request.startDate, 
-//           requestType: request.requestType,
-//           reason: request.reason,
-//           newRoute: request.newRoute,
-//           requestDate: request.requestDate
-//         });
-//       }
-//     });
-
-//     // Include leave requests in the grouped response
-//     Object.values(leaveRequests).forEach(leaveRequest => groupedRequests.push(leaveRequest));
-
-//     res.status(200).json({ requests: groupedRequests });
-//   } catch (error) {
-//     console.error('Error fetching requests:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-
 router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
@@ -506,38 +444,94 @@ router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
+//   const { childId } = req.params;
+//   const parentId = req.user.id;
+//   const schoolId = req.user.schoolId;
+
+//   try {
+//     const child = await Child.findOne({ _id: childId, parentId, schoolId });
+//     if (!child) {
+//       return res.status(404).json({ error: 'Child not found or does not belong to the authenticated parent/school' });
+//     }
+
+//     const today = new Date();
+//     const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
+
+//     const attendanceRecord = await Attendance.findOne({ childId, date: formattedToday, schoolId });
+    
+//     if (!attendanceRecord) {
+//       return res.status(200).json({
+//         childId: childId,
+//         pickupStatus: null,
+//         dropStatus: null,
+//         date: null,
+//         pickupTime: null,
+//         dropTime: null
+//       });
+//     }
+
+//     res.status(200).json({
+//       childId: childId,
+//       pickupStatus: attendanceRecord.pickup || null,
+//       dropStatus: attendanceRecord.drop || null,
+//       date: attendanceRecord.date || null,
+//       pickupTime: attendanceRecord.pickupTime || null,
+//       dropTime: attendanceRecord.dropTime || null
+//     });
+//   } catch (error) {
+//     console.error('Error fetching status:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
 router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
   const parentId = req.user.id;
   const schoolId = req.user.schoolId;
 
   try {
+    // Find the child based on childId, parentId, and schoolId
     const child = await Child.findOne({ _id: childId, parentId, schoolId });
     if (!child) {
       return res.status(404).json({ error: 'Child not found or does not belong to the authenticated parent/school' });
     }
 
-    const today = new Date();
-    const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
+    const now = new Date();
+    const currentDate = now.toDateString();  // Current date string like "Tue Oct 10 2024"
 
-    const attendanceRecord = await Attendance.findOne({ childId, date: formattedToday, schoolId });
-    
-    if (!attendanceRecord) {
-      return res.status(200).json({
-        childId: childId,
-        pickupStatus: null,
-        dropStatus: null,
-        date: null,
+    // Fetch today's attendance record based on childId and schoolId
+    let attendanceRecord = await Attendance.findOne({ childId, schoolId });
+
+    if (attendanceRecord) {
+      const recordDate = new Date(attendanceRecord.date).toDateString();  // Get the date from the record
+
+      // Reset attendance data if the record date is not today (after 12 AM)
+      if (recordDate !== currentDate) {
+        attendanceRecord.pickup = null;
+        attendanceRecord.drop = null;
+        attendanceRecord.pickupTime = null;
+        attendanceRecord.dropTime = null;
+        attendanceRecord.date = now;  // Update to today's date
+        await attendanceRecord.save();  // Save the reset data
+      }
+    } else {
+      // No attendance record found, initialize a blank response
+      attendanceRecord = {
+        pickup: null,
+        drop: null,
         pickupTime: null,
-        dropTime: null
-      });
+        dropTime: null,
+        date: null
+      };
     }
 
+    // Return the attendance data
     res.status(200).json({
       childId: childId,
       pickupStatus: attendanceRecord.pickup || null,
       dropStatus: attendanceRecord.drop || null,
-      date: attendanceRecord.date || null,
+      date: attendanceRecord.date ? new Date(attendanceRecord.date).toDateString() : null,
       pickupTime: attendanceRecord.pickupTime || null,
       dropTime: attendanceRecord.dropTime || null
     });
@@ -546,6 +540,8 @@ router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;
@@ -606,7 +602,6 @@ router.put("/update-parent/:parentId", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 router.delete('/delete', jwtAuthMiddleware, async (req, res) => {
   try {
     // Extract parentId from the token's decoded data

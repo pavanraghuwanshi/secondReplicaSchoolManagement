@@ -4,36 +4,6 @@ const Geofencing = require("../models/geofence");
 require("dotenv").config();
 const { formatDateToDDMMYYYY } = require("../utils/dateUtils");
 
-// router.get("/", async (req, res) => {
-//   try {
-//     const deviceId = req.query.deviceId;
-//     const geofencingData = await Geofencing.find({ deviceId });
-
-//     if (!geofencingData || geofencingData.length === 0) {
-//       return res
-//         .status(404)
-//         .json({ message: "No geofencing data found for this deviceId" });
-//     }
-
-//     // Restructure the response to have deviceId on top with nested geofencing data
-//     const response = {
-//       deviceId: deviceId,
-//       geofences: geofencingData.map((data) => ({
-//         _id: data._id,
-//         name: data.name,
-//         area: data.area,
-//         isCrossed: data.isCrossed,
-//         busStopTime:data.busStopTime,
-//         arrivalTime:data.arrivalTime,
-//         departureTime:data.departureTime
-//       })),
-//     };
-
-//     res.json(response);
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// });
 router.put("/isCrossed/", async (req, res) => {
   try {
     const { geofenceId } = req.query; // Extract geofenceId from query

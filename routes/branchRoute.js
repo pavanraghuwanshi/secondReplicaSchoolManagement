@@ -787,8 +787,8 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
 //       return res.status(404).json({ message: "Branch not found" });
 //     }
 
-//     // Fetch the devices associated with the logged-in branch
-//     const devices = await Device.find({ branchId }).select('deviceId branchId');
+//     // Fetch the devices associated with the logged-in branch and include deviceName
+//     const devices = await Device.find({ branchId }).select('deviceId branchId deviceName');
 
 //     if (devices.length === 0) {
 //       return res.status(404).json({ message: "No devices found for this branch" });
@@ -804,11 +804,12 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
 //       return res.status(404).json({ message: "No geofences found for the devices of this branch" });
 //     }
 
-//     // Group geofences by their deviceId
-//     const geofencesByDevice = deviceIds.map(deviceId => {
+//     // Group geofences by their deviceId and include deviceName
+//     const geofencesByDevice = devices.map(device => {
 //       return {
-//         deviceId: deviceId,
-//         geofences: geofences.filter(geofence => geofence.deviceId.toString() === deviceId.toString())
+//         deviceId: device.deviceId,
+//         deviceName: device.deviceName, // Include deviceName in the response
+//         geofences: geofences.filter(geofence => geofence.deviceId.toString() === device.deviceId.toString())
 //       };
 //     });
 
@@ -824,52 +825,60 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
 //     res.status(500).json({ message: "Error retrieving geofences", error });
 //   }
 // });
-
-
-// POST METHOD
 router.get("/geofences", branchAuthMiddleware, async (req, res) => {
   const { branchId } = req;
 
   try {
-    // Fetch the branch associated with the branchId
-    const branch = await Branch.findById(branchId).select('branchName');
+    // Fetch the branch and populate the school
+    const branch = await Branch.findById(branchId)
+      .populate({
+        path: 'schoolId', 
+        select: 'schoolName' // Populate the schoolId field to get the schoolName
+      })
+      .select('branchName schoolId'); // Select branchName and schoolId
+
     if (!branch) {
       return res.status(404).json({ message: "Branch not found" });
     }
 
-    // Fetch the devices associated with the logged-in branch and include deviceName
+    const { schoolId, branchName } = branch;
+    const schoolName = branch.schoolId ? branch.schoolId.schoolName : null;
+
+    // Fetch the devices associated with the branch
     const devices = await Device.find({ branchId }).select('deviceId branchId deviceName');
-
-    if (devices.length === 0) {
-      return res.status(404).json({ message: "No devices found for this branch" });
-    }
-
-    // Extract deviceIds to search geofences
     const deviceIds = devices.map(device => device.deviceId);
 
     // Fetch geofences that are associated with these deviceIds
     const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });
 
-    if (geofences.length === 0) {
-      return res.status(404).json({ message: "No geofences found for the devices of this branch" });
-    }
+    // Map geofences to include branchName and schoolName
+    const result = geofences.map(geofence => {
+      const device = devices.find(device => device.deviceId.toString() === geofence.deviceId.toString());
 
-    // Group geofences by their deviceId and include deviceName
-    const geofencesByDevice = devices.map(device => {
       return {
-        deviceId: device.deviceId,
-        deviceName: device.deviceName, // Include deviceName in the response
-        geofences: geofences.filter(geofence => geofence.deviceId.toString() === device.deviceId.toString())
+        _id: geofence._id,
+        name: geofence.name,
+        area: geofence.area,
+        isCrossed: geofence.isCrossed,
+        busStopTime: geofence.busStopTime,
+        deviceId: geofence.deviceId,
+        deviceName: device.deviceName, // Include deviceName
+        branchName: branchName, // Include branchName
+        schoolName: schoolName, // Include schoolName
+        arrivalTime: geofence.arrivalTime || "",
+        departureTime: geofence.departureTime || "",
+        lastUpdated: geofence.lastUpdated,
+        __v: geofence.__v
       };
     });
 
-    // Respond with geofences for each device
+    // Respond with the geofences array
     res.status(200).json({
       branchId: branchId,
-      branchName: branch.branchName,
-      devices: geofencesByDevice
+      branchName: branchName,
+      schoolName: schoolName, // Include schoolName in the response
+      geofences: result
     });
-
   } catch (error) {
     console.error('Error fetching geofences:', error);
     res.status(500).json({ message: "Error retrieving geofences", error });
@@ -877,6 +886,8 @@ router.get("/geofences", branchAuthMiddleware, async (req, res) => {
 });
 
 
+
+// POST METHOD
 router.post("/review-request/:requestId",branchAuthMiddleware,async (req, res) => {
     try {
       const { statusOfRequest } = req.body;
@@ -1052,27 +1063,70 @@ router.post('/add-device', branchAuthMiddleware, async (req, res) => {
 
 
 
-
-
 // PUT METHOD
-router.put("/update-child/:childId", branchAuthMiddleware, async (req, res) => {
+router.put('/update-child/:childId', branchAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
-  const { deviceId, ...updateFields } = req.body;
-  const { branchId } = req;
+  const { schoolName, branchName, parentName, email, phone, password, deviceId, deviceName, ...updateFields } = req.body; // Include device info
+
   try {
-    const child = await Child.findOne({ _id: childId, branchId });
+    // Find the child by ID
+    const child = await Child.findById(childId);
     if (!child) {
-      return res
-        .status(404)
-        .json({ error: "Child not found or does not belong to this branch" });
+      return res.status(404).json({ error: 'Child not found' });
     }
+
+    // Update school and branch if provided
+    if (schoolName && branchName) {
+      // Find the school by name
+      const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+      if (!school) {
+        return res.status(400).json({ error: 'School not found' });
+      }
+
+      // Find the branch by name within the found school
+      const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+      if (!branch) {
+        return res.status(400).json({ error: 'Branch not found in the specified school' });
+      }
+
+      // Update the child's school and branch references
+      child.schoolId = school._id;
+      child.branchId = branch._id;
+    }
+
+    // Update deviceId and deviceName if provided
     if (deviceId) {
       child.deviceId = deviceId;
     }
+    if (deviceName) {
+      child.deviceName = deviceName;
+    }
+
+    // Update other child fields
     Object.keys(updateFields).forEach((field) => {
       child[field] = updateFields[field];
     });
-    await child.save();
+
+    // Update parent information if provided
+    if (child.parentId) {
+      const parent = await Parent.findById(child.parentId);
+      if (parent) {
+        if (parentName) parent.parentName = parentName;
+        if (email) parent.email = email;
+        if (phone) parent.phone = phone;
+
+        // Directly update password if provided (will be hashed on save)
+        if (password) {
+          parent.password = password; // Save the plain password, it will be hashed in schema
+        }
+
+        await parent.save(); // Save updated parent data
+      }
+    }
+
+    await child.save(); // Save updated child data
+
+    // Fetch updated child data with parent info
     const updatedChild = await Child.findById(childId).lean();
     let parentData = {};
     if (updatedChild.parentId) {
@@ -1095,19 +1149,13 @@ router.put("/update-child/:childId", branchAuthMiddleware, async (req, res) => {
     const transformedChild = {
       ...updatedChild,
       ...parentData,
-      formattedRegistrationDate: formatDateToDDMMYYYY(
-        new Date(updatedChild.registrationDate)
-      ),
+      formattedRegistrationDate: formatDateToDDMMYYYY(new Date(updatedChild.registrationDate)),
     };
-    res
-      .status(200)
-      .json({
-        message: "Child information updated successfully",
-        child: transformedChild,
-      });
+
+    res.status(200).json({ message: 'Child information updated successfully', child: transformedChild });
   } catch (error) {
-    console.error("Error updating child information:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Error updating child information:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 router.put("/update-parent/:id", branchAuthMiddleware, async (req, res) => {
@@ -1137,58 +1185,70 @@ router.put("/update-parent/:id", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-router.put("/update-supervisor/:id", branchAuthMiddleware, async (req, res) => {
+router.put('/update-supervisor/:id', branchAuthMiddleware, async (req, res) => {
+  const { id: supervisorId } = req.params;
+  const { schoolName, branchName, deviceId, ...updateFields } = req.body;
+
   try {
-    const { id: supervisorId } = req.params;
-    const branchId = req.branchId;
-    const { deviceId, ...updateFields } = req.body;
-    const supervisor = await Supervisor.findOne({
-      _id: supervisorId,
-      branchId,
-    });
+    // Find the supervisor by ID
+    const supervisor = await Supervisor.findById(supervisorId);
     if (!supervisor) {
-      return res.status(404).json({ error: "Supervisor not found" });
+      return res.status(404).json({ error: 'Supervisor not found' });
     }
+
+    // Update school and branch if provided
+    if (schoolName && branchName) {
+      // Find the school by name
+      const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+      if (!school) {
+        return res.status(400).json({ error: 'School not found' });
+      }
+
+      // Find the branch by name within the found school
+      const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+      if (!branch) {
+        return res.status(400).json({ error: 'Branch not found in the specified school' });
+      }
+
+      // Update the supervisor's school and branch references
+      supervisor.schoolId = school._id;
+      supervisor.branchId = branch._id;
+    }
+
+    // Update deviceId if provided
     if (deviceId) {
       supervisor.deviceId = deviceId;
     }
+
+    // Update other fields
     Object.keys(updateFields).forEach((field) => {
       supervisor[field] = updateFields[field];
     });
+
+    // Save the updated supervisor
     await supervisor.save();
+
+    // Fetch updated supervisor data with decrypted password
     const updatedSupervisor = await Supervisor.findById(supervisorId).lean();
-    let decryptedPassword = "";
+    let decryptedPassword = '';
     try {
-      console.log(
-        `Decrypting password for supervisor: ${updatedSupervisor.supervisorName}, encryptedPassword: ${updatedSupervisor.password}`
-      );
+      console.log(`Decrypting password for supervisor: ${updatedSupervisor.supervisorName}, encryptedPassword: ${updatedSupervisor.password}`);
       decryptedPassword = decrypt(updatedSupervisor.password);
     } catch (decryptError) {
-      console.error(
-        `Error decrypting password for supervisor: ${updatedSupervisor.supervisorName}`,
-        decryptError
-      );
+      console.error(`Error decrypting password for supervisor: ${updatedSupervisor.supervisorName}`, decryptError);
     }
+
     const transformedSupervisor = {
       ...updatedSupervisor,
       password: decryptedPassword,
-      registrationDate: formatDateToDDMMYYYY(
-        new Date(updatedSupervisor.registrationDate)
-      ),
+      registrationDate: formatDateToDDMMYYYY(new Date(updatedSupervisor.registrationDate))
     };
-    console.log(
-      "Updated supervisor data:",
-      JSON.stringify(transformedSupervisor, null, 2)
-    );
-    res
-      .status(200)
-      .json({
-        message: "Supervisor information updated successfully",
-        supervisor: transformedSupervisor,
-      });
+
+    console.log('Updated supervisor data:', JSON.stringify(transformedSupervisor, null, 2));
+    res.status(200).json({ message: 'Supervisor information updated successfully', supervisor: transformedSupervisor });
   } catch (error) {
-    console.error("Error updating supervisor:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Error updating supervisor:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 router.put("/update-driver/:id", branchAuthMiddleware, async (req, res) => {
@@ -1326,6 +1386,47 @@ router.put('/edit-branch/:id', branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.put("/geofences/:id", branchAuthMiddleware, async (req, res) => {
+  const { branchId } = req; // Extract branchId from the authenticated request
+  const { name } = req.body; // Get the new name from the request body
+  const { id: geofenceId } = req.params; // Get geofence id from the route parameters
+
+  try {
+    // Fetch the branch associated with the branchId
+    const branch = await Branch.findById(branchId).select('branchName');
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
+
+    // Fetch the devices associated with the branch
+    const devices = await Device.find({ branchId }).select('deviceId');
+
+    // Extract deviceIds for searching geofences
+    const deviceIds = devices.map(device => device.deviceId);
+
+    // Find the geofence by its ID and ensure it's associated with the branch's devices
+    const geofence = await Geofencing.findOne({ _id: geofenceId, deviceId: { $in: deviceIds } });
+    if (!geofence) {
+      return res.status(404).json({ message: "Geofence not found or unauthorized" });
+    }
+
+    // Update only the 'name' field of the geofence
+    geofence.name = name;
+
+    // Save the updated geofence
+    const updatedGeofence = await geofence.save();
+
+    // Respond with the updated geofence details
+    res.status(200).json({
+      message: "Geofence updated successfully",
+      geofence: updatedGeofence
+    });
+  } catch (error) {
+    console.error("Error updating geofence:", error);
+    res.status(500).json({ message: "Error updating geofence", error });
+  }
+});
+
 
 
 
@@ -1482,6 +1583,27 @@ router.delete('/delete-branch/:id', branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.delete('/geofences/:id',branchAuthMiddleware, async (req, res) => {
+  const { id: geofenceId } = req.params; // Get geofence id from the route parameters
 
+  try {
+    // Find the geofence by its ID and delete it
+    const deletedGeofence = await Geofencing.findByIdAndDelete(geofenceId);
+
+    // Check if the geofence was found and deleted
+    if (!deletedGeofence) {
+      return res.status(404).json({ message: 'Geofence not found' });
+    }
+
+    // Respond with a success message
+    res.status(200).json({
+      message: 'Geofence deleted successfully',
+      deletedGeofence: deletedGeofence // Optional: include the deleted geofence details
+    });
+  } catch (error) {
+    console.error('Error deleting geofence:', error);
+    res.status(500).json({ message: 'Error deleting geofence', error });
+  }
+});
 
 module.exports = router;
