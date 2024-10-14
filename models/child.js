@@ -10,7 +10,7 @@ const childSchema = new mongoose.Schema({
   pickupPoint:{type: String},
   schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true }, 
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
-  gender: { type: String, enum: ['female', 'male'], required: true },
+  gender: { type: String, enum: ['female', 'male']},
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', required: true },
   deviceId:{type: String, required: true},
   deviceName:{type:String, required: true},
