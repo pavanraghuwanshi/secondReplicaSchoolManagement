@@ -17,8 +17,7 @@ const parentSchema = new mongoose.Schema({
     required: true,
   },
   phone: {
-    type: String,
-    required: true,
+    type: String
   },
   children: [{
     type: mongoose.Schema.Types.ObjectId,
