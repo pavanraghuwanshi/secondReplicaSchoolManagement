@@ -96,41 +96,6 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.post('/login', async (req, res) => {
-//   const { email, password ,fcmToken } = req.body;
-//   try {
-//     const parent = await Parent.findOne({ email });
-//     if (!parent) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-//     const isMatch = await parent.comparePassword(password); 
-//     if (!isMatch) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-
-//       // Update the FCM token if provided
-//       if (fcmToken) {
-//         parent.fcmToken = fcmToken;
-//         await parent.save();
-//       }
-
-
-//     const token = generateToken({
-//       id: parent._id,
-//       email: parent.email,
-//       schoolId: parent.schoolId, 
-//       branchId: parent.branchId  
-//     });
-//     res.status(200).json({
-//       success: true,
-//       message: "Login successful",
-//       token: token
-//     });
-//   } catch (err) {
-//     console.error('Error during login:', err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// });
 router.post('/add-child', jwtAuthMiddleware, async (req, res) => {
   try {
     const {
@@ -540,8 +505,6 @@ router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 router.put('/update-child/:childId', jwtAuthMiddleware, async (req, res) => {
   try {
     const { childId } = req.params;

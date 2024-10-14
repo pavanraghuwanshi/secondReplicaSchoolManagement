@@ -1549,8 +1549,6 @@ router.post('/add-device', superadminMiddleware, async (req, res) => {
 });
 
 
-
-
 // EDIT METHOD
 router.put('/edit-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
   try {
@@ -1736,53 +1734,53 @@ router.put('/update-parent/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.put('/update-driver/:id', superadminMiddleware, async (req, res) => {
-  try {
-    const { id: driverId } = req.params;
-    const { deviceId, ...updateFields } = req.body;
+// router.put('/update-driver/:id', superadminMiddleware, async (req, res) => {
+//   try {
+//     const { id: driverId } = req.params;
+//     const { deviceId, ...updateFields } = req.body;
 
-    // Find the driver by ID
-    const driver = await DriverCollection.findById(driverId);
-    if (!driver) {
-      return res.status(404).json({ error: 'Driver not found' });
-    }
+//     // Find the driver by ID
+//     const driver = await DriverCollection.findById(driverId);
+//     if (!driver) {
+//       return res.status(404).json({ error: 'Driver not found' });
+//     }
 
-    // Update deviceId if provided
-    if (deviceId) {
-      driver.deviceId = deviceId;
-    }
+//     // Update deviceId if provided
+//     if (deviceId) {
+//       driver.deviceId = deviceId;
+//     }
 
-    // Update other fields
-    Object.keys(updateFields).forEach((field) => {
-      driver[field] = updateFields[field];
-    });
+//     // Update other fields
+//     Object.keys(updateFields).forEach((field) => {
+//       driver[field] = updateFields[field];
+//     });
 
-    // Save the updated driver
-    await driver.save();
+//     // Save the updated driver
+//     await driver.save();
 
-    // Fetch updated driver data with decrypted password
-    const updatedDriver = await DriverCollection.findById(driverId).lean();
-    let decryptedPassword = '';
-    try {
-      console.log(`Decrypting password for driver: ${updatedDriver.driverName}, encryptedPassword: ${updatedDriver.password}`);
-      decryptedPassword = decrypt(updatedDriver.password);
-    } catch (decryptError) {
-      console.error(`Error decrypting password for driver: ${updatedDriver.driverName}`, decryptError);
-    }
+//     // Fetch updated driver data with decrypted password
+//     const updatedDriver = await DriverCollection.findById(driverId).lean();
+//     let decryptedPassword = '';
+//     try {
+//       console.log(`Decrypting password for driver: ${updatedDriver.driverName}, encryptedPassword: ${updatedDriver.password}`);
+//       decryptedPassword = decrypt(updatedDriver.password);
+//     } catch (decryptError) {
+//       console.error(`Error decrypting password for driver: ${updatedDriver.driverName}`, decryptError);
+//     }
 
-    const transformedDriver = {
-      ...updatedDriver,
-      password: decryptedPassword,
-      registrationDate: formatDateToDDMMYYYY(new Date(updatedDriver.registrationDate))
-    };
+//     const transformedDriver = {
+//       ...updatedDriver,
+//       password: decryptedPassword,
+//       registrationDate: formatDateToDDMMYYYY(new Date(updatedDriver.registrationDate))
+//     };
 
-    console.log('Updated driver data:', JSON.stringify(transformedDriver, null, 2));
-    res.status(200).json({ message: 'Driver information updated successfully', driver: transformedDriver });
-  } catch (error) {
-    console.error('Error updating driver:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+//     console.log('Updated driver data:', JSON.stringify(transformedDriver, null, 2));
+//     res.status(200).json({ message: 'Driver information updated successfully', driver: transformedDriver });
+//   } catch (error) {
+//     console.error('Error updating driver:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1793,34 +1791,40 @@ router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
       _id: { $ne: id }, 
       $or: [{ username }, { email }]
     });
-    
+
     if (existingSchool) {
       return res.status(400).json({ error: 'Username or email already exists' });
     }
 
-    // Find the school by ID and update the details
-    const updatedSchool = await School.findByIdAndUpdate(
-      id,
-      {
-        schoolName,
-        username,
-        password,
-        email,
-        schoolMobile
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedSchool) {
+    // Find the school by ID
+    const school = await School.findById(id);
+    if (!school) {
       return res.status(404).json({ error: 'School not found' });
     }
+
+    // Update the fields
+    school.schoolName = schoolName || school.schoolName;
+    school.username = username || school.username;
+    school.email = email || school.email;
+    school.schoolMobile = schoolMobile || school.schoolMobile;
+
+    // Only update the password if it's provided
+    if (password) {
+      school.password = password; // The pre-save hook will encrypt this automatically
+    }
+
+    // Save the updated school object (this will trigger the pre('save') middleware)
+    const updatedSchool = await school.save();
 
     // Generate a new token if the username has changed (optional, based on your app logic)
     const payload = { id: updatedSchool._id, username: updatedSchool.username };
     const token = generateToken(payload);
 
-    // Respond with the updated school details and token
-    res.status(200).json({ response: { ...updatedSchool.toObject(), password: undefined }, token, role: "schooladmin" });
+    // Exclude the password from the response
+    const schoolResponse = updatedSchool.toObject();
+    delete schoolResponse.password;
+
+    res.status(200).json({ response: schoolResponse, token, role: "schooladmin" });
   } catch (error) {
     console.error('Error during school update:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1959,6 +1963,73 @@ router.put('/update-supervisor/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.put('/update-driver/:id', superadminMiddleware, async (req, res) => {
+  try {
+    const { id: driverId } = req.params;
+    const { deviceId, schoolName, branchName, ...updateFields } = req.body;
+
+    // Find the driver by ID
+    const driver = await DriverCollection.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    // Handle school and branch update if both are provided
+    if (schoolName && branchName) {
+      // Find the school by name
+      const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+      if (!school) {
+        return res.status(400).json({ error: 'School not found' });
+      }
+
+      // Find the branch by name within the found school
+      const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+      if (!branch) {
+        return res.status(400).json({ error: 'Branch not found in the specified school' });
+      }
+
+      // Update the driver's school and branch references
+      driver.schoolId = school._id;
+      driver.branchId = branch._id;
+    }
+
+    // Update deviceId if provided
+    if (deviceId) {
+      driver.deviceId = deviceId;
+    }
+
+    // Update other fields
+    Object.keys(updateFields).forEach((field) => {
+      driver[field] = updateFields[field];
+    });
+
+    // Save the updated driver
+    await driver.save();
+
+    // Fetch updated driver data with decrypted password
+    const updatedDriver = await DriverCollection.findById(driverId).lean();
+    let decryptedPassword = '';
+    try {
+      console.log(`Decrypting password for driver: ${updatedDriver.driverName}, encryptedPassword: ${updatedDriver.password}`);
+      decryptedPassword = decrypt(updatedDriver.password);
+    } catch (decryptError) {
+      console.error(`Error decrypting password for driver: ${updatedDriver.driverName}`, decryptError);
+    }
+
+    const transformedDriver = {
+      ...updatedDriver,
+      password: decryptedPassword,
+      registrationDate: formatDateToDDMMYYYY(new Date(updatedDriver.registrationDate))
+    };
+
+    console.log('Updated driver data:', JSON.stringify(transformedDriver, null, 2));
+    res.status(200).json({ message: 'Driver information updated successfully', driver: transformedDriver });
+  } catch (error) {
+    console.error('Error updating driver:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 
 // DELETE METHOD
@@ -2183,3 +2254,4 @@ router.delete('/geofences/:id', async (req, res) => {
 
 
 module.exports = router;
+
