@@ -186,119 +186,117 @@ router.put('/update-fcm-token', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-// router.post('/login', async (req, res) => {
-//   const { email, password } = req.body;
-
-//   try {
-//     // Find the parent by email
-//     const parent = await Parent.findOne({ email });
-
-//     // Check if parent exists
-//     if (!parent) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-
-//     // Compare provided password with stored hashed password
-//     const isMatch = await parent.comparePassword(password);
-
-//     // Check if password matches
-//     if (!isMatch) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-
-//     // Check if the registration status is approved
-//     if (parent.statusOfRegister !== 'approved') {
-//       return res.status(400).json({ error: "Account not approved yet" });
-//     }
-
-//     // Generate JWT token with parent ID, email, and schoolId
-//     const token = generateToken({
-//       id: parent._id,
-//       email: parent.email,
-//       schoolId: parent.schoolId,
-//       branchId: parent.branchId
-//     });
-
-//     // Send success response with token
-//     res.status(200).json({
-//       success: true,
-//       message: "Login successful",
-//       token: token
-//     });
-//   } catch (err) {
-//     console.error('Error during login:', err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// });
-
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;  // Only one variable (email) from the request body
+  const { email, password } = req.body;
 
   try {
-    // First, try to find the email in the Parent collection
-    let parent = await Parent.findOne({ email });
+    // Find the parent by email
+    const parent = await Parent.findOne({ email });
 
-    if (parent) {
-      // Parent found, now check password
-      const isMatch = await parent.comparePassword(password);
-      if (!isMatch) {
-        return res.status(400).json({ error: "Invalid email or password 1" });
-      }
-
-      // Check if the registration status is approved
-      if (parent.statusOfRegister !== 'approved') {
-        return res.status(400).json({ error: "Account not approved yet" });
-      }
-
-      // Generate JWT token for Parent
-      const token = generateToken({
-        id: parent._id,
-        email: parent.email,
-        schoolId: parent.schoolId,
-        branchId: parent.branchId
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "Login successful",
-        token: token
-      });
-    } 
-    
-    // If not found in Parent, check the Device collection
-    let device = await Device.findOne({ deviceName: email });  // Check the email as deviceName
-
-    if (device) {
-      const passCheck = "123456";  // Hardcoded password for device login
-
-      if (passCheck !== password) {
-        return res.status(400).json({ error: "Invalid email or password 2" });
-      }
-
-      // Generate JWT token for Device
-      const token1 = generateToken({
-        id: device._id,
-        email: device.deviceName,
-        schoolId: device.schoolId,
-        branchId: device.branchId
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "Login successful",
-        token: token1
-      });
+    // Check if parent exists
+    if (!parent) {
+      return res.status(400).json({ error: "Invalid email or password" });
     }
 
-    // If no match found in either collection
-    return res.status(400).json({ error: "Invalid email or password 3" });
+    // Compare provided password with stored hashed password
+    const isMatch = await parent.comparePassword(password);
 
+    // Check if password matches
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
+    // Check if the registration status is approved
+    if (parent.statusOfRegister !== 'approved') {
+      return res.status(400).json({ error: "Account not approved yet" });
+    }
+
+    // Generate JWT token with parent ID, email, and schoolId
+    const token = generateToken({
+      id: parent._id,
+      email: parent.email,
+      schoolId: parent.schoolId,
+      branchId: parent.branchId
+    });
+
+    // Send success response with token
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token: token
+    });
   } catch (err) {
     console.error('Error during login:', err);
     res.status(500).json({ error: "Server error" });
   }
 });
+// router.post('/login', async (req, res) => {
+//   const { email, password } = req.body;  // Only one variable (email) from the request body
+
+//   try {
+//     // First, try to find the email in the Parent collection
+//     let parent = await Parent.findOne({ email });
+
+//     if (parent) {
+//       // Parent found, now check password
+//       const isMatch = await parent.comparePassword(password);
+//       if (!isMatch) {
+//         return res.status(400).json({ error: "Invalid email or password 1" });
+//       }
+
+//       // Check if the registration status is approved
+//       if (parent.statusOfRegister !== 'approved') {
+//         return res.status(400).json({ error: "Account not approved yet" });
+//       }
+
+//       // Generate JWT token for Parent
+//       const token = generateToken({
+//         id: parent._id,
+//         email: parent.email,
+//         schoolId: parent.schoolId,
+//         branchId: parent.branchId
+//       });
+
+//       return res.status(200).json({
+//         success: true,
+//         message: "Login successful",
+//         token: token
+//       });
+//     } 
+    
+//     // If not found in Parent, check the Device collection
+//     let device = await Device.findOne({ deviceName: email });  // Check the email as deviceName
+
+//     if (device) {
+//       const passCheck = "123456";  // Hardcoded password for device login
+
+//       if (passCheck !== password) {
+//         return res.status(400).json({ error: "Invalid email or password 2" });
+//       }
+
+//       // Generate JWT token for Device
+//       const token1 = generateToken({
+//         id: device._id,
+//         email: device.deviceName,
+//         schoolId: device.schoolId,
+//         branchId: device.branchId
+//       });
+
+//       return res.status(200).json({
+//         success: true,
+//         message: "Login successful",
+//         token: token1
+//       });
+//     }
+
+//     // If no match found in either collection
+//     return res.status(400).json({ error: "Invalid email or password 3" });
+
+//   } catch (err) {
+//     console.error('Error during login:', err);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// });
 router.get('/getschools', async (req, res) => {
   try {
     // Fetch schools and populate their branches
@@ -355,152 +353,145 @@ router.get('/get-devices', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
-//   try {
-//     const parentId = req.user.id;
-//     const deviceId = req.user.id;
-//     const schoolId = req.user.schoolId; 
-//     const parent = await Parent.findById(parentId).populate({
-//       path: 'children',
-//       match: { schoolId: schoolId }, 
-//       populate:[ {
-//         path: 'branchId', 
-//         select: 'branchName schoolMobile', 
-//       },{
-//         path: 'schoolId',
-//         select: 'schoolName' 
-//       }]
-//     }).exec();
-
-//     if (!parent) {
-//       return res.status(404).json({ error: 'Parent not found' });
-//     }
-//     const children = parent.children;
-//     const deviceIds = children.map(child => child.deviceId);
-//     const drivers = await DriverCollection.find({ deviceId: { $in: deviceIds } }).select('deviceId driverMobile').exec();
-//     const driverMap = new Map(drivers.map(driver => [driver.deviceId, driver.driverMobile]));
-//     const childrenData = children.map(child => ({
-//       _id: child._id,
-//       childName: child.childName,
-//       class: child.class,
-//       rollno: child.rollno,
-//       section: child.section,
-//       schoolName: child.schoolId.schoolName,
-//       dateOfBirth: child.dateOfBirth,
-//       childAge: child.childAge,
-//       pickupPoint: child.pickupPoint,
-//       schoolId: child.schoolId._id,
-//       branchName: child.branchId?.branchName || "N/A",
-//       schoolMobile: child.branchId?.schoolMobile || "N/A", 
-//       deviceName: child.deviceName,
-//       gender: child.gender,
-//       parentId: child.parentId,
-//       deviceId: child.deviceId,
-//       registrationDate: child.registrationDate,
-//       driverMobile: driverMap.get(child.deviceId) || "N/A" 
-//     }));
-//     res.status(200).json({ children: childrenData });
-//   } catch (error) {
-//     console.error('Error fetching child data:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-
 router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id; // Extracted from token
-    const deviceName = req.user.email; // Assuming the deviceName is stored in the 'email' field in the token
-    const schoolId = req.user.schoolId;
-
-    let children = [];
-
-    // First, try to find the user in the Parent collection
-    const parent = await Parent.findById(userId).populate({
+    const parentId = req.user.id;
+    const deviceId = req.user.id;
+    const schoolId = req.user.schoolId; 
+    const parent = await Parent.findById(parentId).populate({
       path: 'children',
-      match: { schoolId: schoolId },
-      populate: [
-        {
-          path: 'branchId',
-          select: 'branchName schoolMobile',
-        },
-        {
-          path: 'schoolId',
-          select: 'schoolName',
-        },
-      ],
+      match: { schoolId: schoolId }, 
+      populate:[ {
+        path: 'branchId', 
+        select: 'branchName schoolMobile', 
+      },{
+        path: 'schoolId',
+        select: 'schoolName' 
+      }]
     }).exec();
 
-    // If parent is found, get the children data
-    if (parent) {
-      children = parent.children;
-    } else {
-      // If no parent is found, try to find the user in the Device collection using deviceName
-      const device = await Device.findOne({ deviceName }).exec();
-
-      if (!device) {
-        return res.status(404).json({ error: 'Parent or Device not found' });
-      }
-
-      // If it's a device, find children associated with the device
-      children = await Child.find({ deviceId: device._id }).populate([
-        {
-          path: 'branchId',
-          select: 'branchName schoolMobile',
-        },
-        {
-          path: 'schoolId',
-          select: 'schoolName',
-        },
-      ]).exec();
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
     }
-
-    // No children found
-    if (children.length === 0) {
-      return res.status(404).json({ error: 'No children found' });
-    }
-
-    // Get the device IDs of the children
+    const children = parent.children;
     const deviceIds = children.map(child => child.deviceId);
-
-    // Find drivers associated with the device IDs
     const drivers = await DriverCollection.find({ deviceId: { $in: deviceIds } }).select('deviceId driverMobile').exec();
     const driverMap = new Map(drivers.map(driver => [driver.deviceId, driver.driverMobile]));
-
-    // Format children data for the response
     const childrenData = children.map(child => ({
       _id: child._id,
       childName: child.childName,
       class: child.class,
       rollno: child.rollno,
       section: child.section,
-      schoolName: child.schoolId?.schoolName || "N/A",
+      schoolName: child.schoolId.schoolName,
       dateOfBirth: child.dateOfBirth,
       childAge: child.childAge,
       pickupPoint: child.pickupPoint,
-      schoolId: child.schoolId?._id || "N/A",
+      schoolId: child.schoolId._id,
       branchName: child.branchId?.branchName || "N/A",
-      schoolMobile: child.branchId?.schoolMobile || "N/A",
+      schoolMobile: child.branchId?.schoolMobile || "N/A", 
       deviceName: child.deviceName,
       gender: child.gender,
       parentId: child.parentId,
       deviceId: child.deviceId,
       registrationDate: child.registrationDate,
-      driverMobile: driverMap.get(child.deviceId) || "N/A"
+      driverMobile: driverMap.get(child.deviceId) || "N/A" 
     }));
-
-    // Send the response with the children data
     res.status(200).json({ children: childrenData });
   } catch (error) {
     console.error('Error fetching child data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
+//   try {
+//     const userId = req.user.id; // Extracted from token
+//     const deviceName = req.user.email; // Assuming the deviceName is stored in the 'email' field in the token
+//     const schoolId = req.user.schoolId;
 
+//     let children = [];
 
+//     // First, try to find the user in the Parent collection
+//     const parent = await Parent.findById(userId).populate({
+//       path: 'children',
+//       match: { schoolId: schoolId },
+//       populate: [
+//         {
+//           path: 'branchId',
+//           select: 'branchName schoolMobile',
+//         },
+//         {
+//           path: 'schoolId',
+//           select: 'schoolName',
+//         },
+//       ],
+//     }).exec();
 
+//     // If parent is found, get the children data
+//     if (parent) {
+//       children = parent.children;
+//     } else {
+//       // If no parent is found, try to find the user in the Device collection using deviceName
+//       const device = await Device.findOne({ deviceName }).exec();
 
+//       if (!device) {
+//         return res.status(404).json({ error: 'Parent or Device not found' });
+//       }
 
+//       // If it's a device, find children associated with the device
+//       children = await Child.find({ deviceId: device._id }).populate([
+//         {
+//           path: 'branchId',
+//           select: 'branchName schoolMobile',
+//         },
+//         {
+//           path: 'schoolId',
+//           select: 'schoolName',
+//         },
+//       ]).exec();
+//     }
 
+//     // No children found
+//     if (children.length === 0) {
+//       return res.status(404).json({ error: 'No children found' });
+//     }
+
+//     // Get the device IDs of the children
+//     const deviceIds = children.map(child => child.deviceId);
+
+//     // Find drivers associated with the device IDs
+//     const drivers = await DriverCollection.find({ deviceId: { $in: deviceIds } }).select('deviceId driverMobile').exec();
+//     const driverMap = new Map(drivers.map(driver => [driver.deviceId, driver.driverMobile]));
+
+//     // Format children data for the response
+//     const childrenData = children.map(child => ({
+//       _id: child._id,
+//       childName: child.childName,
+//       class: child.class,
+//       rollno: child.rollno,
+//       section: child.section,
+//       schoolName: child.schoolId?.schoolName || "N/A",
+//       dateOfBirth: child.dateOfBirth,
+//       childAge: child.childAge,
+//       pickupPoint: child.pickupPoint,
+//       schoolId: child.schoolId?._id || "N/A",
+//       branchName: child.branchId?.branchName || "N/A",
+//       schoolMobile: child.branchId?.schoolMobile || "N/A",
+//       deviceName: child.deviceName,
+//       gender: child.gender,
+//       parentId: child.parentId,
+//       deviceId: child.deviceId,
+//       registrationDate: child.registrationDate,
+//       driverMobile: driverMap.get(child.deviceId) || "N/A"
+//     }));
+
+//     // Send the response with the children data
+//     res.status(200).json({ children: childrenData });
+//   } catch (error) {
+//     console.error('Error fetching child data:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
@@ -615,7 +606,6 @@ router.get('/getrequests', jwtAuthMiddleware, async (req, res) => {
 //     res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
-
 router.get('/status/:childId', jwtAuthMiddleware, async (req, res) => {
   const { childId } = req.params;
   const parentId = req.user.id;
@@ -756,3 +746,4 @@ router.delete('/delete', jwtAuthMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const childSchema = new mongoose.Schema({
-  childName: { type: String },
+  childName: { type: String},
   class: { type: String },
   rollno: { type: String },
   section: { type: String },

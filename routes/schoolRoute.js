@@ -23,7 +23,6 @@ const convertDate = (dateStr) => {
   };
 }
 
-
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -2246,10 +2245,10 @@ router.delete('/delete-school/:id', schoolAuthMiddleware, async (req, res) => {
 });
 router.delete('/delete-branch/:id', schoolAuthMiddleware, async (req, res) => {
   try {
-    const { branchId } = req.params;
+    const { id } = req.params; // Corrected from branchId to id
 
     // Find the branch by ID
-    const branch = await Branch.findById(branchId);
+    const branch = await Branch.findById(id); // Using id to find the branch
     if (!branch) {
       return res.status(404).json({ error: 'Branch not found' });
     }
@@ -2270,7 +2269,7 @@ router.delete('/delete-branch/:id', schoolAuthMiddleware, async (req, res) => {
     await DriverCollection.deleteMany({ branchId: branch._id });
 
     // Delete the branch itself using deleteOne()
-    await Branch.deleteOne({ _id: branchId });
+    await Branch.deleteOne({ _id: id });
 
     res.status(200).json({ message: 'Branch and all related data deleted successfully' });
   } catch (error) {

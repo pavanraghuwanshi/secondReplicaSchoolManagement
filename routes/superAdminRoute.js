@@ -2173,40 +2173,6 @@ router.delete('/delete-school/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
-  try {
-    const { branchId } = req.params;
-
-    // Find the branch by ID
-    const branch = await Branch.findById(branchId);
-    if (!branch) {
-      return res.status(404).json({ error: 'Branch not found' });
-    }
-
-    // Delete all related data
-    const parents = await Parent.find({ branchId: branch._id });
-
-    for (const parent of parents) {
-      // Delete children associated with each parent
-      await Child.deleteMany({ parentId: parent._id });
-    }
-
-    // Delete parents associated with the branch
-    await Parent.deleteMany({ branchId: branch._id });
-
-    // Delete supervisors and drivers associated with the branch
-    await Supervisor.deleteMany({ branchId: branch._id });
-    await DriverCollection.deleteMany({ branchId: branch._id });
-
-    // Delete the branch itself using deleteOne()
-    await Branch.deleteOne({ _id: branchId });
-
-    res.status(200).json({ message: 'Branch and all related data deleted successfully' });
-  } catch (error) {
-    console.error('Error during branch deletion:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 router.delete('/delete-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
   try {
     const { actualDeviceId } = req.params;
@@ -2249,8 +2215,40 @@ router.delete('/geofences/:id', async (req, res) => {
     res.status(500).json({ message: 'Error deleting geofence', error });
   }
 });
+router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params; // Corrected from branchId to id
 
+    // Find the branch by ID
+    const branch = await Branch.findById(id); // Using id to find the branch
+    if (!branch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
 
+    // Delete all related data
+    const parents = await Parent.find({ branchId: branch._id });
+
+    for (const parent of parents) {
+      // Delete children associated with each parent
+      await Child.deleteMany({ parentId: parent._id });
+    }
+
+    // Delete parents associated with the branch
+    await Parent.deleteMany({ branchId: branch._id });
+
+    // Delete supervisors and drivers associated with the branch
+    await Supervisor.deleteMany({ branchId: branch._id });
+    await DriverCollection.deleteMany({ branchId: branch._id });
+
+    // Delete the branch itself using deleteOne()
+    await Branch.deleteOne({ _id: id });
+
+    res.status(200).json({ message: 'Branch and all related data deleted successfully' });
+  } catch (error) {
+    console.error('Error during branch deletion:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 
 module.exports = router;
