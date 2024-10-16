@@ -11,5 +11,6 @@ router.get("/get-devices", driverController.getDevices);
 router.get('/getdriverData', jwtAuthMiddleware, driverController.getDriverData);
 router.put('/update', jwtAuthMiddleware, driverController.updateDriver);
 router.delete('/delete',jwtAuthMiddleware, driverController.deleteDriver)
+router.post("/import", driverController.registerImportDriver);
 
 module.exports = router;

@@ -3,6 +3,7 @@ const router = express.Router();
 const Geofencing = require("../models/geofence");
 require("dotenv").config();
 const { formatDateToDDMMYYYY } = require("../utils/dateUtils");
+const { jwtAuthMiddleware } = require("../jwt");
 
 router.put("/isCrossed/", async (req, res) => {
   try {
@@ -55,7 +56,7 @@ router.put("/isCrossed/", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const deviceId = req.query.deviceId;
-    
+
     const now = new Date();  // Get the current date and time
     const currentDate = now.toDateString();  // Convert the date to a string like "Tue Oct 10 2024"
 
@@ -103,6 +104,25 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+router.post("/", jwtAuthMiddleware, async (req, res) => {
+  try {
+    const { name, area, deviceId, busStopTime } = req.body;
+    if (!name || !area || !deviceId) {
+      return res.status(400).json({ error: "Name, area, and device ID are required" });
+    }
+    const newGeofencing = new Geofencing({
+      name,
+      area,
+      deviceId,
+      busStopTime
+    });
+    const savedGeofencing = await newGeofencing.save();
+    res.status(201).json({ message: "Geofencing area created successfully", geofencing: savedGeofencing });
+  } catch (error) {
+    console.error("Error creating geofencing area:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+})
 
 
 module.exports = router;

@@ -3,6 +3,7 @@ const router = express.Router();
 const { jwtAuthMiddleware } = require('../jwt');
 const Request = require('../models/request');
 const Child = require('../models/child');
+const { createAndSendNotification } = require('../utils/notificationWebSocket');
 
 // Helper function to generate absences between two dates
 function generateAbsences(startDate, endDate) {
@@ -76,6 +77,9 @@ router.post('/create-request', async (req, res) => {
     });
 
     await newRequest.save();
+
+    // Code for web notifications
+    createAndSendNotification(branchId, childId, reason, requestType);
 
     res.status(201).json({ message: 'Request created successfully', request: newRequest });
   } catch (error) {

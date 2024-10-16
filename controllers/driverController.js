@@ -252,5 +252,83 @@ exports.deleteDriver = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+exports.registerImportDriver = async (req, res) => {
+  try {
+    const driverData = req.body;
+
+    if (!Array.isArray(driverData) || driverData.length === 0) {
+      return res.status(400).json({ error: 'No driver data provided' });
+    }
+
+    const processedDrivers = [];
+    const failedEntries = [];
+
+    const driverPromises = driverData.map(async (data) => {
+      const {
+        driverName,
+        driverMobile,
+        email,
+        address,
+        password,
+        deviceName,
+        deviceId,
+        schoolName,
+        branchName
+      } = data;
+
+      try {
+        if (!schoolName || !branchName) {
+          throw new Error(`School name and branch name are required for driver: ${driverName}`);
+        }
+
+        const existingDriver = await DriverCollection.findOne({ email });
+        if (existingDriver) {
+          throw new Error(`Driver email already exists: ${email}`);
+        }
+
+        const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+        if (!school) {
+          throw new Error(`School not found: ${schoolName}`);
+        }
+
+        const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+        if (!branch) {
+          throw new Error(`Branch not found in the specified school: ${branchName}`);
+        }
+
+        const newDriver = new DriverCollection({
+          driverName,
+          driverMobile,
+          email,
+          address,
+          password, 
+          deviceName,
+          deviceId,
+          schoolId: school._id, 
+          branchId: branch._id  
+        });
+
+        const response = await newDriver.save();
+
+        const payload = { id: response._id, email: response.email, schoolId: school._id, branchId: branch._id };
+        const token = generateToken(payload);
+
+        processedDrivers.push({ driver: { ...response.toObject(), password: undefined }, token });
+      } catch (error) {
+        failedEntries.push({ error: error.message, data });
+      }
+    });
+
+    await Promise.allSettled(driverPromises);
+
+    res.status(201).json({
+      success: processedDrivers,
+      failed: failedEntries
+    });
+  } catch (error) {
+    console.error('Error during driver registration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 
 

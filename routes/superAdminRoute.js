@@ -1600,6 +1600,7 @@ router.post('/add-device', superadminMiddleware, async (req, res) => {
 });
 
 
+
 // EDIT METHOD
 router.put('/edit-device/:actualDeviceId', superadminMiddleware, async (req, res) => {
   try {

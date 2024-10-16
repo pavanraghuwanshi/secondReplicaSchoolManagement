@@ -548,7 +548,6 @@ router.delete('/delete', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 })
-
 router.post('/import', async (req, res) => {
   try {
     const registrationData = req.body;

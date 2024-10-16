@@ -8,19 +8,15 @@ const driverSchema = new mongoose.Schema({
   },
   address: {
     type: String,
-    required: true,
   },
   driverMobile: {
     type: String,
-    required: true,
   },
   password: {
     type: String,
-    required: true,
   },
   email: {
     type: String,
-    required: true,
     unique: true,
   },
   aadhar: {
@@ -35,14 +31,13 @@ const driverSchema = new mongoose.Schema({
   schoolId: { // Correct schoolId definition
     type: mongoose.Schema.Types.ObjectId,
     ref: 'School',
-    required: true,
   },
   registrationDate: { 
     type: Date, 
     default: Date.now 
   },
-  deviceId:{type: String, required: true},
-  deviceName:{type:String, required: true},
+  deviceId:{type: String},
+  deviceName:{type:String},
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   statusOfRegister: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
 });
