@@ -140,43 +140,6 @@ exports.registerSupervisor = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-// exports.loginSupervisor = async (req, res) => {
-//   const { email, password } = req.body;
-
-//   try {
-//     // Find supervisor by email
-//     const supervisor = await Supervisor.findOne({ email });
-
-//     // Check if supervisor exists
-//     if (!supervisor) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-
-//     // Compare provided password with stored hashed password
-//     const isMatch = await supervisor.comparePassword(password);
-
-//     // Check if password matches
-//     if (!isMatch) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-//     const token = generateToken({
-//       id: supervisor._id,
-//       email: supervisor.email,
-//       schoolId: supervisor.schoolId,  
-//       branchId: supervisor.branchId    
-//     });
-
-//     // Send success response with token
-//     res.status(200).json({
-//       success: true,
-//       message: "Login successful",
-//       token: token,
-//     });
-//   } catch (err) {
-//     console.error("Error during login:", err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
 exports.loginSupervisor =  async (req, res) => {
   const { email, password } = req.body;
 
@@ -221,8 +184,6 @@ exports.loginSupervisor =  async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 }
-
-// get supervisor's data
 exports.getSupervisordata = async (req, res) => {
   try {
     const supervisorId = req.user.id;
@@ -321,112 +282,6 @@ exports.getallChildren = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-// 4-10-2024 - commented
-// exports.markPickup = async (req, res) => {
-//   const { childId, isPresent } = req.body;
-//   const { schoolId, branchId } = req; // Get the schoolId and branchId from the authenticated request
-
-//   if (typeof isPresent !== "boolean") {
-//     return res.status(400).json({ error: "Invalid input" });
-//   }
-
-//   const today = new Date();
-//   const formattedDate = formatDateToDDMMYYYY(today);
-//   const currentTime = formatTime(today); // Automatically converts to IST
-
-//   try {
-//     // Check if the child belongs to the current school and branch
-//     const child = await Child.findOne({ _id: childId, schoolId, branchId });
-
-//     if (!child) {
-//       return res.status(404).json({ error: "Child not found or does not belong to the current school or branch" });
-//     }
-
-//     // Find or create the attendance record for the child on the current date
-//     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
-
-//     if (!attendanceRecord) {
-//       attendanceRecord = new Attendance({
-//         childId,
-//         date: formattedDate,
-//         pickup: null,
-//         drop: null,
-//         schoolId,
-//         branchId // Include branchId in the attendance record
-//       });
-//     }
-
-//     // Update the pickup status and time
-//     attendanceRecord.pickup = isPresent;
-//     attendanceRecord.pickupTime = isPresent ? currentTime : null; // Set pickupTime if present, otherwise null
-
-//     // Save the attendance record
-//     await attendanceRecord.save();
-
-//     const message = isPresent
-//       ? `Child marked as present for pickup on ${formattedDate} at ${currentTime}`
-//       : `Child marked as absent for pickup`;
-
-//     res.status(200).json({ message });
-
-//   } catch (error) {
-//     console.error(`Error marking child as ${isPresent ? "present" : "absent"} for pickup:`, error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// };
-// exports.markDrop = async (req, res) => {
-//   const { childId, isPresent } = req.body;
-//   const { schoolId, branchId } = req; // Extract schoolId and branchId from the request (assuming middleware sets it)
-
-//   if (typeof isPresent !== "boolean") {
-//     return res.status(400).json({ error: "Invalid input" });
-//   }
-
-//   const today = new Date();
-//   const formattedDate = formatDateToDDMMYYYY(today);
-//   const currentTime = formatTime(today);
-
-//   try {
-//     // Ensure the child belongs to the correct school and branch
-//     const child = await Child.findOne({ _id: childId, schoolId, branchId });
-//     if (!child) {
-//       return res.status(404).json({ error: "Child not found or does not belong to this school/branch" });
-//     }
-
-//     // Find or create the attendance record for the child on the current date
-//     let attendanceRecord = await Attendance.findOne({ childId, date: formattedDate });
-
-//     if (!attendanceRecord) {
-//       attendanceRecord = new Attendance({
-//         childId,
-//         date: formattedDate,
-//         pickup: null,
-//         drop: null,
-//         schoolId,
-//         branchId // Include branchId in the attendance record
-//       });
-//     }
-
-//     // Update the drop status and time
-//     attendanceRecord.drop = isPresent;
-//     attendanceRecord.dropTime = isPresent ? currentTime : null;
-
-//     // Save the attendance record
-//     await attendanceRecord.save();
-
-//     const message = isPresent 
-//       ? `Child marked as present for drop on ${formattedDate} at ${currentTime}`
-//       : `Child marked as absent for drop`;
-
-//     res.status(200).json({ message });
-
-//   } catch (error) {
-//     console.error(`Error marking child as ${isPresent ? "present" : "absent"} for drop:`, error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// };
-
-
 exports.addGeofence = async (req, res) => {
   try {
     const { name, area, deviceId, busStopTime} = req.body;

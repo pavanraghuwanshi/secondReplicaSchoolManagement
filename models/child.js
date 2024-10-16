@@ -8,12 +8,12 @@ const childSchema = new mongoose.Schema({
   dateOfBirth: { type: String },
   childAge: { type: Number },
   pickupPoint:{type: String},
-  schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true }, 
+  schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School'}, 
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   gender: { type: String, enum: ['female', 'male']},
-  parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent', required: true },
-  deviceId:{type: String, required: true},
-  deviceName:{type:String, required: true},
+  parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parent'},
+  deviceId:{type: String},
+  deviceName:{type:String},
   registrationDate: { type: Date, default: Date.now }
 });
 

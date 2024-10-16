@@ -777,54 +777,6 @@ router.get('/status/:childId', branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-// router.get("/geofences", branchAuthMiddleware, async (req, res) => {
-//   const { branchId } = req;
-
-//   try {
-//     // Fetch the branch associated with the branchId
-//     const branch = await Branch.findById(branchId).select('branchName');
-//     if (!branch) {
-//       return res.status(404).json({ message: "Branch not found" });
-//     }
-
-//     // Fetch the devices associated with the logged-in branch and include deviceName
-//     const devices = await Device.find({ branchId }).select('deviceId branchId deviceName');
-
-//     if (devices.length === 0) {
-//       return res.status(404).json({ message: "No devices found for this branch" });
-//     }
-
-//     // Extract deviceIds to search geofences
-//     const deviceIds = devices.map(device => device.deviceId);
-
-//     // Fetch geofences that are associated with these deviceIds
-//     const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });
-
-//     if (geofences.length === 0) {
-//       return res.status(404).json({ message: "No geofences found for the devices of this branch" });
-//     }
-
-//     // Group geofences by their deviceId and include deviceName
-//     const geofencesByDevice = devices.map(device => {
-//       return {
-//         deviceId: device.deviceId,
-//         deviceName: device.deviceName, // Include deviceName in the response
-//         geofences: geofences.filter(geofence => geofence.deviceId.toString() === device.deviceId.toString())
-//       };
-//     });
-
-//     // Respond with geofences for each device
-//     res.status(200).json({
-//       branchId: branchId,
-//       branchName: branch.branchName,
-//       devices: geofencesByDevice
-//     });
-
-//   } catch (error) {
-//     console.error('Error fetching geofences:', error);
-//     res.status(500).json({ message: "Error retrieving geofences", error });
-//   }
-// });
 router.get("/geofences", branchAuthMiddleware, async (req, res) => {
   const { branchId } = req;
 
@@ -1185,72 +1137,6 @@ router.put("/update-parent/:id", branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// router.put('/update-supervisor/:id', branchAuthMiddleware, async (req, res) => {
-//   const { id: supervisorId } = req.params;
-//   const { schoolName, branchName, deviceId, ...updateFields } = req.body;
-
-//   try {
-//     // Find the supervisor by ID
-//     const supervisor = await Supervisor.findById(supervisorId);
-//     if (!supervisor) {
-//       return res.status(404).json({ error: 'Supervisor not found' });
-//     }
-
-//     // Update school and branch if provided
-//     if (schoolName && branchName) {
-//       // Find the school by name
-//       const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
-//       if (!school) {
-//         return res.status(400).json({ error: 'School not found' });
-//       }
-
-//       // Find the branch by name within the found school
-//       const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
-//       if (!branch) {
-//         return res.status(400).json({ error: 'Branch not found in the specified school' });
-//       }
-
-//       // Update the supervisor's school and branch references
-//       supervisor.schoolId = school._id;
-//       supervisor.branchId = branch._id;
-//     }
-
-//     // Update deviceId if provided
-//     if (deviceId) {
-//       supervisor.deviceId = deviceId;
-//     }
-
-//     // Update other fields
-//     Object.keys(updateFields).forEach((field) => {
-//       supervisor[field] = updateFields[field];
-//     });
-
-//     // Save the updated supervisor
-//     await supervisor.save();
-
-//     // Fetch updated supervisor data with decrypted password
-//     const updatedSupervisor = await Supervisor.findById(supervisorId).lean();
-//     let decryptedPassword = '';
-//     try {
-//       console.log(`Decrypting password for supervisor: ${updatedSupervisor.supervisorName}, encryptedPassword: ${updatedSupervisor.password}`);
-//       decryptedPassword = decrypt(updatedSupervisor.password);
-//     } catch (decryptError) {
-//       console.error(`Error decrypting password for supervisor: ${updatedSupervisor.supervisorName}`, decryptError);
-//     }
-
-//     const transformedSupervisor = {
-//       ...updatedSupervisor,
-//       password: decryptedPassword,
-//       registrationDate: formatDateToDDMMYYYY(new Date(updatedSupervisor.registrationDate))
-//     };
-
-//     console.log('Updated supervisor data:', JSON.stringify(transformedSupervisor, null, 2));
-//     res.status(200).json({ message: 'Supervisor information updated successfully', supervisor: transformedSupervisor });
-//   } catch (error) {
-//     console.error('Error updating supervisor:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 router.put('/update-supervisor/:id', branchAuthMiddleware, async (req, res) => {
   const { id: supervisorId } = req.params;
   const { schoolName, branchName, deviceId, ...updateFields } = req.body;
@@ -1317,57 +1203,6 @@ router.put('/update-supervisor/:id', branchAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.put("/update-driver/:id", branchAuthMiddleware, async (req, res) => {
-//   try {
-//     const { id: driverId } = req.params;
-//     const branchId = req.branchId;
-//     const { deviceId, ...updateFields } = req.body;
-//     const driver = await DriverCollection.findOne({ _id: driverId, branchId });
-//     if (!driver) {
-//       return res.status(404).json({ error: "Driver not found" });
-//     }
-//     if (deviceId) {
-//       driver.deviceId = deviceId;
-//     }
-//     Object.keys(updateFields).forEach((field) => {
-//       driver[field] = updateFields[field];
-//     });
-//     await driver.save();
-//     const updatedDriver = await DriverCollection.findById(driverId).lean();
-//     let decryptedPassword = "";
-//     try {
-//       console.log(
-//         `Decrypting password for driver: ${updatedDriver.driverName}, encryptedPassword: ${updatedDriver.password}`
-//       );
-//       decryptedPassword = decrypt(updatedDriver.password);
-//     } catch (decryptError) {
-//       console.error(
-//         `Error decrypting password for driver: ${updatedDriver.driverName}`,
-//         decryptError
-//       );
-//     }
-//     const transformedDriver = {
-//       ...updatedDriver,
-//       password: decryptedPassword,
-//       registrationDate: formatDateToDDMMYYYY(
-//         new Date(updatedDriver.registrationDate)
-//       ),
-//     };
-//     console.log(
-//       "Updated driver data:",
-//       JSON.stringify(transformedDriver, null, 2)
-//     );
-//     res
-//       .status(200)
-//       .json({
-//         message: "Driver information updated successfully",
-//         driver: transformedDriver,
-//       });
-//   } catch (error) {
-//     console.error("Error updating driver:", error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
 router.put('/update-driver/:id', branchAuthMiddleware, async (req, res) => {
   try {
     const { id: driverId } = req.params;

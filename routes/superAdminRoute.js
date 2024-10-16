@@ -15,6 +15,9 @@ const DriverCollection = require('../models/driver');
 const jwt = require("jsonwebtoken");
 const Geofencing = require("../models/geofence");
 const Device = require('../models/device');
+const { sendNotificationToParent } = require('../utils/notificationsUtils'); 
+
+
 const convertDate = (dateStr) => {
   const dateParts = dateStr.split('-');
   const jsDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);
@@ -1348,6 +1351,69 @@ router.get('/geofences', async (req, res) => {
 
 
 // POST METHOD
+// router.post("/review-request/:requestId", superadminMiddleware, async (req, res) => {
+//   try {
+//     const { statusOfRequest } = req.body;
+//     const { requestId } = req.params;
+
+//     if (!["approved", "denied"].includes(statusOfRequest)) {
+//       return res.status(400).json({ error: "Invalid statusOfRequest" });
+//     }
+
+//     const request = await Request.findById(requestId);
+//     if (!request) {
+//       return res.status(404).json({ error: "Request not found" });
+//     }
+
+//     // Check if the request exists
+//     if (!request) {
+//       return res.status(404).json({ error: "Request not found" });
+//     }
+    
+//     request.statusOfRequest = statusOfRequest;
+
+//     if (
+//       statusOfRequest === "approved" &&
+//       request.requestType === "changeRoute"
+//     ) {
+//       const child = await Child.findById(request.childId);
+//       if (!child) {
+//         return res.status(404).json({ error: "Child not found" });
+//       }
+//       child.deviceId = request.newRoute;
+//       await child.save();
+//     }
+//     await request.save();
+
+//     const today = new Date();
+//     const formattedDate = formatDateToDDMMYYYY(today);
+//     const formattedRequestDate = formatDateToDDMMYYYY(
+//       new Date(request.requestDate)
+//     );
+
+//     // Assuming notifyParent is a function to send notifications
+//     const notifyParent = (parentId, message) => {
+//       // Your notification logic here
+//       console.log(`Notification to parentId ${parentId}: ${message}`);
+//     };
+
+//     notifyParent(
+//       request.parentId,
+//       `Your request has been ${statusOfRequest}.`
+//     );
+
+//     res.status(200).json({
+//       message: `Request reviewed successfully on ${formattedDate}`,
+//       request: {
+//         ...request.toObject(),
+//         formattedRequestDate,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error reviewing request:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 router.post("/review-request/:requestId", superadminMiddleware, async (req, res) => {
   try {
     const { statusOfRequest } = req.body;
@@ -1362,11 +1428,6 @@ router.post("/review-request/:requestId", superadminMiddleware, async (req, res)
       return res.status(404).json({ error: "Request not found" });
     }
 
-    // Check if the request exists
-    if (!request) {
-      return res.status(404).json({ error: "Request not found" });
-    }
-    
     request.statusOfRequest = statusOfRequest;
 
     if (
@@ -1380,31 +1441,21 @@ router.post("/review-request/:requestId", superadminMiddleware, async (req, res)
       child.deviceId = request.newRoute;
       await child.save();
     }
+
     await request.save();
 
-    const today = new Date();
-    const formattedDate = formatDateToDDMMYYYY(today);
-    const formattedRequestDate = formatDateToDDMMYYYY(
-      new Date(request.requestDate)
-    );
+    // Fetch parent info and send notification
+    const parent = await Parent.findById(request.parentId);
+    if (parent && parent.fcmToken) {
+      const notificationMessage = `Your request has been ${statusOfRequest}.`;
 
-    // Assuming notifyParent is a function to send notifications
-    const notifyParent = (parentId, message) => {
-      // Your notification logic here
-      console.log(`Notification to parentId ${parentId}: ${message}`);
-    };
-
-    notifyParent(
-      request.parentId,
-      `Your request has been ${statusOfRequest}.`
-    );
+      // Use the same notification logic from markPickup to send notification
+      await sendNotificationToParent(parent.fcmToken, "Request Status", notificationMessage);
+    }
 
     res.status(200).json({
-      message: `Request reviewed successfully on ${formattedDate}`,
-      request: {
-        ...request.toObject(),
-        formattedRequestDate,
-      },
+      message: `Request reviewed successfully.`,
+      request: request.toObject(),
     });
   } catch (error) {
     console.error("Error reviewing request:", error);
@@ -1734,53 +1785,6 @@ router.put('/update-parent/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.put('/update-driver/:id', superadminMiddleware, async (req, res) => {
-//   try {
-//     const { id: driverId } = req.params;
-//     const { deviceId, ...updateFields } = req.body;
-
-//     // Find the driver by ID
-//     const driver = await DriverCollection.findById(driverId);
-//     if (!driver) {
-//       return res.status(404).json({ error: 'Driver not found' });
-//     }
-
-//     // Update deviceId if provided
-//     if (deviceId) {
-//       driver.deviceId = deviceId;
-//     }
-
-//     // Update other fields
-//     Object.keys(updateFields).forEach((field) => {
-//       driver[field] = updateFields[field];
-//     });
-
-//     // Save the updated driver
-//     await driver.save();
-
-//     // Fetch updated driver data with decrypted password
-//     const updatedDriver = await DriverCollection.findById(driverId).lean();
-//     let decryptedPassword = '';
-//     try {
-//       console.log(`Decrypting password for driver: ${updatedDriver.driverName}, encryptedPassword: ${updatedDriver.password}`);
-//       decryptedPassword = decrypt(updatedDriver.password);
-//     } catch (decryptError) {
-//       console.error(`Error decrypting password for driver: ${updatedDriver.driverName}`, decryptError);
-//     }
-
-//     const transformedDriver = {
-//       ...updatedDriver,
-//       password: decryptedPassword,
-//       registrationDate: formatDateToDDMMYYYY(new Date(updatedDriver.registrationDate))
-//     };
-
-//     console.log('Updated driver data:', JSON.stringify(transformedDriver, null, 2));
-//     res.status(200).json({ message: 'Driver information updated successfully', driver: transformedDriver });
-//   } catch (error) {
-//     console.error('Error updating driver:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;

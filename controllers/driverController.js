@@ -131,37 +131,6 @@ exports.registerDriver = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-// exports.loginDriver = async (req, res) => {
-//   const { email, password } = req.body;
-  
-//   try {
-//     const driver = await DriverCollection.findOne({ email });
-//     if (!driver) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-//     // Check if the password matches
-//     const isMatch = await driver.comparePassword(password); 
-//     if (!isMatch) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-//     // Generate a JWT token with driverId, email, and schoolId
-//     const token = generateToken({ 
-//       id: driver._id, 
-//       email: driver.email, 
-//       schoolId: driver.schoolId, 
-//       branchId: driver.branchId   
-//     });
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Login successful",
-//       token
-//     });
-//   } catch (err) {
-//     console.error("Error during login:", err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
 exports.loginDriver =  async (req, res) => {
   const { email, password } = req.body;
 
