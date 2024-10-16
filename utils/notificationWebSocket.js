@@ -1,5 +1,5 @@
 const Branch = require('../models/branch');
-const Notification = require('../models/Notification');
+const Notification = require('../models/notification');
 const { getIO } = require('../socket/socket'); // Import getIO to access io instance
 
 

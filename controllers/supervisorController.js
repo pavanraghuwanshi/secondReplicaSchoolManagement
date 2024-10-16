@@ -485,3 +485,94 @@ exports.getAttendanceRecord = async (req, res) => {
   }
 };
 
+exports.importSupervisor = async (req, res) => {
+  try {
+    const data = req.body;
+    const errors = [];
+    const successfulSupervisors = [];
+
+    for (const element of data) {
+      const {
+        supervisorName,
+        email,
+        password,
+        phone_no,
+        address,
+        deviceName,
+        deviceId,
+        schoolName,
+        branchName,
+      } = element;
+
+      if (!schoolName || !branchName) {
+        errors.push(`School name and branch name are required for ${email}`);
+        continue; // Skip to the next iteration
+      }
+
+      const existingSupervisor = await Supervisor.findOne({ email });
+      if (existingSupervisor) {
+        errors.push(`Supervisor email already exists for ${email}`);
+        continue; 
+      }
+
+      const school = await School.findOne({
+        schoolName: new RegExp(`^${schoolName.trim()}$`, "i"),
+      }).populate("branches");
+      if (!school) {
+        errors.push(`School not found for ${email}`);
+        continue;
+      }
+
+      const branch = school.branches.find(
+        (branch) =>
+          branch.branchName.toLowerCase() === branchName.trim().toLowerCase()
+      );
+      if (!branch) {
+        errors.push(`Branch not found in the specified school for ${email}`);
+        continue;
+      }
+
+      const newSupervisor = new Supervisor({
+        supervisorName,
+        email,
+        password, 
+        phone_no,
+        address,
+        deviceName,
+        deviceId,
+        schoolId: school._id,
+        branchId: branch._id,
+        statusOfRegister: "pending",
+      });
+
+      try {
+        const response = await newSupervisor.save();
+        const payload = {
+          id: response._id,
+          email: response.email,
+          schoolId: school._id,
+          branchId: branch._id,
+        };
+        const token = generateToken(payload);
+        
+        // Collect successful registrations
+        successfulSupervisors.push({
+          supervisor: { ...response.toObject(), password: undefined }, // Exclude password
+          token,
+        });
+      } catch (err) {
+        errors.push(`Failed to save supervisor ${email}: ${err.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ errors, successfulSupervisors });
+    }
+
+    return res.status(201).json({ successfulSupervisors });
+
+  } catch (error) {
+    console.error("Error during supervisor registration:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
