@@ -163,6 +163,69 @@ router.post('/add-branch', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.post('/migrate-schools', superadminMiddleware, async (req, res) => {
+  try {
+    // Find all schools
+    const schools = await School.find({});
+
+    for (const school of schools) {
+      // Check if the main branch exists
+      const mainBranch = await Branch.findOne({ 
+        schoolId: school._id, 
+        branchName: /main-branch/i 
+      });
+
+      if (mainBranch) {
+        // Check if the main branch is already at the first position
+        if (school.branches[0].toString() !== mainBranch._id.toString()) {
+          // If not, move the main branch to the first position
+          await School.findByIdAndUpdate(school._id, {
+            $pull: { branches: mainBranch._id }, // Remove from current position
+          });
+
+          await School.findByIdAndUpdate(school._id, {
+            $push: {
+              branches: {
+                $each: [mainBranch._id],
+                $position: 0 // Add to the first position
+              }
+            }
+          });
+        }
+      } else {
+        // If the main branch doesn't exist, create it
+        const newBranch = new Branch({
+          branchName: school.schoolName + ' main-branch',
+          schoolId: school._id,
+          schoolMobile: '',
+          username: '',
+          password: '',
+          email: ''
+        });
+
+        const savedBranch = await newBranch.save();
+
+        // Add the new main branch to the first position
+        await School.findByIdAndUpdate(school._id, {
+          $push: {
+            branches: {
+              $each: [{ _id: savedBranch._id, branchName: savedBranch.branchName }],
+              $position: 0
+            }
+          }
+        });
+
+        school.branchName = savedBranch.branchName;
+        await school.save();
+      }
+    }
+
+    res.status(200).json({ message: 'Migration completed successfully' });
+  } catch (error) {
+    console.error('Error during migration:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
     const schools = await School.find({})
@@ -186,34 +249,36 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
       }
       
       const transformedBranches = school.branches.map(branch => {
-        if (!branch.username || !branch.password) {
-          return {
-            _id: branch._id,
-            branchName: branch.branchName,
-            devices: branch.devices // Include devices
-          };
-        } else {
-          let decryptedBranchPassword;
-          try {
-            decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
-          } catch (decryptError) {
-            console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
-            decryptedBranchPassword = 'Error decrypting password'; 
-          }
-
-          return {
-            ...branch,
-            password: decryptedBranchPassword,
-            devices: branch.devices // Include devices
-          };
+        let decryptedBranchPassword;
+        try {
+          decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
+        } catch (decryptError) {
+          console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
+          decryptedBranchPassword = 'Error decrypting password'; 
         }
+
+        // Check if the branch is the main branch and add school fields
+        const isMainBranch = branch.branchName.toLowerCase().includes("main-branch");
+        return {
+          ...branch,
+          password: isMainBranch ? decryptedSchoolPassword : decryptedBranchPassword,
+          username: isMainBranch ? school.username : branch.username,
+          email: isMainBranch ? school.email : branch.email, // Set email to school email for main branch
+          schoolMobile: isMainBranch ? school.schoolMobile : branch.schoolMobile,
+          devices: branch.devices // Include devices
+        };
       });
-      
-      const branchName = transformedBranches.find(branch => !branch.username || !branch.password)?.branchName || null;
+
+      // Get the main branch name for the outer field
+      const mainBranchName = transformedBranches.find(branch => 
+        branch.branchName.toLowerCase().includes("main-branch")
+      )?.branchName || null;
+
+      // Return the transformed school object
       return {
         ...school,
         password: decryptedSchoolPassword,
-        branchName: branchName,
+        branchName: mainBranchName, // Include the main branch name
         branches: transformedBranches
       };
     }));
@@ -224,6 +289,67 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.get('/getschools', superadminMiddleware, async (req, res) => {
+//   try {
+//     const schools = await School.find({})
+//       .populate({
+//         path: 'branches',
+//         select: 'branchName _id username password email',
+//         populate: {
+//           path: 'devices',
+//           select: 'deviceId deviceName'
+//         }
+//       })
+//       .lean();
+
+//     const transformedSchools = await Promise.all(schools.map(async (school) => {
+//       let decryptedSchoolPassword;
+//       try {
+//         decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password';
+//       } catch (decryptError) {
+//         console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
+//         decryptedSchoolPassword = 'Error decrypting password';
+//       }
+      
+//       const transformedBranches = school.branches.map(branch => {
+//         if (!branch.username || !branch.password) {
+//           return {
+//             _id: branch._id,
+//             branchName: branch.branchName,
+//             devices: branch.devices // Include devices
+//           };
+//         } else {
+//           let decryptedBranchPassword;
+//           try {
+//             decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
+//           } catch (decryptError) {
+//             console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
+//             decryptedBranchPassword = 'Error decrypting password'; 
+//           }
+
+//           return {
+//             ...branch,
+//             password: decryptedBranchPassword,
+//             devices: branch.devices // Include devices
+//           };
+//         }
+//       });
+      
+//       const branchName = transformedBranches.find(branch => !branch.username || !branch.password)?.branchName || null;
+//       return {
+//         ...school,
+//         password: decryptedSchoolPassword,
+//         branchName: branchName,
+//         branches: transformedBranches
+//       };
+//     }));
+    
+//     res.status(200).json({ schools: transformedSchools });
+//   } catch (error) {
+//     console.error('Error fetching school list:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.get('/read-devices', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
