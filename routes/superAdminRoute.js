@@ -168,10 +168,6 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
   }
 });
 
-
-
-
-
 router.post('/add-branch', superadminMiddleware, async (req, res) => {
   try {
     const { schoolId, branchName, email, schoolMobile, username, password } = req.body;
@@ -279,7 +275,7 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     const schools = await School.find({})
       .populate({
         path: 'branches',
-        select: 'branchName _id username password email',
+        select: 'branchName _id username password email fullAccess',
         populate: {
           path: 'devices',
           select: 'deviceId deviceName'
@@ -309,11 +305,14 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
         const isMainBranch = branch.branchName.toLowerCase().includes("main-branch");
         return {
           ...branch,
+        
           password: isMainBranch ? decryptedSchoolPassword : decryptedBranchPassword,
           username: isMainBranch ? school.username : branch.username,
           email: isMainBranch ? school.email : branch.email, // Set email to school email for main branch
           schoolMobile: isMainBranch ? school.schoolMobile : branch.schoolMobile,
-          devices: branch.devices // Include devices
+          devices: branch.devices ,// Include devices
+          fullAccess: branch.fullAccess ?? false, 
+  
         };
       });
 
