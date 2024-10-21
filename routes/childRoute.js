@@ -269,18 +269,19 @@ router.post('/login', async (req, res) => {
       branchId: parent.branchId
     });
 
-    // Send success response with token and the school's role
+    // Send success response with token and the fullAccess status
     res.status(200).json({
       success: true,
       message: "Login successful",
       token: token,
-      schoolRole: school.role // Return the school's role (liveTracking or allAccess)
+      fullAccess: school.fullAccess // Return the fullAccess status
     });
   } catch (err) {
     console.error('Error during login:', err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 router.get('/getschools', async (req, res) => {

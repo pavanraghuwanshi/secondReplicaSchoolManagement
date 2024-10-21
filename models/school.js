@@ -24,10 +24,9 @@ const schoolSchema = new mongoose.Schema({
   schoolMobile:{
     type: String
   },
-  role: {
-    type: String,
-    enum: ['liveTracking', 'allAccess'], 
-    required: true
+  fullAccess: {
+    type:Boolean,
+    default:false
   },
   branches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }]
 });
