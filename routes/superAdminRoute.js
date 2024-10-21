@@ -76,57 +76,9 @@ router.post('/login',async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-// router.post('/school-register', superadminMiddleware, async (req, res) => {
-//   try {
-//     const { schoolName, username, password, email, schoolMobile, branchName } = req.body;
-
-//     // Check for existing school by username or email
-//     const existingSchool = await School.findOne({ $or: [{ username }, { email }] });
-//     if (existingSchool) {
-//       return res.status(400).json({ error: 'Username or email already exists' });
-//     }
-
-//     // Create and save the new School
-//     const newSchool = new School({
-//       schoolName,
-//       username,
-//       password,
-//       email,
-//       schoolMobile
-//     });
-
-//     const savedSchool = await newSchool.save();
-
-//     // Create the initial Branch
-//     const newBranch = new Branch({
-//       branchName: branchName + "  main-branch",
-//       schoolId: savedSchool._id, 
-//       schoolMobile: '', 
-//       username: '', 
-//       password: '', 
-//       email: '' 
-//     });
-
-//     // Save the branch
-//     const savedBranch = await newBranch.save();
-
-//     // Update the School with the branch reference
-//     savedSchool.branches.push(savedBranch._id);
-//     await savedSchool.save();
-
-//     // Generate a token for the school
-//     const payload = { id: savedSchool._id, username: savedSchool.username };
-//     const token = generateToken(payload);
-
-//     res.status(201).json({ response: { ...savedSchool.toObject(), password: undefined }, token, role: "schooladmin" });
-//   } catch (error) {
-//     console.error('Error during registration:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 router.post('/school-register', superadminMiddleware, async (req, res) => {
   try {
-    const { schoolName, username, password, email, schoolMobile, branchName, fullAccess } = req.body;
+    const { schoolName, username, password, email, schoolMobile, branchName } = req.body;
 
     // Check for existing school by username or email
     const existingSchool = await School.findOne({ $or: [{ username }, { email }] });
@@ -140,33 +92,39 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
       username,
       password,
       email,
-      schoolMobile,
-      fullAccess: fullAccess || false
+      schoolMobile
     });
 
     const savedSchool = await newSchool.save();
 
     // Create the initial Branch
     const newBranch = new Branch({
-      branchName: branchName + " main-branch",
-      schoolId: savedSchool._id,
-      schoolMobile: '',
-      username: '',
-      password: '',
-      email: ''
+      branchName: branchName + "  main-branch",
+      schoolId: savedSchool._id, 
+      schoolMobile: '', 
+      username: '', 
+      password: '', 
+      email: '' 
     });
 
+    // Save the branch
     const savedBranch = await newBranch.save();
 
     // Update the School with the branch reference
     savedSchool.branches.push(savedBranch._id);
     await savedSchool.save();
 
-    res.status(201).json({ response: { ...savedSchool.toObject(), password: undefined }, role: "schooladmin" });
+    // Generate a token for the school
+    const payload = { id: savedSchool._id, username: savedSchool.username };
+    const token = generateToken(payload);
+
+    res.status(201).json({ response: { ...savedSchool.toObject(), password: undefined }, token, role: "schooladmin" });
   } catch (error) {
+    console.error('Error during registration:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 router.post('/add-branch', superadminMiddleware, async (req, res) => {
   try {
@@ -275,7 +233,7 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     const schools = await School.find({})
       .populate({
         path: 'branches',
-        select: 'branchName _id username password email fullAccess',
+        select: 'branchName _id username password email',
         populate: {
           path: 'devices',
           select: 'deviceId deviceName'
@@ -293,39 +251,34 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
       }
       
       const transformedBranches = school.branches.map(branch => {
-        let decryptedBranchPassword;
-        try {
-          decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
-        } catch (decryptError) {
-          console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
-          decryptedBranchPassword = 'Error decrypting password'; 
+        if (!branch.username || !branch.password) {
+          return {
+            _id: branch._id,
+            branchName: branch.branchName,
+            devices: branch.devices // Include devices
+          };
+        } else {
+          let decryptedBranchPassword;
+          try {
+            decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
+          } catch (decryptError) {
+            console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
+            decryptedBranchPassword = 'Error decrypting password'; 
+          }
+
+          return {
+            ...branch,
+            password: decryptedBranchPassword,
+            devices: branch.devices // Include devices
+          };
         }
-
-        // Check if the branch is the main branch and add school fields
-        const isMainBranch = branch.branchName.toLowerCase().includes("main-branch");
-        return {
-          ...branch,
-        
-          password: isMainBranch ? decryptedSchoolPassword : decryptedBranchPassword,
-          username: isMainBranch ? school.username : branch.username,
-          email: isMainBranch ? school.email : branch.email, // Set email to school email for main branch
-          schoolMobile: isMainBranch ? school.schoolMobile : branch.schoolMobile,
-          devices: branch.devices ,// Include devices
-          fullAccess: branch.fullAccess ?? false, 
-  
-        };
       });
-
-      // Get the main branch name for the outer field
-      const mainBranchName = transformedBranches.find(branch => 
-        branch.branchName.toLowerCase().includes("main-branch")
-      )?.branchName || null;
-
-      // Return the transformed school object
+      
+      const branchName = transformedBranches.find(branch => !branch.username || !branch.password)?.branchName || null;
       return {
         ...school,
         password: decryptedSchoolPassword,
-        branchName: mainBranchName, // Include the main branch name
+        branchName: branchName,
         branches: transformedBranches
       };
     }));
@@ -336,67 +289,6 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.get('/getschools', superadminMiddleware, async (req, res) => {
-//   try {
-//     const schools = await School.find({})
-//       .populate({
-//         path: 'branches',
-//         select: 'branchName _id username password email',
-//         populate: {
-//           path: 'devices',
-//           select: 'deviceId deviceName'
-//         }
-//       })
-//       .lean();
-
-//     const transformedSchools = await Promise.all(schools.map(async (school) => {
-//       let decryptedSchoolPassword;
-//       try {
-//         decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password';
-//       } catch (decryptError) {
-//         console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
-//         decryptedSchoolPassword = 'Error decrypting password';
-//       }
-      
-//       const transformedBranches = school.branches.map(branch => {
-//         if (!branch.username || !branch.password) {
-//           return {
-//             _id: branch._id,
-//             branchName: branch.branchName,
-//             devices: branch.devices // Include devices
-//           };
-//         } else {
-//           let decryptedBranchPassword;
-//           try {
-//             decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
-//           } catch (decryptError) {
-//             console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
-//             decryptedBranchPassword = 'Error decrypting password'; 
-//           }
-
-//           return {
-//             ...branch,
-//             password: decryptedBranchPassword,
-//             devices: branch.devices // Include devices
-//           };
-//         }
-//       });
-      
-//       const branchName = transformedBranches.find(branch => !branch.username || !branch.password)?.branchName || null;
-//       return {
-//         ...school,
-//         password: decryptedSchoolPassword,
-//         branchName: branchName,
-//         branches: transformedBranches
-//       };
-//     }));
-    
-//     res.status(200).json({ schools: transformedSchools });
-//   } catch (error) {
-//     console.error('Error fetching school list:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 router.get('/read-devices', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -1959,63 +1851,14 @@ router.put('/update-parent/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { schoolName, username, password, email, schoolMobile } = req.body;
-
-//     // Check if a school with the new username or email already exists (but not the current school)
-//     const existingSchool = await School.findOne({
-//       _id: { $ne: id }, 
-//       $or: [{ username }, { email }]
-//     });
-
-//     if (existingSchool) {
-//       return res.status(400).json({ error: 'Username or email already exists' });
-//     }
-
-//     // Find the school by ID
-//     const school = await School.findById(id);
-//     if (!school) {
-//       return res.status(404).json({ error: 'School not found' });
-//     }
-
-//     // Update the fields
-//     school.schoolName = schoolName || school.schoolName;
-//     school.username = username || school.username;
-//     school.email = email || school.email;
-//     school.schoolMobile = schoolMobile || school.schoolMobile;
-
-//     // Only update the password if it's provided
-//     if (password) {
-//       school.password = password; // The pre-save hook will encrypt this automatically
-//     }
-
-//     // Save the updated school object (this will trigger the pre('save') middleware)
-//     const updatedSchool = await school.save();
-
-//     // Generate a new token if the username has changed (optional, based on your app logic)
-//     const payload = { id: updatedSchool._id, username: updatedSchool.username };
-//     const token = generateToken(payload);
-
-//     // Exclude the password from the response
-//     const schoolResponse = updatedSchool.toObject();
-//     delete schoolResponse.password;
-
-//     res.status(200).json({ response: schoolResponse, token, role: "schooladmin" });
-//   } catch (error) {
-//     console.error('Error during school update:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { schoolName, username, password, email, schoolMobile, fullAccess } = req.body;
+    const { schoolName, username, password, email, schoolMobile } = req.body;
 
     // Check if a school with the new username or email already exists (but not the current school)
     const existingSchool = await School.findOne({
-      _id: { $ne: id },
+      _id: { $ne: id }, 
       $or: [{ username }, { email }]
     });
 
@@ -2035,18 +1878,25 @@ router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
     school.email = email || school.email;
     school.schoolMobile = schoolMobile || school.schoolMobile;
 
-    if (typeof fullAccess !== 'undefined') {
-      school.fullAccess = fullAccess;
-    }
-
+    // Only update the password if it's provided
     if (password) {
-      school.password = password;
+      school.password = password; // The pre-save hook will encrypt this automatically
     }
 
+    // Save the updated school object (this will trigger the pre('save') middleware)
     const updatedSchool = await school.save();
 
-    res.status(200).json({ response: updatedSchool });
+    // Generate a new token if the username has changed (optional, based on your app logic)
+    const payload = { id: updatedSchool._id, username: updatedSchool.username };
+    const token = generateToken(payload);
+
+    // Exclude the password from the response
+    const schoolResponse = updatedSchool.toObject();
+    delete schoolResponse.password;
+
+    res.status(200).json({ response: schoolResponse, token, role: "schooladmin" });
   } catch (error) {
+    console.error('Error during school update:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -2246,6 +2096,37 @@ router.put('/update-driver/:id', superadminMiddleware, async (req, res) => {
     res.status(200).json({ message: 'Driver information updated successfully', driver: transformedDriver });
   } catch (error) {
     console.error('Error updating driver:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.put('/updateAccess/:id', superadminMiddleware, async (req, res) => {
+  const { id } = req.params; // Using id instead of schoolId
+  const { fullAccess } = req.body;
+
+  try {
+    // Validate that the fullAccess field is provided and is a boolean
+    if (typeof fullAccess !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid value for fullAccess. It must be a boolean.' });
+    }
+
+    // Find the school by ID and update only the fullAccess field
+    const updatedSchool = await School.findByIdAndUpdate(
+      id,
+      { fullAccess },
+      { new: true, fields: { fullAccess: 1, schoolName: 1, _id: 1 } } // Return only necessary fields
+    );
+
+    if (!updatedSchool) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    // Send the updated school info with the new fullAccess value
+    res.status(200).json({
+      message: 'fullAccess updated successfully',
+      school: updatedSchool
+    });
+  } catch (error) {
+    console.error('Error updating fullAccess:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
