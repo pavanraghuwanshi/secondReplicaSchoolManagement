@@ -42,7 +42,6 @@ const supervisorSchema = new mongoose.Schema({
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   statusOfRegister: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
 });
-
 supervisorSchema.pre('save', async function(next) {
   if (this.isModified('password')) {
     this.password = encrypt(this.password);
@@ -53,7 +52,5 @@ supervisorSchema.methods.comparePassword = function(candidatePassword) {
   const decryptedPassword = decrypt(this.password);
   return candidatePassword === decryptedPassword;
 };
-
-
 const Supervisor = mongoose.model("Supervisor", supervisorSchema);
 module.exports = Supervisor;

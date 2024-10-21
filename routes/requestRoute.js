@@ -19,7 +19,6 @@ function generateAbsences(startDate, endDate) {
   }
   return absences;
 }
-
 // Create a new request
 router.post('/create-request', async (req, res) => {
   try {
@@ -87,7 +86,4 @@ router.post('/create-request', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
 module.exports = router;

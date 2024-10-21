@@ -76,14 +76,67 @@ router.post('/login',async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+// router.post('/school-register', superadminMiddleware, async (req, res) => {
+//   try {
+//     const { schoolName, username, password, email, schoolMobile, branchName } = req.body;
+
+//     // Check for existing school by username or email
+//     const existingSchool = await School.findOne({ $or: [{ username }, { email }] });
+//     if (existingSchool) {
+//       return res.status(400).json({ error: 'Username or email already exists' });
+//     }
+
+//     // Create and save the new School
+//     const newSchool = new School({
+//       schoolName,
+//       username,
+//       password,
+//       email,
+//       schoolMobile
+//     });
+
+//     const savedSchool = await newSchool.save();
+
+//     // Create the initial Branch
+//     const newBranch = new Branch({
+//       branchName: branchName + "  main-branch",
+//       schoolId: savedSchool._id, 
+//       schoolMobile: '', 
+//       username: '', 
+//       password: '', 
+//       email: '' 
+//     });
+
+//     // Save the branch
+//     const savedBranch = await newBranch.save();
+
+//     // Update the School with the branch reference
+//     savedSchool.branches.push(savedBranch._id);
+//     await savedSchool.save();
+
+//     // Generate a token for the school
+//     const payload = { id: savedSchool._id, username: savedSchool.username };
+//     const token = generateToken(payload);
+
+//     res.status(201).json({ response: { ...savedSchool.toObject(), password: undefined }, token, role: "schooladmin" });
+//   } catch (error) {
+//     console.error('Error during registration:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.post('/school-register', superadminMiddleware, async (req, res) => {
   try {
-    const { schoolName, username, password, email, schoolMobile, branchName } = req.body;
+    const { schoolName, username, password, email, schoolMobile, branchName, role } = req.body;
 
     // Check for existing school by username or email
     const existingSchool = await School.findOne({ $or: [{ username }, { email }] });
     if (existingSchool) {
       return res.status(400).json({ error: 'Username or email already exists' });
+    }
+
+    // Validate the role
+    if (!['liveTracking', 'allAccess'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role provided' });
     }
 
     // Create and save the new School
@@ -92,22 +145,22 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
       username,
       password,
       email,
-      schoolMobile
+      schoolMobile,
+      role // Add role to the school data
     });
 
     const savedSchool = await newSchool.save();
 
     // Create the initial Branch
     const newBranch = new Branch({
-      branchName: branchName + "  main-branch",
-      schoolId: savedSchool._id, 
-      schoolMobile: '', 
-      username: '', 
-      password: '', 
-      email: '' 
+      branchName: branchName + " main-branch",
+      schoolId: savedSchool._id,
+      schoolMobile: '',
+      username: '',
+      password: '',
+      email: ''
     });
 
-    // Save the branch
     const savedBranch = await newBranch.save();
 
     // Update the School with the branch reference
@@ -124,6 +177,9 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
 router.post('/add-branch', superadminMiddleware, async (req, res) => {
   try {
     const { schoolId, branchName, email, schoolMobile, username, password } = req.body;
@@ -1912,19 +1968,73 @@ router.put('/update-parent/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { schoolName, username, password, email, schoolMobile } = req.body;
+
+//     // Check if a school with the new username or email already exists (but not the current school)
+//     const existingSchool = await School.findOne({
+//       _id: { $ne: id }, 
+//       $or: [{ username }, { email }]
+//     });
+
+//     if (existingSchool) {
+//       return res.status(400).json({ error: 'Username or email already exists' });
+//     }
+
+//     // Find the school by ID
+//     const school = await School.findById(id);
+//     if (!school) {
+//       return res.status(404).json({ error: 'School not found' });
+//     }
+
+//     // Update the fields
+//     school.schoolName = schoolName || school.schoolName;
+//     school.username = username || school.username;
+//     school.email = email || school.email;
+//     school.schoolMobile = schoolMobile || school.schoolMobile;
+
+//     // Only update the password if it's provided
+//     if (password) {
+//       school.password = password; // The pre-save hook will encrypt this automatically
+//     }
+
+//     // Save the updated school object (this will trigger the pre('save') middleware)
+//     const updatedSchool = await school.save();
+
+//     // Generate a new token if the username has changed (optional, based on your app logic)
+//     const payload = { id: updatedSchool._id, username: updatedSchool.username };
+//     const token = generateToken(payload);
+
+//     // Exclude the password from the response
+//     const schoolResponse = updatedSchool.toObject();
+//     delete schoolResponse.password;
+
+//     res.status(200).json({ response: schoolResponse, token, role: "schooladmin" });
+//   } catch (error) {
+//     console.error('Error during school update:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { schoolName, username, password, email, schoolMobile } = req.body;
+    const { schoolName, username, password, email, schoolMobile, role } = req.body;
 
     // Check if a school with the new username or email already exists (but not the current school)
     const existingSchool = await School.findOne({
-      _id: { $ne: id }, 
+      _id: { $ne: id },
       $or: [{ username }, { email }]
     });
 
     if (existingSchool) {
       return res.status(400).json({ error: 'Username or email already exists' });
+    }
+
+    // Validate the role
+    if (role && !['liveTracking', 'allAccess'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role provided' });
     }
 
     // Find the school by ID
@@ -1939,19 +2049,23 @@ router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
     school.email = email || school.email;
     school.schoolMobile = schoolMobile || school.schoolMobile;
 
+    // Update the role if provided
+    if (role) {
+      school.role = role;
+    }
+
     // Only update the password if it's provided
     if (password) {
       school.password = password; // The pre-save hook will encrypt this automatically
     }
 
-    // Save the updated school object (this will trigger the pre('save') middleware)
+    // Save the updated school object
     const updatedSchool = await school.save();
 
-    // Generate a new token if the username has changed (optional, based on your app logic)
+    // Generate a new token if the username has changed (optional)
     const payload = { id: updatedSchool._id, username: updatedSchool.username };
     const token = generateToken(payload);
 
-    // Exclude the password from the response
     const schoolResponse = updatedSchool.toObject();
     delete schoolResponse.password;
 
@@ -1961,6 +2075,7 @@ router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 router.put('/edit-branch/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;

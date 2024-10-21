@@ -484,7 +484,6 @@ exports.getAttendanceRecord = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-
 exports.importSupervisor = async (req, res) => {
   try {
     const data = req.body;
