@@ -124,8 +124,6 @@ router.post('/school-register', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 router.post('/add-branch', superadminMiddleware, async (req, res) => {
   try {
     const { schoolId, branchName, email, schoolMobile, username, password } = req.body;
@@ -228,6 +226,69 @@ router.post('/migrate-schools', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.get('/getschools', superadminMiddleware, async (req, res) => {
+//   try {
+//     const schools = await School.find({})
+//       .populate({
+//         path: 'branches',
+//         select: 'branchName _id username password email',
+//         populate: {
+//           path: 'devices',
+//           select: 'deviceId deviceName'
+//         }
+//       })
+//       .lean();
+
+//     const transformedSchools = await Promise.all(schools.map(async (school) => {
+//       let decryptedSchoolPassword;
+//       try {
+//         decryptedSchoolPassword = school.password ? decrypt(school.password) : 'No password';
+//       } catch (decryptError) {
+//         console.error(`Error decrypting password for school ${school.schoolName}`, decryptError);
+//         decryptedSchoolPassword = 'Error decrypting password';
+//       }
+      
+//       const transformedBranches = school.branches.map(branch => {
+//         let decryptedBranchPassword;
+//         try {
+//           decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
+//         } catch (decryptError) {
+//           console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
+//           decryptedBranchPassword = 'Error decrypting password'; 
+//         }
+
+//         // Check if the branch is the main branch and add school fields
+//         const isMainBranch = branch.branchName.toLowerCase().includes("main-branch");
+//         return {
+//           ...branch,
+//           password: isMainBranch ? decryptedSchoolPassword : decryptedBranchPassword,
+//           username: isMainBranch ? school.username : branch.username,
+//           email: isMainBranch ? school.email : branch.email, // Set email to school email for main branch
+//           schoolMobile: isMainBranch ? school.schoolMobile : branch.schoolMobile,
+//           devices: branch.devices // Include devices
+//         };
+//       });
+
+//       // Get the main branch name for the outer field
+//       const mainBranchName = transformedBranches.find(branch => 
+//         branch.branchName.toLowerCase().includes("main-branch")
+//       )?.branchName || null;
+
+//       // Return the transformed school object
+//       return {
+//         ...school,
+//         password: decryptedSchoolPassword,
+//         branchName: mainBranchName, // Include the main branch name
+//         branches: transformedBranches
+//       };
+//     }));
+    
+//     res.status(200).json({ schools: transformedSchools });
+//   } catch (error) {
+//     console.error('Error fetching school list:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.get('/getschools', superadminMiddleware, async (req, res) => {
   try {
     const schools = await School.find({})
@@ -251,35 +312,41 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
       }
       
       const transformedBranches = school.branches.map(branch => {
-        if (!branch.username || !branch.password) {
-          return {
-            _id: branch._id,
-            branchName: branch.branchName,
-            devices: branch.devices // Include devices
-          };
-        } else {
-          let decryptedBranchPassword;
-          try {
-            decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
-          } catch (decryptError) {
-            console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
-            decryptedBranchPassword = 'Error decrypting password'; 
-          }
-
-          return {
-            ...branch,
-            password: decryptedBranchPassword,
-            devices: branch.devices // Include devices
-          };
+        let decryptedBranchPassword;
+        try {
+          decryptedBranchPassword = branch.password ? decrypt(branch.password) : 'No password'; 
+        } catch (decryptError) {
+          console.error(`Error decrypting password for branch ${branch.branchName}`, decryptError);
+          decryptedBranchPassword = 'Error decrypting password'; 
         }
+
+        // Check if the branch is the main branch and add school fields
+        const isMainBranch = branch.branchName.toLowerCase().includes("main-branch");
+        return {
+          ...branch,
+          password: isMainBranch ? decryptedSchoolPassword : decryptedBranchPassword,
+          username: isMainBranch ? school.username : branch.username,
+          email: isMainBranch ? school.email : branch.email, // Set email to school email for main branch
+          schoolMobile: isMainBranch ? school.schoolMobile : branch.schoolMobile,
+          devices: branch.devices // Include devices
+        };
       });
-      
-      const branchName = transformedBranches.find(branch => !branch.username || !branch.password)?.branchName || null;
+
+      // Get the main branch name for the outer field
+      const mainBranchName = transformedBranches.find(branch => 
+        branch.branchName.toLowerCase().includes("main-branch")
+      )?.branchName || null;
+
+      // Explicitly set fullAccess to false if it's missing
+      const fullAccessValue = school.fullAccess === undefined ? false : school.fullAccess;
+
+      // Return the transformed school object
       return {
         ...school,
         password: decryptedSchoolPassword,
-        branchName: branchName,
-        branches: transformedBranches
+        branchName: mainBranchName, // Include the main branch name
+        branches: transformedBranches,
+        fullAccess: fullAccessValue // Show default false if no action is performed
       };
     }));
     
@@ -289,6 +356,11 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
+
+
 router.get('/read-devices', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
