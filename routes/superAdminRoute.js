@@ -1488,69 +1488,6 @@ router.get('/geofences', async (req, res) => {
 
 
 // POST METHOD
-// router.post("/review-request/:requestId", superadminMiddleware, async (req, res) => {
-//   try {
-//     const { statusOfRequest } = req.body;
-//     const { requestId } = req.params;
-
-//     if (!["approved", "denied"].includes(statusOfRequest)) {
-//       return res.status(400).json({ error: "Invalid statusOfRequest" });
-//     }
-
-//     const request = await Request.findById(requestId);
-//     if (!request) {
-//       return res.status(404).json({ error: "Request not found" });
-//     }
-
-//     // Check if the request exists
-//     if (!request) {
-//       return res.status(404).json({ error: "Request not found" });
-//     }
-    
-//     request.statusOfRequest = statusOfRequest;
-
-//     if (
-//       statusOfRequest === "approved" &&
-//       request.requestType === "changeRoute"
-//     ) {
-//       const child = await Child.findById(request.childId);
-//       if (!child) {
-//         return res.status(404).json({ error: "Child not found" });
-//       }
-//       child.deviceId = request.newRoute;
-//       await child.save();
-//     }
-//     await request.save();
-
-//     const today = new Date();
-//     const formattedDate = formatDateToDDMMYYYY(today);
-//     const formattedRequestDate = formatDateToDDMMYYYY(
-//       new Date(request.requestDate)
-//     );
-
-//     // Assuming notifyParent is a function to send notifications
-//     const notifyParent = (parentId, message) => {
-//       // Your notification logic here
-//       console.log(`Notification to parentId ${parentId}: ${message}`);
-//     };
-
-//     notifyParent(
-//       request.parentId,
-//       `Your request has been ${statusOfRequest}.`
-//     );
-
-//     res.status(200).json({
-//       message: `Request reviewed successfully on ${formattedDate}`,
-//       request: {
-//         ...request.toObject(),
-//         formattedRequestDate,
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Error reviewing request:", error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
 router.post("/review-request/:requestId", superadminMiddleware, async (req, res) => {
   try {
     const { statusOfRequest } = req.body;
