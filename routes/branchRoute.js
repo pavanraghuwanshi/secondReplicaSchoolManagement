@@ -23,19 +23,65 @@ const convertDate = (dateStr) => {
 };
 
 // Login route for branches
+// router.post("/login", async (req, res) => {
+//   const { username, password } = req.body;
+//   try {
+//     const branch = await Branch.findOne({ username }).populate('schoolId');
+//     if (!branch) {
+//       return res.status(400).json({ error: "Invalid username or password" });
+//     }
+//     const isMatch = await branch.comparePassword(password);
+//     if (!isMatch) {
+//       return res.status(400).json({ error: "Invalid username or password" });
+//     }
+//     const schoolName = branch.schoolId.schoolName;
+//     const branchName = branch.branchName;
+//     const token = generateToken({
+//       id: branch._id,
+//       username: branch.username,
+//       role: "branch",
+//       schoolName: schoolName,
+//       branchName: branchName,
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Login successful",
+//       token,
+//       role: "branch",
+//       schoolName,
+//       branchName
+//     });
+//   } catch (error) {
+//     console.error("Error during login:", error);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// });
+
+
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
+    // Find the branch and populate schoolId field
     const branch = await Branch.findOne({ username }).populate('schoolId');
     if (!branch) {
       return res.status(400).json({ error: "Invalid username or password" });
     }
+
+    // Check if password matches
     const isMatch = await branch.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid username or password" });
     }
+
+    // Decrypt the stored password to include in the response
+    const decryptedPassword = decrypt(branch.password);
+
+    // Gather school and branch information
     const schoolName = branch.schoolId.schoolName;
     const branchName = branch.branchName;
+
+    // Generate the token
     const token = generateToken({
       id: branch._id,
       username: branch.username,
@@ -44,19 +90,23 @@ router.post("/login", async (req, res) => {
       branchName: branchName,
     });
 
+    // Send the response with decrypted password, username, and other info
     res.status(200).json({
       success: true,
       message: "Login successful",
       token,
       role: "branch",
       schoolName,
-      branchName
+      branchName,
+      username: branch.username,
+      password: decryptedPassword
     });
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
+
 // GET METHOD
 router.get('/read-devices', branchAuthMiddleware, async (req, res) => {
   const { branchId } = req;
