@@ -58,7 +58,6 @@ const convertDate = (dateStr) => {
 //   }
 // });
 
-
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -106,6 +105,8 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
 
 // GET METHOD
 router.get('/read-devices', branchAuthMiddleware, async (req, res) => {
