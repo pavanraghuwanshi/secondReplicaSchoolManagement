@@ -300,7 +300,7 @@ io.on('connection', (socket) => {
   });
 
 
-  socket.on('disconnect', () => {
+socket.on('disconnect', () => {
     console.log('A user disconnected:', socket.id);
     onUserDisconnect(socket);
     clearInterval(singleDeviceInterval);
