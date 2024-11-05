@@ -1866,43 +1866,76 @@ router.put('/edit-school/:id', schoolAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.put('/edit-branch/:id', schoolAuthMiddleware, async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { branchName, email, schoolMobile, username, password } = req.body;
+
+//     // Find the branch by ID
+//     const existingBranch = await Branch.findById(id);
+//     if (!existingBranch) {
+//       return res.status(404).json({ error: 'Branch not found' });
+//     }
+
+//     // Check if the username is already taken by another branch
+//     const duplicateBranch = await Branch.findOne({
+//       _id: { $ne: id }, 
+//       username 
+//     });
+    
+//     if (duplicateBranch) {
+//       return res.status(400).json({ error: 'Username already exists. Please choose a different one.' });
+//     }
+
+//     // Update the branch details
+//     const updatedBranch = await Branch.findByIdAndUpdate(
+//       id,
+//       {
+//         branchName,
+//         email,
+//         schoolMobile,
+//         username,
+//         password
+//       },
+//       { new: true, runValidators: true }
+//     );
+
+//     if (!updatedBranch) {
+//       return res.status(404).json({ error: 'Branch not found' });
+//     }
+
+//     res.status(200).json({ branch: updatedBranch });
+//   } catch (error) {
+//     console.error('Error editing branch:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.put('/edit-branch/:id', schoolAuthMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { branchName, email, schoolMobile, username, password } = req.body;
 
-    // Find the branch by ID
+    // Check if the branch exists
     const existingBranch = await Branch.findById(id);
     if (!existingBranch) {
       return res.status(404).json({ error: 'Branch not found' });
     }
 
     // Check if the username is already taken by another branch
-    const duplicateBranch = await Branch.findOne({
+    const duplicateUsernameBranch = await Branch.findOne({
       _id: { $ne: id }, 
       username 
     });
-    
-    if (duplicateBranch) {
+    if (duplicateUsernameBranch) {
       return res.status(400).json({ error: 'Username already exists. Please choose a different one.' });
     }
 
-    // Update the branch details
-    const updatedBranch = await Branch.findByIdAndUpdate(
-      id,
-      {
-        branchName,
-        email,
-        schoolMobile,
-        username,
-        password
-      },
+    // Update the branch using `findOneAndUpdate`
+    const updatedBranch = await Branch.findOneAndUpdate(
+      { _id: id },
+      { branchName, email, schoolMobile, username, password },
       { new: true, runValidators: true }
     );
-
-    if (!updatedBranch) {
-      return res.status(404).json({ error: 'Branch not found' });
-    }
 
     res.status(200).json({ branch: updatedBranch });
   } catch (error) {

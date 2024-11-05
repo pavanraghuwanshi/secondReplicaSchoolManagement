@@ -294,7 +294,7 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     const schools = await School.find({})
       .populate({
         path: 'branches',
-        select: 'branchName _id username password email',
+        select: 'branchName _id username password email schoolMobile',
         populate: {
           path: 'devices',
           select: 'deviceId deviceName'
@@ -356,11 +356,6 @@ router.get('/getschools', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
-
-
 router.get('/read-devices', superadminMiddleware, async (req, res) => {
   try {
     // Fetch all schools
@@ -1909,12 +1904,56 @@ router.put('/edit-school/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// router.put('/edit-branch/:id', superadminMiddleware, async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { branchName, email, schoolMobile, username, password } = req.body;
+
+//     // Find the branch by ID
+//     const existingBranch = await Branch.findById(id);
+//     if (!existingBranch) {
+//       return res.status(404).json({ error: 'Branch not found' });
+//     }
+
+//     // Check if the username is already taken by another branch
+//     const duplicateUsernameBranch = await Branch.findOne({
+//       _id: { $ne: id }, 
+//       username 
+//     });
+    
+//     if (duplicateUsernameBranch) {
+//       return res.status(400).json({ error: 'Username already exists. Please choose a different one.' });
+//     }
+
+//     // Update the branch details
+//     const updatedBranch = await Branch.findByIdAndUpdate(
+//       id,
+//       {
+//         branchName,
+//         email,
+//         schoolMobile,
+//         username,
+//         password
+//       },
+//       { new: true, runValidators: true }
+//     );
+
+//     if (!updatedBranch) {
+//       return res.status(404).json({ error: 'Branch not found' });
+//     }
+
+//     res.status(200).json({ branch: updatedBranch });
+//   } catch (error) {
+//     console.error('Error editing branch:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.put('/edit-branch/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { branchName, email, schoolMobile, username, password } = req.body;
 
-    // Find the branch by ID
+    // Check if the branch exists
     const existingBranch = await Branch.findById(id);
     if (!existingBranch) {
       return res.status(404).json({ error: 'Branch not found' });
@@ -1925,27 +1964,16 @@ router.put('/edit-branch/:id', superadminMiddleware, async (req, res) => {
       _id: { $ne: id }, 
       username 
     });
-    
     if (duplicateUsernameBranch) {
       return res.status(400).json({ error: 'Username already exists. Please choose a different one.' });
     }
 
-    // Update the branch details
-    const updatedBranch = await Branch.findByIdAndUpdate(
-      id,
-      {
-        branchName,
-        email,
-        schoolMobile,
-        username,
-        password
-      },
+    // Update the branch using `findOneAndUpdate`
+    const updatedBranch = await Branch.findOneAndUpdate(
+      { _id: id },
+      { branchName, email, schoolMobile, username, password },
       { new: true, runValidators: true }
     );
-
-    if (!updatedBranch) {
-      return res.status(404).json({ error: 'Branch not found' });
-    }
 
     res.status(200).json({ branch: updatedBranch });
   } catch (error) {
@@ -2339,18 +2367,17 @@ router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
     const parents = await Parent.find({ branchId: branch._id });
 
     for (const parent of parents) {
-      // Delete children associated with each parent
+
       await Child.deleteMany({ parentId: parent._id });
     }
 
-    // Delete parents associated with the branch
     await Parent.deleteMany({ branchId: branch._id });
 
-    // Delete supervisors and drivers associated with the branch
+
     await Supervisor.deleteMany({ branchId: branch._id });
     await DriverCollection.deleteMany({ branchId: branch._id });
 
-    // Delete the branch itself using deleteOne()
+
     await Branch.deleteOne({ _id: id });
 
     res.status(200).json({ message: 'Branch and all related data deleted successfully' });

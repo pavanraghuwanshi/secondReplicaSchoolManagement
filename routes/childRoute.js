@@ -186,50 +186,6 @@ router.put('/update-fcm-token', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// router.post('/login', async (req, res) => {
-//   const { email, password } = req.body;
-
-//   try {
-//     // Find the parent by email
-//     const parent = await Parent.findOne({ email });
-
-//     // Check if parent exists
-//     if (!parent) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-
-//     // Compare provided password with stored hashed password
-//     const isMatch = await parent.comparePassword(password);
-
-//     // Check if password matches
-//     if (!isMatch) {
-//       return res.status(400).json({ error: "Invalid email or password" });
-//     }
-
-//     // Check if the registration status is approved
-//     if (parent.statusOfRegister !== 'approved') {
-//       return res.status(400).json({ error: "Account not approved yet" });
-//     }
-
-//     // Generate JWT token with parent ID, email, and schoolId
-//     const token = generateToken({
-//       id: parent._id,
-//       email: parent.email,
-//       schoolId: parent.schoolId,
-//       branchId: parent.branchId
-//     });
-
-//     // Send success response with token
-//     res.status(200).json({
-//       success: true,
-//       message: "Login successful",
-//       token: token
-//     });
-//   } catch (err) {
-//     console.error('Error during login:', err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// });
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -353,7 +309,7 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
         select: 'branchName schoolMobile', 
       },{
         path: 'schoolId',
-        select: 'schoolName' 
+        select: 'schoolName schoolMobile' 
       }]
     }).exec();
 
@@ -376,7 +332,7 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
       pickupPoint: child.pickupPoint,
       schoolId: child.schoolId._id,
       branchName: child.branchId?.branchName || "N/A",
-      schoolMobile: child.branchId?.schoolMobile || "N/A", 
+      schoolMobile: child.schoolId?.schoolMobile || child.branchId?.schoolMobile  || "N/A", 
       deviceName: child.deviceName,
       gender: child.gender,
       parentId: child.parentId,
@@ -390,6 +346,8 @@ router.get('/getchilddata', jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 router.get('/get-parent-data', jwtAuthMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
