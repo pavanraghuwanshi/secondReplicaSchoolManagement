@@ -2425,4 +2425,3 @@ router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
 
 
 module.exports = router;
-
