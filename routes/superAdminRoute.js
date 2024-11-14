@@ -2353,32 +2353,68 @@ router.delete('/geofences/:id', async (req, res) => {
     res.status(500).json({ message: 'Error deleting geofence', error });
   }
 });
+
+
+// router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
+//   try {
+//     const { id } = req.params; // Corrected from branchId to id
+
+//     // Find the branch by ID
+//     const branch = await Branch.findById(id); // Using id to find the branch
+//     if (!branch) {
+//       return res.status(404).json({ error: 'Branch not found' });
+//     }
+
+//     // Delete all related data
+//     const parents = await Parent.find({ branchId: branch._id });
+
+//     for (const parent of parents) {
+
+//       await Child.deleteMany({ parentId: parent._id });
+//     }
+
+//     await Parent.deleteMany({ branchId: branch._id });
+
+
+//     await Supervisor.deleteMany({ branchId: branch._id });
+//     await DriverCollection.deleteMany({ branchId: branch._id });
+
+
+//     await Branch.deleteOne({ _id: id });
+
+//     res.status(200).json({ message: 'Branch and all related data deleted successfully' });
+//   } catch (error) {
+//     console.error('Error during branch deletion:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
+
 router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
   try {
-    const { id } = req.params; // Corrected from branchId to id
+    const { id } = req.params; // branch ID to delete
 
     // Find the branch by ID
-    const branch = await Branch.findById(id); // Using id to find the branch
+    const branch = await Branch.findById(id);
     if (!branch) {
       return res.status(404).json({ error: 'Branch not found' });
     }
 
     // Delete all related data
     const parents = await Parent.find({ branchId: branch._id });
-
     for (const parent of parents) {
-
       await Child.deleteMany({ parentId: parent._id });
     }
-
     await Parent.deleteMany({ branchId: branch._id });
-
-
     await Supervisor.deleteMany({ branchId: branch._id });
     await DriverCollection.deleteMany({ branchId: branch._id });
-
-
     await Branch.deleteOne({ _id: id });
+
+    // Remove branch ID from the branches array in the school document
+    await School.updateOne(
+      { branches: id },
+      { $pull: { branches: id } }
+    );
 
     res.status(200).json({ message: 'Branch and all related data deleted successfully' });
   } catch (error) {
