@@ -16,6 +16,10 @@ const jwt = require("jsonwebtoken");
 const Geofencing = require("../models/geofence");
 const Device = require('../models/device');
 const { sendNotificationToParent } = require('../utils/notificationsUtils'); 
+const { authenticateBranchGroupUser } = require('../middleware/authmiddleware');
+
+const BranchGroup = require('../models/branchgroup.model');
+const moment = require('moment'); 
 
 
 const convertDate = (dateStr) => {
@@ -2354,42 +2358,6 @@ router.delete('/geofences/:id', async (req, res) => {
   }
 });
 
-
-// router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
-//   try {
-//     const { id } = req.params; // Corrected from branchId to id
-
-//     // Find the branch by ID
-//     const branch = await Branch.findById(id); // Using id to find the branch
-//     if (!branch) {
-//       return res.status(404).json({ error: 'Branch not found' });
-//     }
-
-//     // Delete all related data
-//     const parents = await Parent.find({ branchId: branch._id });
-
-//     for (const parent of parents) {
-
-//       await Child.deleteMany({ parentId: parent._id });
-//     }
-
-//     await Parent.deleteMany({ branchId: branch._id });
-
-
-//     await Supervisor.deleteMany({ branchId: branch._id });
-//     await DriverCollection.deleteMany({ branchId: branch._id });
-
-
-//     await Branch.deleteOne({ _id: id });
-
-//     res.status(200).json({ message: 'Branch and all related data deleted successfully' });
-//   } catch (error) {
-//     console.error('Error during branch deletion:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-
-
 router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
   try {
     const { id } = req.params; // branch ID to delete
@@ -2422,6 +2390,194 @@ router.delete('/delete-branch/:id', superadminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+              //              new code start from here
+
+              // User CRUD for SuperAdmin
+
+router.post("/branchgroup",superadminMiddleware, async (req, res) => {
+  try {
+      const { username, password, schoolName, branchName,phoneNo } = req.body;
+
+      if (!username || !password) {
+          return res.status(400).json({ message: "Username and Password fields are required" });
+      }
+
+    const existGroupbranches = await BranchGroup.findOne({username})
+
+      if(!existGroupbranches){
+      const branchGroup = new BranchGroup({
+          username,
+          password,
+          school:schoolName,
+          branches:branchName,
+          phoneNo
+      });
+      
+      await branchGroup.save();
+
+      res.status(201).json({
+          message: "Branch group created successfully",
+          branchGroup
+      });
+}
+else{
+return res.status(400).json({ message: "Username already exist" });
+
+}
+  } catch (error) {
+      console.error("Error creating branch group:", error);
+      res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/branchgroup", superadminMiddleware, async (req, res) => {
+
+  try {
+    const branchGroups = await BranchGroup.find()
+      .populate('school', 'schoolName') 
+      .populate('branches', 'branchName')
+
+    const transformedBranchGroups = branchGroups.map(branchGroup => {
+      let decryptedPassword = 'No password';
+      
+      try {
+        if (branchGroup.password) {
+          decryptedPassword = decrypt(branchGroup.password); 
+        }
+      } catch (decryptError) {
+        console.error(`Error decrypting password for BranchGroup ${branchGroup._id}:`, decryptError);
+        decryptedPassword = 'Error decrypting password';
+      }
+
+      const formattedCreatedAt = moment(branchGroup.createdAt).format('DD-MM-YYYY');
+      const formattedupdatedAt = moment(branchGroup.updatedAt).format('DD-MM-YYYY');
+
+      return {
+        ...branchGroup.toObject(), 
+        password: decryptedPassword, 
+        createdAt: formattedCreatedAt, 
+        updatedAt:formattedupdatedAt
+      };
+    });
+
+    res.status(200).json({
+      message: "Branch groups retrieved successfully",
+      branchGroups: transformedBranchGroups,
+    });
+
+  } catch (error) {
+    console.error("Error retrieving branch groups:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.put("/branchgroup/:id",superadminMiddleware, async (req, res) => {
+  try {
+      const { id } = req.params; 
+      const { username, password,phoneNo, schoolName, branchName} = req.body;
+
+      if (!id) {
+          return res.status(400).json({ message: "Id is required" });
+      }      
+      
+      const updatedBranchGroup = await BranchGroup.findByIdAndUpdate(
+          id,
+          { username, password,phoneNo, school:schoolName, branches:branchName },
+          { new: true, runValidators: true } 
+      );
+
+      if (!updatedBranchGroup) {
+          return res.status(404).json({ message: "Branch group not found" });
+      }
+
+      res.status(200).json({
+          message: "Branch group updated successfully",
+          branchGroup: updatedBranchGroup
+      });
+    
+  } catch (error) {
+      console.error("Error updating branch group:", error);
+      res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.delete("/branchgroup/:id",superadminMiddleware, async (req, res) => {
+  try {
+      const { id } = req.params;
+      const deletedBranchGroup = await BranchGroup.findByIdAndDelete(id);
+      if (!deletedBranchGroup) {
+          return res.status(404).json({ message: "Branch group not found" });
+      }
+      res.status(200).json({ message: "Branch group deleted successfully" });
+  } catch (error) {
+      console.error("Error deleting branch group:", error);
+      res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+          //        login controller for user
+router.post('/login/branchgroupuser',async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const schooluser = await BranchGroup.findOne({ username })
+    .populate("school","schoolName" )
+    .populate({
+      path: "branches",
+      select: "branchName",
+      populate: {
+        path: "devices", 
+        select: "deviceName",
+      }
+    });
+
+    if (!schooluser) {
+      return res.status(400).json({ error: "Invalid username or password" });
+    }
+    const isMatch = await schooluser.comparePassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid username or password" });
+    }
+    const token = generateToken({ id: schooluser._id, username: schooluser.username });
+    res.status(200).json({ success: true, message: "Login successful", token ,role: 'branchGroupUser',});
+  } catch (err) {
+    console.error("Error during login:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+//              get Branches group by user
+router.get("/branchgroupByuser",authenticateBranchGroupUser, async (req, res) => {
+
+  const userId = req.user.id;
+
+try {
+const branchGroups = await BranchGroup.findById(userId).select("-password -username -createdAt -updatedAt -__v")
+.populate("school","schoolName" )
+.populate({
+path: "branches",
+select: "branchName",
+populate: {
+  path: "devices", 
+  select: "deviceName",
+}
+});
+
+res.status(200).json({
+message: "Branch groups retrieved successfully",
+branchGroups
+});
+
+} catch (error) {
+console.error("Error retrieving branch groups:", error);
+res.status(500).json({ message: "Server error" });
+}
+});
+
 
 
 module.exports = router;
