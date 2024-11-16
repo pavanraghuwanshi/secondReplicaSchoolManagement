@@ -2548,7 +2548,7 @@ router.get("/branchgroupByuser",authenticateBranchGroupUser, async (req, res) =>
   const userId = req.user.id;
 
 try {
-const branchGroups = await BranchGroup.findById(userId).select("-password -username -createdAt -updatedAt -__v")
+const branchGroups = await BranchGroup.findById(userId).select("-password -username -createdAt -updatedAt -__v -phoneNo")
 .populate("school","schoolName" )
 .populate({
 path: "branches",
