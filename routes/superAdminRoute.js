@@ -2524,15 +2524,7 @@ router.post('/login/branchgroupuser',async (req, res) => {
   const { username, password } = req.body;
   try {
     const schooluser = await BranchGroup.findOne({ username })
-    .populate("school","schoolName" )
-    .populate({
-      path: "branches",
-      select: "branchName",
-      populate: {
-        path: "devices", 
-        select: "deviceName",
-      }
-    });
+    
 
     if (!schooluser) {
       return res.status(400).json({ error: "Invalid username or password" });
@@ -2541,7 +2533,7 @@ router.post('/login/branchgroupuser',async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid username or password" });
     }
-    const token = generateToken({ id: schooluser._id, username: schooluser.username });
+    const token = generateToken({ id: schooluser._id, username: schooluser.username, branches:schooluser.branches });
     res.status(200).json({ success: true, message: "Login successful", token ,role: 'branchGroupUser',});
   } catch (err) {
     console.error("Error during login:", err);
@@ -2563,7 +2555,7 @@ path: "branches",
 select: "branchName",
 populate: {
   path: "devices", 
-  select: "deviceName",
+  select: "deviceName deviceId",
 }
 });
 

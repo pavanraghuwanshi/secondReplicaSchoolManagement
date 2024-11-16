@@ -317,6 +317,8 @@ const geofence = require('./routes/geofenceRoute');
 const superAdminRoutes = require('./routes/superAdminRoute')
 const branchRoute = require('./routes/branchRoute');
 const device = require("./models/device");
+const branchGroupUserRoute = require('./routes/branchgroupuserRoute');
+
 
 // Use routes
 app.use("/parent", childRoutes);
@@ -327,6 +329,8 @@ app.use('/geofence', geofence);
 app.use('/school', schoolRoutes);
 app.use("/superadmin", superAdminRoutes);
 app.use("/branch", branchRoute);
+app.use("/branchgroupuser", branchGroupUserRoute);
+
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
