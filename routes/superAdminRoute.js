@@ -2548,8 +2548,8 @@ router.get("/branchgroupByuser",authenticateBranchGroupUser, async (req, res) =>
   const userId = req.user.id;
 
 try {
-const branchGroups = await BranchGroup.findById(userId).select("-password -username -createdAt -updatedAt -__v -phoneNo")
-.populate("school","schoolName" )
+const branchGroups = await BranchGroup.findById(userId).select("-password -createdAt -updatedAt -__v -phoneNo -_id")
+.populate("school","schoolName -_id" )
 .populate({
 path: "branches",
 select: "branchName",
@@ -2559,10 +2559,17 @@ populate: {
 }
 });
 
-res.status(200).json({
-message: "Branch groups retrieved successfully",
-branchGroups
-});
+const transformedBranchGroups = branchGroups
+  ? {
+      ...branchGroups.toObject(), 
+      school: branchGroups.school?.schoolName || null, 
+    }
+  : null;
+
+
+res.status(200).json(
+transformedBranchGroups
+);
 
 } catch (error) {
 console.error("Error retrieving branch groups:", error);
