@@ -2523,7 +2523,7 @@ router.delete("/branchgroup/:id",superadminMiddleware, async (req, res) => {
 router.post('/login/branchgroupuser',async (req, res) => {
   const { username, password } = req.body;
   try {
-    const schooluser = await BranchGroup.findOne({ username })
+    const schooluser = await BranchGroup.findOne({ username }).populate('school','schoolName -_id')
     
 
     if (!schooluser) {
@@ -2533,8 +2533,20 @@ router.post('/login/branchgroupuser',async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid username or password" });
     }
+
+    let decryptedPassword = 'No password';
+
+    try {
+      if (schooluser.password) {
+        decryptedPassword = decrypt(schooluser.password); 
+      }
+    } catch (decryptError) {
+      console.error(`Error decrypting password for BranchGroup ${schooluser._id}:`, decryptError);
+      decryptedPassword = 'Error decrypting password';
+    }
+
     const token = generateToken({ id: schooluser._id, username: schooluser.username, branches:schooluser.branches });
-    res.status(200).json({ success: true, message: "Login successful", token ,role: 'branchGroupUser',});
+    res.status(200).json({ success: true, message: "Login successful",userName: schooluser.username,password: decryptedPassword,schoolName:schooluser.school.schoolName, token ,role: 'branchGroupUser',});
   } catch (err) {
     console.error("Error during login:", err);
     res.status(500).json({ error: "Server error" });
