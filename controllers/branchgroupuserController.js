@@ -4,6 +4,9 @@ const School = require("../models/school");
 const Branch = require('../models/branch');
 const Attendance = require("../models/attendence");
 const Child = require("../models/child");
+const Geofencing = require("../models/geofence");
+const branch = require("../models/branch");
+const Request = require("../models/request");
 
 
 
@@ -99,7 +102,7 @@ exports.getChildByBranchGroup = async (req, res) => {
 
           const branches = req.user.branches          
           
-          const childData = await child.find({ branchId: branches })
+          const childData = await Child.find({ branchId: branches })
           .populate("schoolId","schoolName" )
           .populate("parentId","parentName" )
           .populate("branchId","branchName" );
@@ -112,7 +115,7 @@ exports.getChildByBranchGroup = async (req, res) => {
       
      } catch (error) {
 
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ error: 'Internal server error p' });
 
      }
    }
@@ -231,67 +234,298 @@ exports.updatechildByBranchgroup = async (req, res) => {
 };
 
 
-// exports.deleteChildByBranchgroup =  async (req, res) => {
-//   const { id } = req.params;
-//   // const { schoolId } = req;
+exports.deleteChildByBranchgroup =  async (req, res) => {
+  const { childId } = req.params;
+  // const { schoolId } = req;
 
-//   try {
+  try {
 
-//     const child = await Child.findById(id).lean();
-//     // if (!child) {
-//     //   return res.status(404).json({ error: 'Child not found or does not belong to this school' });
-//     // }
+    const child = await Child.findById(childId).lean();
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found' });
+    }
               
 
-//     let parentData = {};
-//     if (child.parentId) {
+    let parentData = {};
+    if (child.parentId) {
 
-//       const parent = await Parent.findOne({ _id: child.parentId }).lean();
-//       if (parent) {
-//         parentData = {
-//           parentName: parent.parentName,
-//           email: parent.email,
-//           phone: parent.phone,
-//           parentId: parent._id,
-//         };
+      const parent = await Parent.findOne({ _id: child.parentId }).lean();
+      if (parent) {
+        parentData = {
+          parentName: parent.parentName,
+          email: parent.email,
+          phone: parent.phone,
+          parentId: parent._id,
+        };
 
-//         const childCount = await Child.countDocuments({ parentId: child.parentId, schoolId });
-//         if (childCount === 1) {
-//           await Parent.findByIdAndDelete(child.parentId);
-//         }
-//       }
-//     }
+        const childCount = await Child.countDocuments({ parentId: child.parentId });
+        if (childCount === 1) {
+          await Parent.findByIdAndDelete(child.parentId);
+        }
+      }
+    }
 
-//     // Delete the child
-//     await Child.findByIdAndDelete(childId);
+    // Delete the child
+    await Child.findByIdAndDelete(childId);
 
-//     console.log('Deleted child data:', JSON.stringify(child, null, 2));
-//     if (parentData.parentId) {
-//       console.log('Associated parent data:', JSON.stringify(parentData, null, 2));
-//     }
+    console.log('Deleted child data:', JSON.stringify(child, null, 2));
+    if (parentData.parentId) {
+      console.log('Associated parent data:', JSON.stringify(parentData, null, 2));
+    }
 
-//     res.status(200).json({
-//       message: 'Child deleted successfully',
-//       child,
-//       parent: parentData,
-//     });
-//   } catch (error) {
-//     console.error('Error deleting child:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// };
-
-
+    res.status(200).json({
+      message: 'Child deleted successfully',
+      child,
+      parent: parentData,
+    });
+  } catch (error) {
+    console.error('Error deleting child:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 
 
+exports.Pendingrequests = async (req, res) => {
+  try {
+    const branches = req.user.branches; 
+
+    const requestsByBranches = await Promise.all(branches.map(async (branchId) => {
+      const branch = await Branch.findById(branchId).lean();
+      if (!branch) return null;
+
+      const branchName = branch.branchName;
+
+      const requests = await Request.find({
+        statusOfRequest: "pending",
+        branchId: branchId,
+      })
+        .populate({
+          path: "childId",
+          select: "childName class deviceId",
+        })
+        .populate("parentId", "parentName email phone")
+        .lean();
+
+      // const validRequests = requests.filter(
+      //   (request) => request.parentId && request.childId
+      // );
+
+      // const formattedRequests = validRequests.map((request) => {
+      //   const formattedRequest = {
+      //     requestId: request._id,
+      //     reason: request.reason,
+      //     class: request.childId.class,
+      //     statusOfRequest: request.statusOfRequest,
+      //     parentId: request.parentId._id,
+      //     parentName: request.parentId.parentName,
+      //     phone: request.parentId.phone,
+      //     email: request.parentId.email,
+      //     childId: request.childId._id,
+      //     childName: request.childId.childName,
+      //     requestType: request.requestType,
+      //     deviceId: request.childId.deviceId,
+      //     deviceName: request.childId.deviceName,
+      //     requestDate: request.requestDate
+      //       ? formatDateToDDMMYYYY(new Date(request.requestDate))
+      //       : null,
+      //     branchName: branchName,
+      //   };
+
+      //   if (request.requestType === "leave") {
+      //     formattedRequest.startDate = request.startDate
+      //       ? formatDateToDDMMYYYY(new Date(request.startDate))
+      //       : null;
+      //     formattedRequest.endDate = request.endDate
+      //       ? formatDateToDDMMYYYY(new Date(request.endDate))
+      //       : null;
+      //   } else if (request.requestType === "changeRoute") {
+      //     formattedRequest.newRoute = request.newRoute || null;
+      //   }
+
+      //   return formattedRequest;
+      // });
+
+      return {
+        branchId: branchId,
+        branchName: branchName,
+        requests
+      };
+    }));
+
+    const filteredBranches = requestsByBranches.filter(branch => branch !== null);
+
+    res.status(200).json({
+      data: filteredBranches,
+    });
+  } catch (error) {
+    console.error("Error fetching pending requests:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
 
 
+exports.Approverequests = async (req, res) => {
+  try {
+    const branches = req.user.branches; 
+
+    const requestsByBranches = await Promise.all(branches.map(async (branchId) => {
+      const branch = await Branch.findById(branchId).lean();
+      if (!branch) return null;
+
+      const branchName = branch.branchName;
+
+      const requests = await Request.find({
+        statusOfRequest: "Approve",
+        branchId: branchId,
+      })
+        .populate({
+          path: "childId",
+          select: "childName class deviceId",
+        })
+        .populate("parentId", "parentName email phone")
+        .lean();
+
+      // const validRequests = requests.filter(
+      //   (request) => request.parentId && request.childId
+      // );
+
+      // const formattedRequests = validRequests.map((request) => {
+      //   const formattedRequest = {
+      //     requestId: request._id,
+      //     reason: request.reason,
+      //     class: request.childId.class,
+      //     statusOfRequest: request.statusOfRequest,
+      //     parentId: request.parentId._id,
+      //     parentName: request.parentId.parentName,
+      //     phone: request.parentId.phone,
+      //     email: request.parentId.email,
+      //     childId: request.childId._id,
+      //     childName: request.childId.childName,
+      //     requestType: request.requestType,
+      //     deviceId: request.childId.deviceId,
+      //     deviceName: request.childId.deviceName,
+      //     requestDate: request.requestDate
+      //       ? formatDateToDDMMYYYY(new Date(request.requestDate))
+      //       : null,
+      //     branchName: branchName,
+      //   };
+
+      //   if (request.requestType === "leave") {
+      //     formattedRequest.startDate = request.startDate
+      //       ? formatDateToDDMMYYYY(new Date(request.startDate))
+      //       : null;
+      //     formattedRequest.endDate = request.endDate
+      //       ? formatDateToDDMMYYYY(new Date(request.endDate))
+      //       : null;
+      //   } else if (request.requestType === "changeRoute") {
+      //     formattedRequest.newRoute = request.newRoute || null;
+      //   }
+
+      //   return formattedRequest;
+      // });
+
+      return {
+        branchId: branchId,
+        branchName: branchName,
+        requests
+      };
+    }));
+
+    const filteredBranches = requestsByBranches.filter(branch => branch !== null);
+
+    res.status(200).json({
+      data: filteredBranches,
+    });
+  } catch (error) {
+    console.error("Error fetching pending requests:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
 
 
+exports.Deniedrequests = async (req, res) => {
+  try {
+    const branches = req.user.branches; 
 
+    const requestsByBranches = await Promise.all(branches.map(async (branchId) => {
+      const branch = await Branch.findById(branchId).lean();
+      if (!branch) return null;
 
+      const branchName = branch.branchName;
 
+      const requests = await Request.find({
+        statusOfRequest: "Denied",
+        branchId: branchId,
+      })
+        .populate({
+          path: "childId",
+          select: "childName class deviceId",
+        })
+        .populate("parentId", "parentName email phone")
+        .lean();
 
+      // const validRequests = requests.filter(
+      //   (request) => request.parentId && request.childId
+      // );
+
+      // const formattedRequests = validRequests.map((request) => {
+      //   const formattedRequest = {
+      //     requestId: request._id,
+      //     reason: request.reason,
+      //     class: request.childId.class,
+      //     statusOfRequest: request.statusOfRequest,
+      //     parentId: request.parentId._id,
+      //     parentName: request.parentId.parentName,
+      //     phone: request.parentId.phone,
+      //     email: request.parentId.email,
+      //     childId: request.childId._id,
+      //     childName: request.childId.childName,
+      //     requestType: request.requestType,
+      //     deviceId: request.childId.deviceId,
+      //     deviceName: request.childId.deviceName,
+      //     requestDate: request.requestDate
+      //       ? formatDateToDDMMYYYY(new Date(request.requestDate))
+      //       : null,
+      //     branchName: branchName,
+      //   };
+
+      //   if (request.requestType === "leave") {
+      //     formattedRequest.startDate = request.startDate
+      //       ? formatDateToDDMMYYYY(new Date(request.startDate))
+      //       : null;
+      //     formattedRequest.endDate = request.endDate
+      //       ? formatDateToDDMMYYYY(new Date(request.endDate))
+      //       : null;
+      //   } else if (request.requestType === "changeRoute") {
+      //     formattedRequest.newRoute = request.newRoute || null;
+      //   }
+
+      //   return formattedRequest;
+      // });
+
+      return {
+        branchId: branchId,
+        branchName: branchName,
+        requests
+      };
+    }));
+
+    const filteredBranches = requestsByBranches.filter(branch => branch !== null);
+
+    res.status(200).json({
+      data: filteredBranches,
+    });
+  } catch (error) {
+    console.error("Error fetching pending requests:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
 
 
 
