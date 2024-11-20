@@ -3,7 +3,7 @@ const router = express.Router();
 
 
 const { authenticateBranchGroupUser } = require('../middleware/authmiddleware');
-const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests } = require('../controllers/branchgroupuserController');
+const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver } = require('../controllers/branchgroupuserController');
 
 
 
@@ -34,6 +34,23 @@ router.delete("/deletechildbybranchgroup/:childId", authenticateBranchGroupUser,
 router.get("/pendingrequests",authenticateBranchGroupUser,Pendingrequests);
 router.get("/approverequests",authenticateBranchGroupUser,Approverequests);
 router.get("/deniedrequests",authenticateBranchGroupUser,Deniedrequests);
+router.get("/getdriverdata",authenticateBranchGroupUser,getDriverData);
+
+
+
+
+router.put("/updatedriverdata/:id",authenticateBranchGroupUser,updateDriver);
+
+
+
+
+router.delete("/updatedriverdata/:id",authenticateBranchGroupUser,deletedriver);
+
+
+
+
+
+
 
 
 
