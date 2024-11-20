@@ -8,6 +8,8 @@ const Geofencing = require("../models/geofence");
 const branch = require("../models/branch");
 const Request = require("../models/request");
 const DriverCollection = require("../models/driver");
+const Device = require('../models/device');
+
 const { default: mongoose } = require("mongoose");
 
 
@@ -612,6 +614,84 @@ exports.deletedriver = async (req, res) => {
 
 
 
+exports.AddDevices = async (req, res) => {
+  try {
+    const { deviceId, deviceName, schoolName, branchName, ImeiNo} = req.body;
+    if (!deviceId || !deviceName || !schoolName || !branchName || !ImeiNo) {
+      return res.status(400).json({ message: 'All fields (deviceId, deviceName, schoolName, branchName,ImeiNo) are required' });
+    }
+    const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+    if (!school) {
+      return res.status(404).json({ message: 'School not found' });
+    }
+    const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+    if (!branch) {
+      return res.status(404).json({ message: 'Branch not found in the specified school' });
+    }
+    const existingDevice = await Device.findOne({ deviceId });
+    const existingDeviceImeiNo = await Device.findOne({ ImeiNo });
+
+    if (existingDevice || existingDeviceImeiNo) {
+      return res.status(400).json({ message: 'Device with this ID & ImeiNo already exists' });
+    }
+    const newDevice = new Device({
+      deviceId,
+      deviceName,
+      schoolId: school._id, 
+      branchId: branch._id,
+      ImeiNo,  
+    });
+    await newDevice.save();
+    branch.devices.push(newDevice._id);
+    await branch.save();
+    res.status(201).json({ message: 'Device created successfully', device: newDevice });
+  } catch (error) {
+    console.error('Error adding device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+exports.GetDevices = async (req, res) => {
+  const { schoolId } = req; 
+
+  try {
+    const branches = await Branch.find({ schoolId }).lean();
+
+    const branchesMap = {};
+
+    for (const branch of branches) {
+      const branchId = branch._id;
+
+      const devices = await Device.find({ schoolId: schoolId, branchId: branchId }).lean();
+
+      const formattedDevices = devices.map((device) => ({
+        deviceId: device.deviceId,
+        actualDeviceId: device._id, 
+        deviceName: device.deviceName,
+      }));
+
+      branchesMap[branchId] = {
+        branchId: branchId,
+        branchName: branch.branchName,
+        devices: formattedDevices,
+      };
+    }
+
+    const branchesArray = Object.values(branchesMap);
+
+    const responseData = {
+      schoolId: schoolId,
+      schoolName: branches.length > 0 ? branches[0].schoolId.schoolName : 'N/A',
+      branches: branchesArray,
+    };
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error('Error fetching devices by school:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 
 
 
