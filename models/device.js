@@ -5,6 +5,11 @@ const deviceSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  ImeiNo: {
+    type: String,
+    // required: true,
+    unique:true
+  },
   deviceName: {
     type: String,
     required: true
