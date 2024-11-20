@@ -652,49 +652,6 @@ exports.AddDevices = async (req, res) => {
 };
 
 
-exports.GetDevices = async (req, res) => {
-  const { schoolId } = req; 
-
-  try {
-    const branches = await Branch.find({ schoolId }).lean();
-
-    const branchesMap = {};
-
-    for (const branch of branches) {
-      const branchId = branch._id;
-
-      const devices = await Device.find({ schoolId: schoolId, branchId: branchId }).lean();
-
-      const formattedDevices = devices.map((device) => ({
-        deviceId: device.deviceId,
-        actualDeviceId: device._id, 
-        deviceName: device.deviceName,
-      }));
-
-      branchesMap[branchId] = {
-        branchId: branchId,
-        branchName: branch.branchName,
-        devices: formattedDevices,
-      };
-    }
-
-    const branchesArray = Object.values(branchesMap);
-
-    const responseData = {
-      schoolId: schoolId,
-      schoolName: branches.length > 0 ? branches[0].schoolId.schoolName : 'N/A',
-      branches: branchesArray,
-    };
-
-    res.status(200).json(responseData);
-  } catch (error) {
-    console.error('Error fetching devices by school:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-
-
 
 
 
