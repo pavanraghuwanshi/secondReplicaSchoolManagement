@@ -7,6 +7,9 @@ const Child = require("../models/child");
 const Geofencing = require("../models/geofence");
 const branch = require("../models/branch");
 const Request = require("../models/request");
+const Supervisor = require("../models/supervisor");
+const { decrypt } = require("../models/cryptoUtils");
+const { formatDateToDDMMYYYY } = require("../utils/dateUtils");
 
 
 
@@ -621,5 +624,95 @@ exports.presentchildrenByBranchgroup = async (req, res) => {
   } catch (error) {
     console.error("Error fetching present pickup data:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+
+
+exports.readSuperviserByBranchGroupUser = async (req, res) => {
+  const branches = req.user.branches    
+  // console.log(branches)      
+  
+
+  try {
+    const supervisors = await Supervisor.find({ branchId:branches })
+      .populate("branchId", "branchName")
+      .populate("schoolId", "schoolName")
+      .lean();
+      // console.log(supervisors)
+    const supervisorData = supervisors.map((supervisor) => {
+      try {
+        // console.log(
+        //   `Decrypting password for supervisor: ${supervisor.supervisorName}, encryptedPassword: ${supervisor.password}`
+        // );
+        const decryptedPassword = decrypt(supervisor.password);
+        return {
+          id : supervisor._id,
+          supervisorName: supervisor.supervisorName,
+          address: supervisor.address,
+          phone_no: supervisor.phone_no,
+          email: supervisor.email,
+          deviceId: supervisor.deviceId,
+          password: decryptedPassword,
+          statusOfRegister:supervisor.statusOfRegister,
+          deviceName:supervisor.deviceName,
+          registrationDate: supervisor.registrationDate,
+          formattedRegistrationDate: formatDateToDDMMYYYY(
+            new Date(supervisor.registrationDate)
+          ),
+          branchName: supervisor.branchId.branchName, 
+          schoolName: supervisor.schoolId.schoolName, 
+        };
+      } catch (decryptError) {
+        console.error(
+          `Error decrypting password for supervisor: ${supervisor.supervisorName}`,
+          decryptError
+        );
+        return null;
+      }
+    }).filter((supervisor) => supervisor !== null);
+
+    res.status(200).json({ supervisors: supervisorData });
+  } catch (error) {
+    console.error("Error fetching supervisors:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.updateSupervisorByBranchGroupUser = async (req, res) => {
+  try {
+    const { supervisorName, address, phone, email } = req.body;
+    const supervisorId = req.params.id;
+
+    // Update supervisor details, ensuring they belong to the correct school
+    const supervisor = await Supervisor.findOneAndUpdate(
+      { _id: supervisorId },
+      { supervisorName, address, phone, email },
+      { new: true }
+    );
+
+    if (!supervisor) {
+      return res.status(404).json({ error: "Supervisor not found or does not belong to this school" });
+    }
+
+    return res.status(200).json({ message: "Supervisor details updated successfully", supervisor });
+  } catch (error) {
+    console.error("Error updating supervisor details:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.deleteSupervisorByBranchGroupUser = async (req, res) => {
+  try {
+    const supervisorId = req.params.id;
+    const supervisor = await Supervisor.findByIdAndDelete(supervisorId);
+    if (!supervisor) {
+      return res.status(404).json({ error: 'Supervisor not found' });
+    }
+    return res.status(200).json({ message: 'Supervisor deleted successfully' });
+  } catch (error) {
+    console.error('Error during supervisor deletion:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };

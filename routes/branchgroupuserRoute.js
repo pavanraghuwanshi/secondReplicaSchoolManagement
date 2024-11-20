@@ -3,7 +3,7 @@ const router = express.Router();
 
 
 const { authenticateBranchGroupUser } = require('../middleware/authmiddleware');
-const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests } = require('../controllers/branchgroupuserController');
+const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser } = require('../controllers/branchgroupuserController');
 
 
 
@@ -14,16 +14,19 @@ router.post("/approveParentByBranchgroup/:parentId",authenticateBranchGroupUser,
 
 router.get("/read-children",authenticateBranchGroupUser,getChildByBranchGroup)
 router.get("/presentchildrenByBranchgroup",authenticateBranchGroupUser,presentchildrenByBranchgroup)
+router.get("/readSuperviserBybranchgroupuser",authenticateBranchGroupUser,readSuperviserByBranchGroupUser)
 
 
 
 
 router.put("/updatechildbybranchgroup/:id", authenticateBranchGroupUser,updatechildByBranchgroup )
+router.patch("/updateSupervisorByBranchGroupUser/:id", authenticateBranchGroupUser,updateSupervisorByBranchGroupUser )
 
 
 
 
 router.delete("/deletechildbybranchgroup/:childId", authenticateBranchGroupUser,deleteChildByBranchgroup )
+router.delete("/deleteSupervisorByBranchGroupUser/:id", authenticateBranchGroupUser,deleteSupervisorByBranchGroupUser )
 
 
 
