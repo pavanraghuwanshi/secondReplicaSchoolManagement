@@ -75,6 +75,8 @@
 //   });
 // });
 
+            console.log();
+            
 
 // twesgfbgfnh
 const express = require("express");
@@ -87,8 +89,10 @@ const { setIO, getLiveData } = require('./socket/socket'); // Import the socket 
 const socketIo = require('socket.io');
 const { onUserConnect, onUserDisconnect } = require("./utils/notificationWebSocket");
 const axios = require('axios');
+const { ab } = require("./utils/alertsforwebapp");
 // Initialize the database connection
 require("./db/db");
+
 
 // Middleware
 app.use(cors());
@@ -105,6 +109,7 @@ setIO(io);
 io.on('connection', (socket) => {
   let singleDeviceInterval;
   console.log('A user connected:', socket.id);
+  ab(io,socket)
 
   // Live Tracking Data
   socket.on('deviceId', (deviceId) => {
@@ -188,9 +193,7 @@ io.on('connection', (socket) => {
             };
             socket.emit("single device data", dataForSocket);
             console.log("single device data");
-            // console.log(
-            //   "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS"
-            // );
+            
           }
         } catch (error) {
           console.error(
@@ -318,6 +321,7 @@ const superAdminRoutes = require('./routes/superAdminRoute')
 const branchRoute = require('./routes/branchRoute');
 const device = require("./models/device");
 const branchGroupUserRoute = require('./routes/branchgroupuserRoute');
+const getalert = require('./routes/reportsRoute');
 
 
 // Use routes
@@ -330,6 +334,7 @@ app.use('/school', schoolRoutes);
 app.use("/superadmin", superAdminRoutes);
 app.use("/branch", branchRoute);
 app.use("/branchgroupuser", branchGroupUserRoute);
+app.use("/", getalert);
 
 
 // Error Handling Middleware

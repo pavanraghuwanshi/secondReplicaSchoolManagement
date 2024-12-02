@@ -291,7 +291,7 @@ exports.deleteChildByBranchgroup =  async (req, res) => {
   }
 };
 
-              //   Leave Apis for branch group user
+              //   Leave Apis Stage pending/approve/denied for branch group user
 
 exports.Pendingrequests = async (req, res) => {
   try {
