@@ -222,7 +222,8 @@ router.post('/login', async (req, res) => {
       id: parent._id,
       email: parent.email,
       schoolId: parent.schoolId,
-      branchId: parent.branchId
+      branchId: parent.branchId,
+      role:"parent"
     });
 
     // Send success response with token and the fullAccess status

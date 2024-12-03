@@ -11,6 +11,9 @@ exports.createNotificationtypes = async(req,res)=>{
     try {
         const { 
             deviceId,
+            schoolId,
+            branchId,
+            deviceName,
             ignitionOn,
             ignitionOff,
             geofenceEnter,
@@ -35,6 +38,9 @@ exports.createNotificationtypes = async(req,res)=>{
             } else {
                 const newNotificationType = new notificationTypes({
                     deviceId: id,
+                    schoolId,
+                    branchId,
+                    deviceName,
                     ignitionOn,
                     ignitionOff,
                     geofenceEnter,
@@ -66,7 +72,21 @@ exports.createNotificationtypes = async(req,res)=>{
 
 
 
+exports.getNotificationTypes = async(req,res)=>{
 
+        try {
+
+            const getnotificationtypes = await notificationTypes.find();
+
+            if(getnotificationtypes){
+                return res.status(200).json({ getnotificationtypes,message: "Notification Types Fetches Successfully"});
+            }
+            
+        } catch (error) {
+            console.log("Internal server error",error);
+            
+        }
+}
 
 
 

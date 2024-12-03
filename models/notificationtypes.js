@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const notificationTypesSchema = new mongoose.Schema({
 
      deviceId:{  type: String,     required: true,},
+     schoolId:{   type: mongoose.Schema.Types.ObjectId,ref: 'School'},
+        branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+     deviceName:{  type: String,   default:null},
       ignitionOn:{  type: Boolean,default: false },
       ignitionOff:{  type: Boolean, default: false},
       geofenceEnter:{  type: Boolean,default: false },

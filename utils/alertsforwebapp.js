@@ -6,6 +6,8 @@ const Allalert = require('../models/notificationhistory');
 const notificationTypes = require('../models/notificationtypes');
 const jwt = require('jsonwebtoken');
 const branch = require('../models/branch');
+const School = require('../models/school');
+const { default: mongoose } = require('mongoose');
 
 const date = new Date();
 
@@ -35,10 +37,8 @@ let prevIgnitionstate = []
 let prevrequeststate = []
 let prevStudAttendence = []
 let globleAllAlert
-let loginUsersId;
 
 
-let globleDevicesBybranchId
 
 
 
@@ -207,10 +207,9 @@ const alertgeter = async () => {
 
                const allAlerts = [...geofenceAlertArr, ...ignitionAlertArr, ...requestAlertArr, ...StudAttendenceAlert]
 
-               // globleAllAlert =  allAlerts;
-               // console.log("allAlerts", allAlerts);
+               globleAllAlert =  allAlerts;
+               console.log("allAlerts", allAlerts);
 
-               // console.log(globleDevicesBybranchId)
 
 
                
@@ -225,9 +224,9 @@ const alertgeter = async () => {
                     }
                });
                
-               globleAllAlert =  matchedDeviceAlerts; 
+               // globleAllAlert =  matchedDeviceAlerts; 
 
-               console.log("allAlerts2", globleAllAlert);
+               // console.log("allAlerts2", globleAllAlert);
 
 
                if(allAlerts.length>0){
@@ -254,22 +253,87 @@ const alertgeter = async () => {
 alertgeter()
 setInterval(() => {
      alertgeter()
+
 }, 10000);
 
 
-const deviceByLoginusr = async()=>{
-     try {
-          const devicesBybranchId = await branch.findById(loginUsersId)
-                                                  .select("devices")
-                                                  .populate("devices", "deviceId -_id");
+const deviceByLoginusr = async(loginUsersId,role,socket)=>{
 
-                    globleDevicesBybranchId = devicesBybranchId                              
+     let globleDevicesBybranchId,clearLoginRoleWiseFilterInterval
+     socket.on("disconnect", (reason) => {
+          console.log(`User ${socket.id} disconnected. Reason: ${reason}`);
+          clearInterval(clearLoginRoleWiseFilterInterval);
+     });
+     try {
+          if(role && role=="branch"){
+
+               const devicesByLoginBranchId = await branch.findById(loginUsersId)
+                                                       .select("devices")
+                                                       .populate("devices", "deviceId -_id");
+     
+                         globleDevicesBybranchId = devicesByLoginBranchId     
+                         
+                         clearLoginRoleWiseFilterInterval = setInterval(() => {
+                         loginRoleWiseFilter(globleDevicesBybranchId);                        
+                    }, 10000);
+          }
+
+          if(role && role=="school"){
+               
+                              
+                const schools = await branch.find({ _id: { $in: loginUsersId } })
+                                             .populate('devices', 'deviceId ');
+                                             // i am working here
+
+               console.log("schools 11",schools);
+          }
+
+               
           
      } catch (error) {
           console.log("Internal server error",error);
           
      }
 }
+
+
+const loginRoleWiseFilter = (globleDevicesBybranchId)=>{
+
+          try {
+               // console.log("allAlerts2", globleAllAlert);
+               // console.log("@@",globleDevicesBybranchId)
+
+               if(globleDevicesBybranchId){
+
+                    const  getDevicesArray = globleDevicesBybranchId.devices
+     
+                    let globlyMatchedDevices = [];
+
+                    const globleAllAlert =[
+                         // { deviceId: '3301' },
+                         { deviceId: 3301, ignition: true },
+                         { deviceId: 3306, ignition: true },
+                         { deviceId: 2020, ignition: true },
+                         { deviceId: 2021, ignition: true },
+  
+                    ]
+     
+                    globleMatchedDevices = globleAllAlert.filter(alert => 
+                         getDevicesArray.some(device => Number(device.deviceId )=== alert.deviceId)
+                     );
+     
+                    console.log("HHHHHHHHH",globleMatchedDevices);
+               }
+
+               
+          } catch (error) {
+               console.log("Internal server error", error);
+               
+          }
+}
+
+
+
 
 
 
@@ -285,6 +349,8 @@ exports.ab = (io, socket) => {
 
      socket.on("authenticate", (data) => {
           const token = data.token;
+          let loginUsersId;
+          let role;
   
           if (!token) {
               console.log("Authentication error: No token provided");
@@ -298,14 +364,32 @@ exports.ab = (io, socket) => {
                   socket.emit("notification", { message: "Authentication error: Invalid token" });
                   return;
               }
+
+              role = decoded.role
+              if(role=="branch"){
+               loginUsersId = decoded.id              
+          }
+          if(role=="school"){
+               loginUsersId = decoded.branches    
+               console.log(",,,",role);
+           
+          }
+          if(role=="branchGroupUser"){
+
+               loginUsersId = decoded.branches               
+          }
+          if(role=="parent"){
+
+               loginUsersId = decoded.parent               
+          }
   
-              loginUsersId = decoded.id
-              console.log("User authenticated pavan :", loginUsersId);
+             
+          //     console.log("BranchIds For filtering :", loginUsersId);
   
               socket.emit("notification", { message: "Successfully authenticated!" });
           });
 
-          deviceByLoginusr()
+          deviceByLoginusr(loginUsersId,role,socket)
 
       });
 
