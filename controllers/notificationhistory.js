@@ -76,10 +76,11 @@ exports.getNotificationTypes = async(req,res)=>{
 
         try {
 
-            const getnotificationtypes = await notificationTypes.find();
+            const getnotificationtypes = await notificationTypes.find().populate("schoolId","schoolName -_id")
+                                                                        .populate("branchId","branchName -_id");
 
             if(getnotificationtypes){
-                return res.status(200).json({ getnotificationtypes,message: "Notification Types Fetches Successfully"});
+                return res.status(200).json({data: getnotificationtypes,message: "Notification Types Fetches Successfully"});
             }
             
         } catch (error) {
@@ -89,7 +90,45 @@ exports.getNotificationTypes = async(req,res)=>{
 }
 
 
+exports.updateNotificationTypes = async(req,res)=>{
 
+            const id = req.params.id;
+            const updateData = req.body;
+        try {
+
+            const updatenotificationtypes = await notificationTypes.findByIdAndUpdate(id, updateData, {
+                new: true, 
+                runValidators: true,
+              });            
+
+            if(!updatenotificationtypes){
+                return res.status(200).json({message: "Notification Types Not Found For Given Device"});
+            }
+            res.status(200).json({ message: "User updated successfully", data: updatenotificationtypes });
+
+            
+        } catch (error) {
+            console.log("Internal server error",error);
+        }
+}
+
+exports.deleteNotificationTypes = async(req,res)=>{
+
+            const id = req.params.id;
+        try {
+
+            const deletenotificationtypes = await notificationTypes.findByIdAndDelete(id);            
+
+            if(!deletenotificationtypes){
+                return res.status(400).json({message: "Notification Types Not Found For Given Id"});
+            }
+            res.status(200).json({ message: "User Deleted successfully"});
+
+            
+        } catch (error) {
+            console.log("Internal server error",error);
+        }
+}
 
 
 
