@@ -111,7 +111,7 @@ exports.getChildByBranchGroup = async (req, res) => {
           
           const childData = await Child.find({ branchId: branches })
           .populate("schoolId","schoolName" )
-          .populate("parentId","parentName" )
+          .populate("parentId","parentName email password" )
           .populate("branchId","branchName" );
           
 

@@ -4,13 +4,16 @@ const router = express.Router();
 const { getNotification, createNotificationtypes, getNotificationTypes, updateNotificationTypes, deleteNotificationTypes } = require('../controllers/notificationhistory');
 
 
+                    // Notification Types Crud 
 
-router.get("/notificationalerthistory",getNotification)
 router.get("/getnotificationtypes",getNotificationTypes)
 router.post("/createnotification",createNotificationtypes)
 router.put("/updatenotification/:id",updateNotificationTypes)
 router.delete("/deletenotification/:id",deleteNotificationTypes)
 
+                    // Notification History
+
+router.get("/notificationalerthistory",getNotification)
 
 
 module.exports = router;

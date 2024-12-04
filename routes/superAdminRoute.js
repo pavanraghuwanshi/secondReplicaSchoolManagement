@@ -2545,7 +2545,7 @@ router.post('/login/branchgroupuser',async (req, res) => {
       decryptedPassword = 'Error decrypting password';
     }
 
-    const token = generateToken({ id: schooluser._id, username: schooluser.username, branches:schooluser.branches,role: 'branchGroupUser' });
+    const token = generateToken({ id: schooluser._id, username: schooluser.username,schoolName:schooluser.school.schoolName, branches:schooluser.branches,role: 'branchGroupUser' });
     res.status(200).json({ success: true, message: "Login successful",userName: schooluser.username,password: decryptedPassword,schoolName:schooluser.school.schoolName, token ,role: 'branchGroupUser',});
   } catch (err) {
     console.error("Error during login:", err);

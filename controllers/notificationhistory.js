@@ -13,7 +13,6 @@ exports.createNotificationtypes = async(req,res)=>{
             deviceId,
             schoolId,
             branchId,
-            deviceName,
             ignitionOn,
             ignitionOff,
             geofenceEnter,
@@ -40,7 +39,6 @@ exports.createNotificationtypes = async(req,res)=>{
                     deviceId: id,
                     schoolId,
                     branchId,
-                    deviceName,
                     ignitionOn,
                     ignitionOff,
                     geofenceEnter,
@@ -66,10 +64,6 @@ exports.createNotificationtypes = async(req,res)=>{
     }
 
 };
-
-
-
-
 
 
 exports.getNotificationTypes = async(req,res)=>{
@@ -129,7 +123,6 @@ exports.deleteNotificationTypes = async(req,res)=>{
             console.log("Internal server error",error);
         }
 }
-
 
 
 

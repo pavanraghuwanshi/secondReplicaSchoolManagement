@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const branch = require('../models/branch');
 const School = require('../models/school');
 const { default: mongoose } = require('mongoose');
+const BranchGroup = require('../models/branchgroup.model');
 
 const date = new Date();
 
@@ -274,19 +275,29 @@ const deviceByLoginusr = async(loginUsersId,role,socket)=>{
                          globleDevicesBybranchId = devicesByLoginBranchId     
                          
                          clearLoginRoleWiseFilterInterval = setInterval(() => {
-                         loginRoleWiseFilter(globleDevicesBybranchId);                        
+                         BranchLoginRoleWiseFilter(globleDevicesBybranchId,socket);                        
                     }, 10000);
           }
 
           if(role && role=="school"){
                
                               
-                const schools = await branch.find({ _id: { $in: loginUsersId } })
-                                             .populate('devices', 'deviceId ');
-                                             // i am working here
+                const branches = await branch.find({ _id: { $in: loginUsersId } })
+                                             .populate('devices', 'deviceId -_id');
+                    
+               const allDeviceIdsOfSchool = branches.flatMap(branch => branch.devices.map(device => device.deviceId));
 
-               console.log("schools 11",schools);
+                         console.log("school",allDeviceIdsOfSchool);
+
+                         clearLoginRoleWiseFilterInterval = setInterval(() => {
+                              SchoolLoginRoleWiseFilter(allDeviceIdsOfSchool,socket);                        
+                         }, 10000);
           }
+          // if(role && role=="branchGroupUser"){
+
+          //      const branchGroupUser = await BranchGroup.find()
+
+          // }
 
                
           
@@ -297,34 +308,71 @@ const deviceByLoginusr = async(loginUsersId,role,socket)=>{
 }
 
 
-const loginRoleWiseFilter = (globleDevicesBybranchId)=>{
+const BranchLoginRoleWiseFilter = (globleDevices,socket)=>{
 
           try {
-               // console.log("allAlerts2", globleAllAlert);
-               // console.log("@@",globleDevicesBybranchId)
 
-               if(globleDevicesBybranchId){
+               if(globleDevices){
 
-                    const  getDevicesArray = globleDevicesBybranchId.devices
-     
-                    let globlyMatchedDevices = [];
-
-                    const globleAllAlert =[
-                         // { deviceId: '3301' },
-                         { deviceId: 3301, ignition: true },
-                         { deviceId: 3306, ignition: true },
-                         { deviceId: 2020, ignition: true },
-                         { deviceId: 2021, ignition: true },
-  
-                    ]
-     
-                    globleMatchedDevices = globleAllAlert.filter(alert => 
-                         getDevicesArray.some(device => Number(device.deviceId )=== alert.deviceId)
+                    const  getDevicesArray = globleDevices.devices                    
+          
+                   const globleMatchedDevices = globleAllAlert.filter(alert => 
+                         getDevicesArray.some(device => Number(device.deviceId )=== Number(alert.deviceId))
                      );
      
-                    console.log("HHHHHHHHH",globleMatchedDevices);
-               }
+                    console.log("branch notification",globleMatchedDevices);
 
+
+                         if(globleMatchedDevices?.length>0){
+                              socket.emit("allAlerts", globleMatchedDevices)
+                              
+                         }
+
+               }
+                        
+          } catch (error) {
+               console.log("Internal server error", error);
+               
+          }
+}
+
+const SchoolLoginRoleWiseFilter = (globleDevices,socket)=>{
+
+          try {
+
+               if(globleDevices){
+                    
+                    const globleMatchedDevices = globleAllAlert.filter(alert =>
+                         globleDevices.some(deviceId => Number(deviceId) === Number(alert.deviceId))
+                       );
+     
+                    console.log("PPPPPPPPP",globleMatchedDevices);
+
+
+                         if(globleMatchedDevices?.length>0){
+                              socket.emit("allAlerts", globleMatchedDevices)
+                              
+                         }
+          
+               }      
+          } catch (error) {
+               console.log("Internal server error", error);
+               
+          }
+}
+
+const BranchGroupUserLoginRoleWiseFilter = (globleDevices,socket)=>{
+
+          try {
+
+              
+               if(role=="branchGroupUser" && globleDevices){
+                    
+                    globleMatchedDevices = globleAllAlert.filter(alert =>
+                         globleDevices.some(deviceId => Number(deviceId) === Number(alert.deviceId))
+                       );
+               }
+              
                
           } catch (error) {
                console.log("Internal server error", error);
@@ -394,15 +442,15 @@ exports.ab = (io, socket) => {
       });
 
 
-     setInterval(() => {
+     // setInterval(() => {
 
-               if(globleAllAlert?.length>0){
-                    socket.emit("allAlerts", globleAllAlert)
-                    // console.log("globleAllAlert",globleAllAlert);
+     //           if(globleAllAlert?.length>0){
+     //                socket.emit("allAlerts", globleAllAlert)
+     //                // console.log("globleAllAlert",globleAllAlert);
                     
-               }
+     //           }
 
-     }, 10000);
+     // }, 10000);
 
      // deviceByLoginusr()
      
