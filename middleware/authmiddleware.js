@@ -15,7 +15,7 @@ const BranchGroupUser = require('../models/branchgroup.model')
 
     const branchGroupUser = await BranchGroupUser.findById(decoded.id);
     if (branchGroupUser) {
-      req.user = { id: decoded.id, branches: decoded.branches, role: 'branchGroupUser' };
+      req.user = { id: decoded.id,school:decoded.schoolName, branches: decoded.branches, role: 'branchGroupUser' };
       return next(); 
     }
 

@@ -3,13 +3,22 @@ const router = express.Router();
 
 
 const { authenticateBranchGroupUser } = require('../middleware/authmiddleware');
-const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser, getGeofence, deleteGeofence } = require('../controllers/branchgroupuserController');
+const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser, getGeofence, deleteGeofence, getDevices, updateDevice } = require('../controllers/branchgroupuserController');
 
 
 
 router.post("/registerparentbybranchgroup",authenticateBranchGroupUser,registerParentByBranchgroup)
 router.post("/approveParentByBranchgroup/:parentId",authenticateBranchGroupUser,approveParentByBranchgroup)
+
+
+
+               //    Device Api for Branch Group User
 router.post("/adddevicesbybranchgroupuser",authenticateBranchGroupUser,AddDevices)
+router.get("/getdevicebranchgroupuser",authenticateBranchGroupUser,getDevices)
+// router.put("/updateDevicebranchgroupuser/:id",authenticateBranchGroupUser,updateDevice)
+
+
+
 
 
 

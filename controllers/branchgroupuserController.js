@@ -628,6 +628,7 @@ exports.deletedriver = async (req, res) => {
 };
 
 
+                // Devices Api for Branch Group crud
 
 exports.AddDevices = async (req, res) => {
   try {
@@ -667,9 +668,117 @@ exports.AddDevices = async (req, res) => {
 };
 
 
+exports.getDevices = async (req, res) => {
+  try {
+
+    const schoolName =  req.user.school
+    const BranchIds =  req.user.branches
+    const schools = await School.find({schoolName}).lean();
+
+    const dataBySchool = await Promise.all(
+      schools.map(async (school) => {
+        const schoolId = school._id;
+        const schoolName = school.schoolName;
+
+        const branches = await Branch.find({_id: { $in: BranchIds } }).lean();
+
+        const devicesByBranch = await Promise.all(
+          branches.map(async (branch) => {
+            const branchId = branch._id;
+            const branchName = branch.branchName;
+
+            const devices = await Device.find({ schoolId: schoolId, branchId: branchId }).lean();
+
+            const rawDevices = devices.map((device) => ({
+              actualDeviceId: device._id, 
+              deviceId: device.deviceId,  
+              deviceName: device.deviceName, 
+              registrationDate: device.registrationDate,
+            }));
+
+            return {
+              branchId: branchId,
+              branchName: branchName,
+              devices: rawDevices,
+            };
+          })
+        );
+
+        return {
+          schoolId: schoolId,
+          schoolName: schoolName,
+          branches: devicesByBranch,
+        };
+      })
+    );
+
+    res.status(200).json({
+      data: dataBySchool,
+    });
+  } catch (error) {
+    console.error('Error fetching devices by school:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+// exports.updateDevice = async (req, res) => {
+//   try {
+//     const { actualDeviceId } = req.params;
+//     const { deviceId, deviceName, branchName, schoolName } = req.body;
+
+//     if ( !deviceName || (branchName && !schoolName)) {
+//       return res.status(400).json({ message: 'deviceId, deviceName, and optionally branchName and schoolName are required' });
+//     }
+
+//     const existingDevice = await Device.findOne({
+//       deviceId,
+//       _id: { $ne: actualDeviceId } 
+//     });
+
+//     // if (existingDevice) {
+//     //   return res.status(400).json({ message: 'Device with this deviceId already exists' });
+//     // }
+
+//     const device = await Device.findById(actualDeviceId);
+//     if (!device) {
+//       return res.status(404).json({ message: 'Device not found p' });
+//     }
+
+//     device.deviceId = deviceId;
+//     device.deviceName = deviceName;
+
+//     if (branchName && schoolName) {
+//       const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+//       if (!school) {
+//         return res.status(404).json({ message: 'School not found' });
+//       }
+
+//       const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+//       if (!branch) {
+//         return res.status(404).json({ message: 'Branch not found in the specified school' });
+//       }
+
+//       if (!branch.devices.includes(device._id)) {
+//         branch.devices.push(device._id);
+//         await branch.save();
+//       }
+//     }
+
+//     await device.save();
+
+//     res.status(200).json({ message: 'Device updated successfully', device });
+//   } catch (error) {
+//     console.error('Error updating device:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// };
 
         // geofence Apis for user
 
+
+
+        
 exports.getGeofence = async (req, res) => {
   const branches = req.user.branches;
 
@@ -678,7 +787,11 @@ exports.getGeofence = async (req, res) => {
       .select('deviceId branchId deviceName')
       .populate('branchId', 'branchName');
 
-    const deviceIds = devices.map((device) => device.deviceId);
+      console.log(devices,"pava");
+      
+      
+      const deviceIds = devices.map((device) => device.deviceId, device.deviceName);
+      console.log(deviceIds,"pava");
 
     const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });    
 
@@ -732,6 +845,11 @@ exports.deleteGeofence = async (req, res) => {
     res.status(500).json({ message: 'Error deleting geofence', error });
   }
 };
+
+
+
+
+
 
 
 exports.presentchildrenByBranchgroup = async (req, res) => {
