@@ -433,7 +433,6 @@ exports.ab = (io, socket) => {
           }
           if(role=="school"){
                loginUsersId = decoded.branches    
-               console.log(",,,",role);
            
           }
           if(role=="branchGroupUser"){
