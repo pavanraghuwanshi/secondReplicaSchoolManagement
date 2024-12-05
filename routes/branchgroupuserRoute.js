@@ -3,7 +3,7 @@ const router = express.Router();
 
 
 const { authenticateBranchGroupUser } = require('../middleware/authmiddleware');
-const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser } = require('../controllers/branchgroupuserController');
+const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser, getGeofence, deleteGeofence } = require('../controllers/branchgroupuserController');
 
 
 
@@ -34,24 +34,29 @@ router.delete("/deleteSupervisorByBranchGroupUser/:id", authenticateBranchGroupU
 
 
 
-//   pending request of leave
+                    //   pending request of leave
 router.get("/pendingrequests",authenticateBranchGroupUser,Pendingrequests);
 router.get("/approverequests",authenticateBranchGroupUser,Approverequests);
 router.get("/deniedrequests",authenticateBranchGroupUser,Deniedrequests);
+
+
+
+
+
+
+
+
+                    // Driver All crud
 router.get("/getdriverdata",authenticateBranchGroupUser,getDriverData);
-
-
-
-
 router.put("/updatedriverdata/:id",authenticateBranchGroupUser,updateDriver);
+router.delete("/deletedriverdata/:id",authenticateBranchGroupUser,deletedriver);
 
 
+                    // geofence all crud apis
 
-
-router.delete("/updatedriverdata/:id",authenticateBranchGroupUser,deletedriver);
-
-
-
+router.get("/getgeofence",authenticateBranchGroupUser,getGeofence);
+router.delete("/deletegeofence/:id",authenticateBranchGroupUser,deleteGeofence);
+   
 
 
 

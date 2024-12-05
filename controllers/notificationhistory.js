@@ -1,3 +1,4 @@
+const device = require("../models/device");
 const Allalert = require("../models/notificationhistory");
 const notificationTypes = require("../models/notificationtypes");
 
@@ -73,8 +74,26 @@ exports.getNotificationTypes = async(req,res)=>{
             const getnotificationtypes = await notificationTypes.find().populate("schoolId","schoolName -_id")
                                                                         .populate("branchId","branchName -_id");
 
+
+                
+                 const deviceIds = getnotificationtypes.map((device) => device.deviceId);
+                 
+                 const getDeviceNames = await device.find({ deviceId: { $in: deviceIds } })
+                                                    .select('deviceName').select('deviceId');
+                    
+
+                     const mergedData = getnotificationtypes.map((type) => {
+                        const matchingDevice = getDeviceNames.find((device) => device.deviceId=== type.deviceId);
+                        return {
+                            ...type._doc,
+                          deviceName: matchingDevice ? matchingDevice.deviceName : null,
+                        };
+                      });
+                      console.log(mergedData)
+                    
+
             if(getnotificationtypes){
-                return res.status(200).json({data: getnotificationtypes,message: "Notification Types Fetches Successfully"});
+                return res.status(200).json({data: mergedData,message: "Notification Types Fetches Successfully"});
             }
             
         } catch (error) {
@@ -108,11 +127,13 @@ exports.updateNotificationTypes = async(req,res)=>{
 
 exports.deleteNotificationTypes = async(req,res)=>{
 
-            const id = req.params.id;
-        try {
+    const ids = Array.isArray(req.query.ids) ? req.query.ids : [req.query.ids];
+    console.log(ids)
+            try {
 
-            const deletenotificationtypes = await notificationTypes.findByIdAndDelete(id);            
-
+            const deletenotificationtypes = await notificationTypes.deleteMany({
+                deviceId: { $in: ids } 
+              });
             if(!deletenotificationtypes){
                 return res.status(400).json({message: "Notification Types Not Found For Given Id"});
             }

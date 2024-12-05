@@ -9,7 +9,7 @@ const { getNotification, createNotificationtypes, getNotificationTypes, updateNo
 router.get("/getnotificationtypes",getNotificationTypes)
 router.post("/createnotification",createNotificationtypes)
 router.put("/updatenotification/:id",updateNotificationTypes)
-router.delete("/deletenotification/:id",deleteNotificationTypes)
+router.delete("/deletenotification",deleteNotificationTypes)
 
                     // Notification History
 

@@ -72,7 +72,7 @@ exports.registerParentByBranchgroup = async (req, res) => {
     await newParent.save();
 
     // Create new child linked to the school, branch, and parent
-    const newChild = new child({
+    const newChild = new Child({
       childName,
       class: childClass,
       rollno,
@@ -111,18 +111,30 @@ exports.getChildByBranchGroup = async (req, res) => {
           
           const childData = await Child.find({ branchId: branches })
           .populate("schoolId","schoolName" )
-          .populate("parentId","parentName email password" )
-          .populate("branchId","branchName" );
-          
+          .populate("parentId","parentName email password")
+          .populate("branchId","branchName" ) .lean();;
+
+          const updatedChildData = childData.map((child) => {
+            if (child.parentId && child.parentId.password) {
+                try {
+                    child.parentId.password = decrypt(child.parentId.password);
+                } catch (error) {
+                    console.error(`Error decrypting password for parent ${child.parentId._id}`, error);
+                    child.parentId.password = null;
+                }
+            }
+            return child;
+        });
 
         res.status(200).json({
           message: "Child data retrieved successfully",
-          childData
+          updatedChildData
         });
       
      } catch (error) {
 
       res.status(500).json({ error: 'Internal server error p' });
+      console.log(error)
 
      }
    }
@@ -656,20 +668,70 @@ exports.AddDevices = async (req, res) => {
 
 
 
+        // geofence Apis for user
+
+exports.getGeofence = async (req, res) => {
+  const branches = req.user.branches;
+
+  try {
+    const devices = await Device.find({ branchId: { $in: branches } })
+      .select('deviceId branchId deviceName')
+      .populate('branchId', 'branchName');
+
+    const deviceIds = devices.map((device) => device.deviceId);
+
+    const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });    
+
+    const groupedGeofences = devices.reduce((acc, device) => {
+      const branchId = device.branchId._id;
+      const branchName = device.branchId.branchName;
+
+      if (!acc[branchId]) {
+        acc[branchId] = {
+          branchId,
+          branchName,
+          geofences: [],
+        };
+      }
+
+      const branchGeofences = geofences.filter(
+        (geo) => geo.deviceId.toString() === device.deviceId.toString()
+      );
+
+      acc[branchId].geofences.push(...branchGeofences);
+
+      return acc;
+    }, {});
+
+    const result = Object.values(groupedGeofences);
+
+    res.status(200).json({ branches: result });
+  } catch (error) {
+    console.error('Error fetching geofences:', error);
+    res.status(500).json({ message: 'Error retrieving geofences', error });
+  }
+};
 
 
+exports.deleteGeofence = async (req, res) => {
+  const { id: geofenceId } = req.params;
 
+  try {
+    const deletedGeofence = await Geofencing.findByIdAndDelete(geofenceId);
 
+    if (!deletedGeofence) {
+      return res.status(404).json({ message: 'Geofence not found' });
+    }
 
-
-
-
-
-
-
-
-
-
+    res.status(200).json({
+      message: 'Geofence deleted successfully',
+      deletedGeofence: deletedGeofence 
+    });
+  } catch (error) {
+    console.error('Error deleting geofence:', error);
+    res.status(500).json({ message: 'Error deleting geofence', error });
+  }
+};
 
 
 exports.presentchildrenByBranchgroup = async (req, res) => {
