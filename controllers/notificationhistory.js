@@ -127,8 +127,13 @@ exports.updateNotificationTypes = async(req,res)=>{
 
 exports.deleteNotificationTypes = async(req,res)=>{
 
-    const ids = Array.isArray(req.query.ids) ? req.query.ids : [req.query.ids];
-    console.log(ids)
+    // const ids = Array.isArray(req.query.ids) ? req.query.ids : [req.query.ids];
+
+    let ids = req.query.ids;
+    if (ids) {
+        ids = ids.split(','); 
+    }
+
             try {
 
             const deletenotificationtypes = await notificationTypes.deleteMany({

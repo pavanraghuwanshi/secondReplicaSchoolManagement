@@ -209,7 +209,7 @@ const alertgeter = async () => {
                const allAlerts = [...geofenceAlertArr, ...ignitionAlertArr, ...requestAlertArr, ...StudAttendenceAlert]
 
                globleAllAlert =  allAlerts;
-               console.log("allAlerts", allAlerts);
+               // console.log("allAlerts", allAlerts);
 
 
 
@@ -265,6 +265,7 @@ const deviceByLoginusr = async(loginUsersId,role,socket)=>{
           console.log(`User ${socket.id} disconnected. Reason: ${reason}`);
           clearInterval(clearLoginRoleWiseFilterInterval);
      });
+
      try {
           if(role && role=="branch"){
 
@@ -287,19 +288,27 @@ const deviceByLoginusr = async(loginUsersId,role,socket)=>{
                     
                const allDeviceIdsOfSchool = branches.flatMap(branch => branch.devices.map(device => device.deviceId));
 
-                         console.log("school",allDeviceIdsOfSchool);
+                         // console.log("school",allDeviceIdsOfSchool);
 
                          clearLoginRoleWiseFilterInterval = setInterval(() => {
                               SchoolLoginRoleWiseFilter(allDeviceIdsOfSchool,socket);                        
                          }, 10000);
           }
-          // if(role && role=="branchGroupUser"){
 
-          //      const branchGroupUser = await BranchGroup.find()
-
-          // }
-
+          if(role && role=="branchGroupUser"){
                
+                              
+                const branches = await branch.find({ _id: { $in: loginUsersId } })
+                                             .populate('devices', 'deviceId -_id');
+                    
+               const allDeviceIdsOfBranchGroupUser = branches.flatMap(branch => branch.devices.map(device => device.deviceId));
+
+                         // console.log("allDeviceIdsOfBranchGroupUser",allDeviceIdsOfBranchGroupUser);
+
+                         clearLoginRoleWiseFilterInterval = setInterval(() => {
+                              BranchGroupUserLoginRoleWiseFilter(allDeviceIdsOfBranchGroupUser,socket);                        
+                         }, 10000);
+          }         
           
      } catch (error) {
           console.log("Internal server error",error);
@@ -320,7 +329,7 @@ const BranchLoginRoleWiseFilter = (globleDevices,socket)=>{
                          getDevicesArray.some(device => Number(device.deviceId )=== Number(alert.deviceId))
                      );
      
-                    console.log("branch notification",globleMatchedDevices);
+                    // console.log("branch notification",globleMatchedDevices);
 
 
                          if(globleMatchedDevices?.length>0){
@@ -346,7 +355,7 @@ const SchoolLoginRoleWiseFilter = (globleDevices,socket)=>{
                          globleDevices.some(deviceId => Number(deviceId) === Number(alert.deviceId))
                        );
      
-                    console.log("PPPPPPPPP",globleMatchedDevices);
+                    // console.log("school Notification",globleMatchedDevices);
 
 
                          if(globleMatchedDevices?.length>0){
@@ -363,21 +372,26 @@ const SchoolLoginRoleWiseFilter = (globleDevices,socket)=>{
 
 const BranchGroupUserLoginRoleWiseFilter = (globleDevices,socket)=>{
 
-          try {
+     try {
 
-              
-               if(role=="branchGroupUser" && globleDevices){
-                    
-                    globleMatchedDevices = globleAllAlert.filter(alert =>
-                         globleDevices.some(deviceId => Number(deviceId) === Number(alert.deviceId))
-                       );
-               }
-              
+          if(globleDevices){
                
-          } catch (error) {
-               console.log("Internal server error", error);
-               
-          }
+               const globleMatchedDevices = globleAllAlert.filter(alert =>
+                    globleDevices.some(deviceId => Number(deviceId) === Number(alert.deviceId))
+                  );
+
+               // console.log("Branch Group User Notification",globleMatchedDevices);
+
+                    if(globleMatchedDevices?.length>0){
+                         socket.emit("allAlerts", globleMatchedDevices)
+                         
+                    }
+     
+          }      
+     } catch (error) {
+          console.log("Internal server error", error);
+          
+     }
 }
 
 
