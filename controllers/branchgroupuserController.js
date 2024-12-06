@@ -252,7 +252,6 @@ exports.updatechildByBranchgroup = async (req, res) => {
   }
 };
 
-
 exports.deleteChildByBranchgroup =  async (req, res) => {
   const { childId } = req.params;
   // const { schoolId } = req;
@@ -385,7 +384,6 @@ exports.Pendingrequests = async (req, res) => {
   }
 };
 
-
 exports.Approverequests = async (req, res) => {
   try {
     const branches = req.user.branches; 
@@ -465,7 +463,6 @@ exports.Approverequests = async (req, res) => {
     });
   }
 };
-
 
 exports.Deniedrequests = async (req, res) => {
   try {
@@ -547,7 +544,7 @@ exports.Deniedrequests = async (req, res) => {
   }
 };
 
-                    // Driver Apis for branch group user
+                  // Driver Apis for branch group user
 
 exports.getDriverData = async (req, res) => {
   try {
@@ -588,7 +585,6 @@ exports.getDriverData = async (req, res) => {
   }
 };
 
-
 exports.updateDriver = async (req, res) => {
   try {
     const { driverName, address, driverMobile, email } = req.body;
@@ -613,7 +609,6 @@ exports.updateDriver = async (req, res) => {
   }
 };
 
-
 exports.deletedriver = async (req, res) => {
   try {
     const  {id} = req.params;
@@ -630,6 +625,7 @@ exports.deletedriver = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 
                 // Devices Api for Branch Group crud
@@ -670,7 +666,6 @@ exports.AddDevices = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-
 
 exports.getDevices = async (req, res) => {
   try {
@@ -724,7 +719,6 @@ exports.getDevices = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-
 
 exports.updateDevice = async (req, res) => {
   try {
@@ -786,7 +780,6 @@ exports.updateDevice = async (req, res) => {
 
               // geofence Apis for user
 
-     
 exports.getGeofence = async (req, res) => {
   const branches = req.user.branches;
 
@@ -833,8 +826,6 @@ exports.getGeofence = async (req, res) => {
   }
 };
 
-
-
 exports.deleteGeofence = async (req, res) => {
   const { id: geofenceId } = req.params;
 
@@ -855,7 +846,26 @@ exports.deleteGeofence = async (req, res) => {
   }
 };
 
+exports.updateGeofence =  async (req, res) => {
+  const { id } = req.params;
+  const { name ,area} = req.body;
 
+  try {
+    const updatedGeofence = await Geofencing.findByIdAndUpdate(
+      id,
+      { name,area }, 
+      { new: true, runValidators: true } 
+    );
+
+    if (!updatedGeofence) {
+      return res.status(404).json({ message: 'Geofence not found' });
+    }
+
+    res.status(200).json(updatedGeofence);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating geofence', error });
+  }
+};
 
 
 
@@ -949,7 +959,7 @@ exports.readSuperviserByBranchGroupUser = async (req, res) => {
         // );
         const decryptedPassword = decrypt(supervisor.password);
         return {
-          supervisorId : supervisor._id,
+          id : supervisor._id,
           supervisorName: supervisor.supervisorName,
           address: supervisor.address,
           phone_no: supervisor.phone_no,
@@ -980,6 +990,37 @@ exports.readSuperviserByBranchGroupUser = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
+exports.ApproveSupervisor =  async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+
+    const supervisor = await Supervisor.findById(id);
+    if (!supervisor) {
+      return res.status(404).json({ error: 'supervisor not found' });
+    }
+
+    if (action === 'approve') {
+      supervisor.statusOfRegister = 'approved';
+    } else if (action === 'reject') {
+      supervisor.statusOfRegister = 'rejected';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+    await supervisor.save();
+
+    res.status(200).json({ message: `Registration ${action}d successfully.` });
+  } catch (error) {
+    console.error('Error during registration status update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
+
 
 exports.updateSupervisorByBranchGroupUser = async (req, res) => {
   try {

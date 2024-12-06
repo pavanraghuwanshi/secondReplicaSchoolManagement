@@ -3,7 +3,7 @@ const router = express.Router();
 
 
 const { authenticateBranchGroupUser } = require('../middleware/authmiddleware');
-const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser, getGeofence, deleteGeofence, getDevices, updateDevice, updateGeofence } = require('../controllers/branchgroupuserController');
+const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser, getGeofence, deleteGeofence, getDevices, updateDevice, updateGeofence, ApproveSupervisor } = require('../controllers/branchgroupuserController');
 
 
 
@@ -37,6 +37,7 @@ router.patch("/updateSupervisorByBranchGroupUser/:id", authenticateBranchGroupUs
 
 router.delete("/deletechildbybranchgroup/:childId", authenticateBranchGroupUser,deleteChildByBranchgroup )
 router.delete("/deleteSupervisorByBranchGroupUser/:id", authenticateBranchGroupUser,deleteSupervisorByBranchGroupUser )
+router.post("/approvesupervisor/:id",authenticateBranchGroupUser,ApproveSupervisor);
 
 
 
@@ -62,9 +63,8 @@ router.delete("/deletedriverdata/:id",authenticateBranchGroupUser,deletedriver);
 
 
                     // geofence all crud apis
-
 router.get("/getgeofence",authenticateBranchGroupUser,getGeofence);
-// router.put("/updategeofence",authenticateBranchGroupUser,updateGeofence );
+router.put("/updategeofence/:id",authenticateBranchGroupUser,updateGeofence );
 router.delete("/deletegeofence/:id",authenticateBranchGroupUser,deleteGeofence);
    
 
