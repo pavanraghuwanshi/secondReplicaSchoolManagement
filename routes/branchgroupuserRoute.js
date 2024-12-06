@@ -3,7 +3,7 @@ const router = express.Router();
 
 
 const { authenticateBranchGroupUser } = require('../middleware/authmiddleware');
-const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser, getGeofence, deleteGeofence, getDevices, updateDevice } = require('../controllers/branchgroupuserController');
+const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser, getGeofence, deleteGeofence, getDevices, updateDevice, updateGeofence } = require('../controllers/branchgroupuserController');
 
 
 
@@ -15,7 +15,7 @@ router.post("/approveParentByBranchgroup/:parentId",authenticateBranchGroupUser,
                //    Device Api for Branch Group User
 router.post("/adddevicesbybranchgroupuser",authenticateBranchGroupUser,AddDevices)
 router.get("/getdevicebranchgroupuser",authenticateBranchGroupUser,getDevices)
-// router.put("/updateDevicebranchgroupuser/:id",authenticateBranchGroupUser,updateDevice)
+router.put("/updateDevicebranchgroupuser/:id",authenticateBranchGroupUser,updateDevice)
 
 
 
@@ -64,6 +64,7 @@ router.delete("/deletedriverdata/:id",authenticateBranchGroupUser,deletedriver);
                     // geofence all crud apis
 
 router.get("/getgeofence",authenticateBranchGroupUser,getGeofence);
+// router.put("/updategeofence",authenticateBranchGroupUser,updateGeofence );
 router.delete("/deletegeofence/:id",authenticateBranchGroupUser,deleteGeofence);
    
 

@@ -567,13 +567,16 @@ exports.getDriverData = async (req, res) => {
 
       driverName: driver.driverName,
       driverMobile: driver.driverMobile,
+      password:decrypt(driver.password),
       email: driver.email,
       address: driver.address,
+      statusOfRegister: driver.statusOfRegister,
       deviceId: driver.deviceId,
       deviceName: driver.deviceName,
       schoolName: driver.schoolId.schoolName, 
       branchName: driver.branchId ? driver.branchId.branchName : 'N/A', 
-      registrationDate: driver.registrationDate
+      formattedRegistrationDate: formatDateToDDMMYYYY(driver.registrationDate)
+
     }));
     
 
@@ -722,69 +725,73 @@ exports.getDevices = async (req, res) => {
 };
 
 
-// exports.updateDevice = async (req, res) => {
-//   try {
-//     const { actualDeviceId } = req.params;
-//     const { deviceId, deviceName, branchName, schoolName } = req.body;
+exports.updateDevice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deviceId, deviceName, branchName, schoolName } = req.body;
 
-//     if ( !deviceName || (branchName && !schoolName)) {
-//       return res.status(400).json({ message: 'deviceId, deviceName, and optionally branchName and schoolName are required' });
-//     }
+    if ( !deviceName || (branchName && !schoolName)) {
+      return res.status(400).json({ message: 'deviceId, deviceName, and optionally branchName and schoolName are required' });
+    }
 
-//     const existingDevice = await Device.findOne({
-//       deviceId,
-//       _id: { $ne: actualDeviceId } 
-//     });
+    const existingDevice = await Device.findOne({
+      deviceId,
+      _id: { $ne: id } 
+    });
 
-//     // if (existingDevice) {
-//     //   return res.status(400).json({ message: 'Device with this deviceId already exists' });
-//     // }
+    if (existingDevice) {
+      return res.status(400).json({ message: 'Device with this deviceId already exists' });
+    }
 
-//     const device = await Device.findById(actualDeviceId);
-//     if (!device) {
-//       return res.status(404).json({ message: 'Device not found p' });
-//     }
+    const device = await Device.findById(id);
+    console.log(device)
+    console.log(id)
 
-//     device.deviceId = deviceId;
-//     device.deviceName = deviceName;
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found p' });
+    }
 
-//     if (branchName && schoolName) {
-//       const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
-//       if (!school) {
-//         return res.status(404).json({ message: 'School not found' });
-//       }
+    device.deviceId = deviceId;
+    device.deviceName = deviceName;
 
-//       const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
-//       if (!branch) {
-//         return res.status(404).json({ message: 'Branch not found in the specified school' });
-//       }
+    if (branchName && schoolName) {
+      const school = await School.findOne({ schoolName: new RegExp(`^${schoolName.trim()}$`, 'i') }).populate('branches');
+      if (!school) {
+        return res.status(404).json({ message: 'School not found' });
+      }
 
-//       if (!branch.devices.includes(device._id)) {
-//         branch.devices.push(device._id);
-//         await branch.save();
-//       }
-//     }
+      const branch = school.branches.find(branch => branch.branchName.toLowerCase() === branchName.trim().toLowerCase());
+      if (!branch) {
+        return res.status(404).json({ message: 'Branch not found in the specified school' });
+      }
 
-//     await device.save();
+      if (!branch.devices.includes(device._id)) {
+        branch.devices.push(device._id);
+        await branch.save();
+      }
+    }
 
-//     res.status(200).json({ message: 'Device updated successfully', device });
-//   } catch (error) {
-//     console.error('Error updating device:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// };
+    await device.save();
 
-        // geofence Apis for user
+    res.status(200).json({ message: 'Device updated successfully', device });
+  } catch (error) {
+    console.error('Error updating device:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+    
 
 
+              // geofence Apis for user
 
-        
+     
 exports.getGeofence = async (req, res) => {
   const branches = req.user.branches;
 
   try {
     const devices = await Device.find({ branchId: { $in: branches } })
-      .select('deviceId branchId deviceName')
+      .select('deviceId branchId deviceName password')
       .populate('branchId', 'branchName');
 
       console.log(devices,"pava");
@@ -824,6 +831,7 @@ exports.getGeofence = async (req, res) => {
     res.status(500).json({ message: 'Error retrieving geofences', error });
   }
 };
+
 
 
 exports.deleteGeofence = async (req, res) => {

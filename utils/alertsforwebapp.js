@@ -414,6 +414,9 @@ exports.ab = (io, socket) => {
           let loginUsersId;
           let role;
   
+               console.log("token", token);
+               
+
           if (!token) {
               console.log("Authentication error: No token provided");
               socket.emit("notification", { message: "Authentication error: No token provided" });
