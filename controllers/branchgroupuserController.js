@@ -565,6 +565,7 @@ exports.getDriverData = async (req, res) => {
 
     const response =  drivers.map(driver =>({
 
+      id:driver._id,
       driverName: driver.driverName,
       driverMobile: driver.driverMobile,
       password:decrypt(driver.password),
@@ -948,7 +949,7 @@ exports.readSuperviserByBranchGroupUser = async (req, res) => {
         // );
         const decryptedPassword = decrypt(supervisor.password);
         return {
-          id : supervisor._id,
+          supervisorId : supervisor._id,
           supervisorName: supervisor.supervisorName,
           address: supervisor.address,
           phone_no: supervisor.phone_no,
