@@ -104,6 +104,113 @@ exports.registerParentByBranchgroup = async (req, res) => {
   }
 };
 
+exports.approveParentByBranchgroup = async (req, res) => {
+  try {
+    const { parentId } = req.params;
+    const { action } = req.body;
+    // const { schoolId } = req;
+
+    const parent = await Parent.findOne({ _id: parentId });
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found or does not belong to this user' });
+    }
+
+    if (action === 'approve') {
+      parent.statusOfRegister = 'approved';
+    } else if (action === 'reject') {
+      parent.statusOfRegister = 'rejected';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    await parent.save();
+
+    res.status(200).json({ message: `Registration ${action}d successfully.` });
+  } catch (error) {
+    console.error('Error during registration status update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+exports.getParentByBranchgroup =  async (req, res) => {
+  try {
+
+    const schoolName = req.user.school          
+
+    const schools = await School.find({schoolName}).lean();
+    
+    const branchGroupUserData = [];
+
+    await Promise.all(schools.map(async (school) => {
+      const schoolId = school._id;
+      const schoolName = school.schoolName;
+
+      const branches = await Branch.find({ schoolId }).lean();
+
+      const branchesData = [];
+
+      await Promise.all(branches.map(async (branch) => {
+        const branchId = branch._id;
+        const branchName = branch.branchName;
+
+        const parents = await Parent.find({ schoolId, branchId })
+          .populate('children', '_id childName registrationDate') 
+          .lean();
+
+        const transformedParents = await Promise.all(parents.map(async (parent) => {
+          let decryptedPassword;
+          try {
+            decryptedPassword = decrypt(parent.password); 
+          } catch (decryptError) {
+            console.error(`Error decrypting password for parent ${parent.parentName}`, decryptError);
+            decryptedPassword = null;
+          }
+
+          const transformedChildren = parent.children.map(child => ({
+            childId: child._id,
+            childName: child.childName,
+            registrationDate: formatDateToDDMMYYYY(new Date(child.registrationDate)),
+          }));
+
+          return {
+            parentId: parent._id,
+            parentName: parent.parentName,
+            email: parent.email,
+            phone: parent.phone,
+            password: decryptedPassword, 
+            registrationDate: formatDateToDDMMYYYY(new Date(parent.parentRegistrationDate)), 
+            statusOfRegister: parent.statusOfRegister, 
+            children: transformedChildren,
+          };
+        }));
+
+        branchesData.push({
+          branchId: branchId,
+          branchName: branchName,
+          parents: transformedParents
+        });
+      }));
+
+      branchGroupUserData.push({
+        schoolId: schoolId,
+        schoolName: schoolName,
+        branches: branchesData
+      });
+    }));
+
+    res.status(200).json({
+      data: branchGroupUserData
+    });
+  } catch (error) {
+    console.error('Error fetching all parents:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
+                  // Child and Parent Api for Branch Group user
+
 exports.getChildByBranchGroup = async (req, res) => {
      try {
 
@@ -138,34 +245,6 @@ exports.getChildByBranchGroup = async (req, res) => {
 
      }
    }
-
-exports.approveParentByBranchgroup = async (req, res) => {
-  try {
-    const { parentId } = req.params;
-    const { action } = req.body;
-    // const { schoolId } = req;
-
-    const parent = await Parent.findOne({ _id: parentId });
-    if (!parent) {
-      return res.status(404).json({ error: 'Parent not found or does not belong to this user' });
-    }
-
-    if (action === 'approve') {
-      parent.statusOfRegister = 'approved';
-    } else if (action === 'reject') {
-      parent.statusOfRegister = 'rejected';
-    } else {
-      return res.status(400).json({ error: 'Invalid action' });
-    }
-
-    await parent.save();
-
-    res.status(200).json({ message: `Registration ${action}d successfully.` });
-  } catch (error) {
-    console.error('Error during registration status update:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
 
 exports.updatechildByBranchgroup = async (req, res) => {
   const { id } = req.params;
@@ -301,6 +380,8 @@ exports.deleteChildByBranchgroup =  async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
 
               //   Leave Apis Stage pending/approve/denied for branch group user
 
@@ -626,6 +707,31 @@ exports.deletedriver = async (req, res) => {
   }
 };
 
+exports.ApproveDriver = async (req, res) => {
+  try {
+    const { driverId } = req.params;
+    const { action } = req.body;
+
+    const driver = await DriverCollection.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ error: 'driver not found' });
+    }
+
+    if (action === 'approve') {
+      driver.statusOfRegister = 'approved';
+    } else if (action === 'reject') {
+      driver.statusOfRegister = 'rejected';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+    await driver.save();
+
+    res.status(200).json({ message: `Registration ${action}d successfully.` });
+  } catch (error) {
+    console.error('Error during registration status update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 
 
                 // Devices Api for Branch Group crud
@@ -791,7 +897,7 @@ exports.getGeofence = async (req, res) => {
       console.log(devices,"pava");
       
       
-      const deviceIds = devices.map((device) => device.deviceId, device.deviceName);
+      const deviceIds = devices.map((device) => {device.deviceId, device.deviceName});
       console.log(deviceIds,"pava");
 
     const geofences = await Geofencing.find({ deviceId: { $in: deviceIds } });    
@@ -941,6 +1047,8 @@ exports.presentchildrenByBranchgroup = async (req, res) => {
 
 
 
+                      //  Supervisor All Api for branch group user
+
 exports.readSuperviserByBranchGroupUser = async (req, res) => {
   const branches = req.user.branches    
   // console.log(branches)      
@@ -991,7 +1099,6 @@ exports.readSuperviserByBranchGroupUser = async (req, res) => {
   }
 };
 
-
 exports.ApproveSupervisor =  async (req, res) => {
   try {
     const { id } = req.params;
@@ -1017,10 +1124,6 @@ exports.ApproveSupervisor =  async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-
-
-
-
 
 exports.updateSupervisorByBranchGroupUser = async (req, res) => {
   try {
