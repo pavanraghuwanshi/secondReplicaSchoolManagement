@@ -3,14 +3,16 @@ const router = express.Router();
 
 
 const { authenticateBranchGroupUser } = require('../middleware/authmiddleware');
-const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser, getGeofence, deleteGeofence, getDevices, updateDevice, updateGeofence, ApproveSupervisor, ApproveDriver, getParentByBranchgroup } = require('../controllers/branchgroupuserController');
+const { getChildByBranchGroup,registerParentByBranchgroup,approveParentByBranchgroup,presentchildrenByBranchgroup,updatechildByBranchgroup,deleteChildByBranchgroup, Pendingrequests, Approverequests, Deniedrequests,getDriverData, updateDriver, deletedriver, AddDevices, readSuperviserByBranchGroupUser, updateSupervisorByBranchGroupUser,deleteSupervisorByBranchGroupUser, getGeofence, deleteGeofence, getDevices, updateDevice, updateGeofence, ApproveSupervisor, ApproveDriver, getParentByBranchgroup, updateParentByBranchgroup, deleteParentByBranchgroup } = require('../controllers/branchgroupuserController');
 
 
 
                // parent Api for Branch Group User
 router.post("/registerparentbybranchgroup",authenticateBranchGroupUser,registerParentByBranchgroup)
 router.get("/getparentbybranchgroup",authenticateBranchGroupUser,getParentByBranchgroup)
-router.post("/approveParentByBranchgroup/:parentId",authenticateBranchGroupUser,approveParentByBranchgroup)
+router.put("/updateparentbybranchgroup/:id",authenticateBranchGroupUser,updateParentByBranchgroup)
+router.delete("/deleteparentbybranchgroup/:id",authenticateBranchGroupUser,deleteParentByBranchgroup)
+router.post("/approveParentByBranchgroup/:id",authenticateBranchGroupUser,approveParentByBranchgroup)
 
 
 

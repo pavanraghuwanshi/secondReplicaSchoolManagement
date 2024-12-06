@@ -18,7 +18,7 @@ const { formatDateToDDMMYYYY } = require("../utils/dateUtils");
 
 
 
-
+              //  Parent All Api For Branch Group User
 
 exports.registerParentByBranchgroup = async (req, res) => {
   try {
@@ -106,11 +106,11 @@ exports.registerParentByBranchgroup = async (req, res) => {
 
 exports.approveParentByBranchgroup = async (req, res) => {
   try {
-    const { parentId } = req.params;
+    const { id } = req.params;
     const { action } = req.body;
     // const { schoolId } = req;
 
-    const parent = await Parent.findOne({ _id: parentId });
+    const parent = await Parent.findOne({ _id: id });
     if (!parent) {
       return res.status(404).json({ error: 'Parent not found or does not belong to this user' });
     }
@@ -203,6 +203,58 @@ exports.getParentByBranchgroup =  async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching all parents:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+exports.updateParentByBranchgroup =  async (req, res) => {
+ 
+  const id = req.params.id;
+  const { parentName, email, password, phone } = req.body;
+
+  try {
+    const parent = await Parent.findOne({ _id: id });
+    
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found or does not belong to this school' });
+    }
+
+    if (parentName) parent.parentName = parentName;
+    if (email) parent.email = email;
+    if (phone) parent.phone = phone;
+    if (password) parent.password = password; 
+
+    await parent.save();
+    
+    res.status(200).json({
+      message: 'Parent updated successfully',
+      parent: {
+        ...parent.toObject(),
+      },
+    });
+  } catch (error) {
+    console.error('Error updating parent:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+exports.deleteParentByBranchgroup =  async (req, res) => {
+  
+  const id = req.params.id;
+
+  try {
+    const parent = await Parent.findOne({ _id: id }).lean();
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found or does not belong to this school' });
+    }
+
+    await Child.deleteMany({ _id: { $in: parent.children } });
+
+    await Parent.findByIdAndDelete(id);
+
+    res.status(200).json({ message: 'Parent and associated children deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting parent:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -709,10 +761,10 @@ exports.deletedriver = async (req, res) => {
 
 exports.ApproveDriver = async (req, res) => {
   try {
-    const { driverId } = req.params;
+    const { id } = req.params;
     const { action } = req.body;
 
-    const driver = await DriverCollection.findById(driverId);
+    const driver = await DriverCollection.findById(id);
     if (!driver) {
       return res.status(404).json({ error: 'driver not found' });
     }
