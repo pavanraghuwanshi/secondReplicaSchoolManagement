@@ -1028,6 +1028,7 @@ exports.updateGeofence =  async (req, res) => {
 
 
 
+                  //  present Absent Child By branch Group user 
 
 exports.presentchildrenByBranchgroup = async (req, res) => {
   try {
@@ -1095,6 +1096,76 @@ exports.presentchildrenByBranchgroup = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// exports.absentchildrenByBranchgroup = async (req, res) => {
+
+//   try {
+//     const schoolId = req.schoolId;
+
+//     const attendanceRecords = await Attendance.find({ pickup: false })
+//       .populate({
+//         path: "childId",
+//         match: { schoolId },
+//         populate: [
+//           { path: "parentId", select: "phone" },
+//           { path: "branchId", select: "branchName" },
+//           { path: "schoolId", select: "schoolName" }
+//         ]
+//       })
+//       .lean();
+
+//     const branchMap = {};
+
+//     attendanceRecords.forEach(record => {
+
+//       if (record.childId && record.childId.branchId) {
+//         const branchId = record.childId.branchId._id || 'unknown';
+
+//         if (!branchMap[branchId]) {
+//           branchMap[branchId] = {
+//             branchId: branchId,
+//             branchName: record.childId.branchId.branchName || "Branch not found",
+//             children: []
+//           };
+//         }
+
+//         const childData = {
+//           _id: record.childId._id,
+//           childName: record.childId.childName,
+//           class: record.childId.class,
+//           rollno: record.childId.rollno,
+//           section: record.childId.section,
+//           parentId: record.childId.parentId ? record.childId.parentId._id : null,
+//           phone: record.childId.parentId ? record.childId.parentId.phone : null,
+//           branchName: record.childId.branchId.branchName || "Branch not found",
+//           schoolName: record.childId.schoolId ? record.childId.schoolId.schoolName : "School not found",
+//           pickupStatus: record.pickup,
+//           pickupTime: record.pickupTime,
+//           deviceId: record.childId.deviceId,
+//           deviceName: record.childId.deviceName,
+//           pickupPoint: record.childId.pickupPoint,
+//           date: record.date
+//         };
+
+//         branchMap[branchId].children.push(childData);
+//       }
+//     });
+
+//     const branches = Object.values(branchMap);
+//     const school = await School.findById(schoolId).lean();
+
+//     const responseData = {
+//       schoolId: schoolId,
+//       schoolName: school ? school.schoolName : "School not found",
+//       branches: branches
+//     };
+
+//     res.status(200).json(responseData);
+//   } catch (error) {
+//     console.error("Error fetching absent children data:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 
 
 

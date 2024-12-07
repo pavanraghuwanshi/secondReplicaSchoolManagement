@@ -99,7 +99,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Define the port to use
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 
 // Socket Initialization
 const server = http.createServer(app);
